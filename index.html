@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nibo • Plataforma de Demandas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Poppins', sans-serif; }
+html, body, #root { height: 100%; background: #EFF4FB; }
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #B8CCEA; border-radius: 2px; }
+.nb-scrollnone::-webkit-scrollbar { display: none; }
+.nb-scrollnone { -ms-overflow-style: none; scrollbar-width: none; }
+input, select, textarea, button { font-family: 'Poppins', sans-serif; }
+select { appearance: none; -webkit-appearance: none; }
+button { cursor: pointer; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, createContext, useContext, useEffect, useRef, useCallback } = React;
+
+/* =========== DADOS =========== */
+const TEAM = [
+  { id: 'u1', name: 'Mariana Araújo',   initials: 'MA', area: 'Gestão',     isApprover: true  },
+  { id: 'u2', name: 'Clara Abrantes',   initials: 'CA', area: 'Social',     isApprover: false },
+  { id: 'u3', name: 'Millena Barros',   initials: 'MB', area: 'Design',     isApprover: false },
+  { id: 'u4', name: 'Roberta',          initials: 'RO', area: 'Social',     isApprover: false },
+  { id: 'u5', name: 'Mikaella',         initials: 'MK', area: 'Design',     isApprover: false },
+  { id: 'u6', name: 'Vivian',           initials: 'VI', area: 'Mídia Paga', isApprover: false },
+  { id: 'u7', name: 'Jéssica',          initials: 'JE', area: 'RevOps',     isApprover: false },
+  { id: 'u8', name: 'Cláudio',          initials: 'CL', area: 'RevOps',     isApprover: false },
+];
+
+const PIPELINES = {
+  Social:      [{ id:'soc-1', name:'Solicitado' },{ id:'soc-2', name:'Em Redação' },{ id:'soc-3', name:'Design de Arte', isDesign:true },{ id:'soc-4', name:'Aprovação', isApproval:true },{ id:'soc-5', name:'Publicado', isDone:true }],
+  Design:      [{ id:'des-1', name:'Solicitado' },{ id:'des-2', name:'Briefing' },{ id:'des-3', name:'Em Criação' },{ id:'des-4', name:'Aprovação', isApproval:true },{ id:'des-5', name:'Entregue', isDone:true }],
+  'Mídia Paga':[{ id:'mid-1', name:'Solicitado' },{ id:'mid-2', name:'Configuração' },{ id:'mid-3', name:'Em Veiculação' },{ id:'mid-4', name:'Aprovação', isApproval:true },{ id:'mid-5', name:'Encerrado', isDone:true }],
+  Produto:     [{ id:'pro-1', name:'Solicitado' },{ id:'pro-2', name:'Em Análise' },{ id:'pro-3', name:'Desenvolvimento' },{ id:'pro-4', name:'Homologação', isApproval:true },{ id:'pro-5', name:'Entregue', isDone:true }],
+  RevOps:      [{ id:'rev-1', name:'Solicitado' },{ id:'rev-2', name:'Em Análise' },{ id:'rev-3', name:'Implementação' },{ id:'rev-4', name:'Validação', isApproval:true },{ id:'rev-5', name:'Produção', isDone:true }],
+};
+
+const AUTO = {
+  Social: {
+    'soc-2':{ action:'Briefing de copy ativado — equipe Social notificada', next:'Design de Arte → @Millena Barros' },
+    'soc-3':{ action:'Ticket de arte criado para @Millena Barros', next:'Aprovação → @Mariana Araújo' },
+    'soc-4':{ action:'@Mariana Araújo notificada para revisão e aprovação', next:'Aprovado → Agendamento | Ajuste → volta para Design' },
+    'soc-5':{ action:'Post publicado + relatório de performance iniciado automaticamente', next:'Monitorar métricas por 7 dias' },
+  },
+  Design: {
+    'des-2':{ action:'Briefing registrado e equipe de Design notificada', next:'Em Criação → @Millena Barros ou @Mikaella' },
+    'des-3':{ action:'Arquivo iniciado no Canva — checklist de criação ativado', next:'Aprovação → @Mariana Araújo' },
+    'des-4':{ action:'Arte enviada para aprovação de @Mariana Araújo', next:'Aprovado → Entregue | Ajuste → volta para Em Criação' },
+    'des-5':{ action:'Arte entregue e arquivada no Drive do Nibo', next:'Encerrado' },
+  },
+  'Mídia Paga': {
+    'mid-2':{ action:'Setup de campanha iniciado no Meta Ads Manager', next:'Em Veiculação → aguardar aprovação Meta' },
+    'mid-3':{ action:'Campanha ativa — monitoramento automático ligado via Metabase', next:'Revisão de performance → @Vivian' },
+    'mid-4':{ action:'Relatório de performance gerado + aprovação de @Mariana Araújo', next:'Aprovado → Encerrado | Ajuste → otimização de criativos' },
+    'mid-5':{ action:'Campanha encerrada + relatório final arquivado no Drive', next:'Encerrado' },
+  },
+  Produto: {
+    'pro-2':{ action:'Análise de viabilidade iniciada com squad de Produto', next:'Desenvolvimento → @Roberta' },
+    'pro-3':{ action:'Card criado automaticamente no Azure DevOps', next:'Homologação → squad + @Mariana Araújo' },
+    'pro-4':{ action:'Ambiente de homologação configurado + roteiro de testes ativado', next:'Aprovado → Deploy | Ajuste → volta para Dev' },
+    'pro-5':{ action:'Feature em produção + comunicado automático enviado ao time no Slack', next:'Encerrado' },
+  },
+  RevOps: {
+    'rev-2':{ action:'Análise de processo iniciada — @Jéssica notificada', next:'Implementação → @Cláudio' },
+    'rev-3':{ action:'Automação configurada no n8n + testes de integração ativados', next:'Validação → @Mariana Araújo' },
+    'rev-4':{ action:'Relatório técnico gerado + aprovação de go-live solicitada', next:'Aprovado → Produção | Ajuste → revisão técnica' },
+    'rev-5':{ action:'Automação em produção + documentação publicada no Notion', next:'Monitorar por 30 dias' },
+  },
+};
+
+const AREA_CLR  = { Social:'#0072CE', Design:'#41B6E6', 'Mídia Paga':'#002D72', Produto:'#0E7490', RevOps:'#475569' };
+const AREA_TCLR = { Social:'#fff', Design:'#002D72', 'Mídia Paga':'#fff', Produto:'#fff', RevOps:'#fff' };
+
+const PRI_STL = {
+  Urgente:{ bg:'#FEF3C7', txt:'#92400E', bdr:'#FCD34D' },
+  Alta:   { bg:'#FEE2E2', txt:'#991B1B', bdr:'#FCA5A5' },
+  Média:  { bg:'#DBEAFE', txt:'#1E40AF', bdr:'#93C5FD' },
+  Baixa:  { bg:'#F1F5F9', txt:'#475569', bdr:'#CBD5E1' },
+};
+
+const tod = new Date();
+const dStr = (n) => { const d=new Date(tod); d.setDate(d.getDate()+n); return d.toISOString().split('T')[0]; };
+
+const INIT_DEMANDS = [
+  { id:'d1', code:'DEM-101', title:'Carousel BPO Financeiro na Prática', area:'Social', priority:'Alta', stageId:'soc-2', assignees:['CA','RO'], deadline:dStr(2), description:'Carousel para lançamento do curso BPO Financeiro com Barbara Maciel. Foco em contadores que já usam Nibo.', requester:'Clara Abrantes' },
+  { id:'d2', code:'DEM-102', title:'Banner Radar e-CAC — Reforma Tributária', area:'Design', priority:'Urgente', stageId:'des-3', assignees:['MB'], deadline:dStr(0), description:'Banner destacando a funcionalidade do Radar e-CAC no contexto da Reforma Tributária (IBS/CBS).', requester:'Mariana Araújo' },
+  { id:'d3', code:'DEM-103', title:'Campanha Open Finance — Meta Ads', area:'Mídia Paga', priority:'Média', stageId:'mid-2', assignees:['VI'], deadline:dStr(5), description:'Campanha de conversão no Meta Ads para o Conciliador Open Finance. Público: empresários PME.', requester:'Vivian' },
+  { id:'d4', code:'DEM-104', title:'Webinar Barbara Maciel — LP + e-mail sequence', area:'Social', priority:'Alta', stageId:'soc-4', assignees:['CA'], deadline:dStr(8), description:'Landing page HubSpot e sequência de 3 e-mails para webinar de 20/08 sobre onboarding de clientes.', requester:'Clara Abrantes' },
+  { id:'d5', code:'DEM-105', title:'Post LinkedIn — Split Payment IBS/CBS', area:'Social', priority:'Média', stageId:'soc-1', assignees:['RO'], deadline:dStr(10), description:'Post educativo sobre split payment na Reforma Tributária para público contador.', requester:'Roberta' },
+  { id:'d6', code:'DEM-106', title:'Automação intake de arte — Slack + n8n', area:'RevOps', priority:'Alta', stageId:'rev-3', assignees:['CL','JE'], deadline:dStr(3), description:'Formulário de intake de demandas de arte integrado ao Slack com triagem automática via n8n.', requester:'Clara Abrantes' },
+  { id:'d7', code:'DEM-107', title:'Ebook Emissão NFS-e para contadores', area:'Design', priority:'Baixa', stageId:'des-1', assignees:['MK'], deadline:dStr(15), description:'Ebook sobre o Emissor NFS-e do Nibo — guia prático para contadores configurarem emissão.', requester:'Roberta' },
+  { id:'d8', code:'DEM-108', title:'Feature Brief App Personalizado', area:'Produto', priority:'Média', stageId:'pro-2', assignees:['RO'], deadline:dStr(12), description:'Documentação de funcionalidades do App Personalizado para página de produto do site.', requester:'Roberta' },
+];
+
+const t = (d) => new Date(d).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+
+const INIT_SLACK = [
+  { id:'s1', code:'DEM-101', area:'Social', time:'09:14', stagePath:'Solicitado → Em Redação', action:'Briefing de copy ativado — equipe Social notificada', next:'Design de Arte → @Millena Barros', type:'move' },
+  { id:'s2', code:'DEM-104', area:'Social', time:'10:33', stagePath:'Design de Arte → Aprovação', action:'@Mariana Araújo notificada para revisão e aprovação', next:'Aprovado → Agendamento | Ajuste → volta para Design', type:'approval' },
+  { id:'s3', code:'DEM-106', area:'RevOps', time:'11:05', stagePath:'Em Análise → Implementação', action:'Automação configurada no n8n + testes de integração ativados', next:'Validação → @Mariana Araújo', type:'move' },
+];
+
+/* =========== CONTEXT =========== */
+const Ctx = createContext(null);
+
+function Provider({ children }) {
+  const cntRef = useRef(INIT_DEMANDS.length);
+  const [demands, setDemands] = useState(() => {
+    try { const s=localStorage.getItem('nibo_dem_v3'); return s ? JSON.parse(s) : INIT_DEMANDS; } catch { return INIT_DEMANDS; }
+  });
+  const [slack, setSlack] = useState(() => {
+    try { const s=localStorage.getItem('nibo_slk_v3'); return s ? JSON.parse(s) : INIT_SLACK; } catch { return INIT_SLACK; }
+  });
+  const [user, setUser]     = useState(TEAM[1]);
+  const [view, setView]     = useState('kanban');
+  const [area, setArea]     = useState('Social');
+  const [query, setQuery]   = useState('');
+  const [modal, setModal]   = useState(null);
+  const [newOpen, setNewOpen] = useState(false);
+
+  useEffect(() => { try { localStorage.setItem('nibo_dem_v3', JSON.stringify(demands)); } catch {} }, [demands]);
+  useEffect(() => { try { localStorage.setItem('nibo_slk_v3', JSON.stringify(slack)); } catch {} }, [slack]);
+
+  const addDemand = useCallback((data) => {
+    const cnt = ++cntRef.current;
+    const nd = { ...data, id:'d'+Date.now(), code:'DEM-'+(108+cnt), stageId:PIPELINES[data.area][0].id, createdAt:new Date().toISOString() };
+    setDemands(p => [nd,...p]);
+    setSlack(p => [{ id:'s'+Date.now(), code:nd.code, area:data.area, time:t(new Date()), stagePath:'Nova demanda criada', action:'Solicitação registrada por '+data.requester, next:'Equipe de '+data.area+' notificada', type:'new' }, ...p]);
+    return nd;
+  }, []);
+
+  const moveStage = useCallback((demId, newStageId) => {
+    setDemands(p => p.map(d => {
+      if (d.id !== demId) return d;
+      const oldStage = Object.values(PIPELINES).flat().find(s=>s.id===d.stageId);
+      const newStage = Object.values(PIPELINES).flat().find(s=>s.id===newStageId);
+      const auto = AUTO[d.area] && AUTO[d.area][newStageId];
+      if (auto) {
+        setSlack(sp => [{ id:'s'+Date.now(), code:d.code, area:d.area, time:t(new Date()), stagePath:(oldStage?oldStage.name:'?')+' → '+(newStage?newStage.name:'?'), action:auto.action, next:auto.next, type:newStage&&newStage.isApproval?'approval':'move' }, ...sp]);
+      }
+      return {...d, stageId:newStageId};
+    }));
+  }, []);
+
+  const delDemand = useCallback((id) => {
+    setDemands(p=>p.filter(d=>d.id!==id));
+    setModal(null);
+  }, []);
+
+  const reset = useCallback(() => { setDemands(INIT_DEMANDS); setSlack(INIT_SLACK); cntRef.current=INIT_DEMANDS.length; }, []);
+
+  const filtered = demands.filter(d => {
+    if (area !== 'Todas' && d.area !== area) return false;
+    if (query.trim()) { const q=query.toLowerCase(); return d.title.toLowerCase().includes(q)||d.code.toLowerCase().includes(q); }
+    return true;
+  });
+
+  const selDemand = modal ? demands.find(d=>d.id===modal)||null : null;
+
+  return <Ctx.Provider value={{ demands, filtered, slack, user, setUser, view, setView, area, setArea, query, setQuery, selDemand, setModal, newOpen, setNewOpen, addDemand, moveStage, delDemand, reset }}>{children}</Ctx.Provider>;
+}
+
+const useApp = () => useContext(Ctx);
+
+/* =========== UTILS =========== */
+function getSla(dl) {
+  if (!dl) return null;
+  const diff = Math.ceil((new Date(dl)-new Date())/86400000);
+  if (diff < 0) return { label:'Atrasado '+Math.abs(diff)+'d', type:'danger' };
+  if (diff <= 2) return { label:'Vence em '+diff+'d', type:'warn' };
+  return { label:diff+'d', type:'ok' };
+}
+function fmtDate(s) { if(!s) return ''; const [,m,d]=s.split('-'); return d+'/'+m; }
+
+/* =========== ICONS (SVG inline) =========== */
+const IKanban = ()=><svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><rect x="3" y="3" width="5" height="18" rx="1"/><rect x="11" y="3" width="5" height="12" rx="1"/><rect x="19" y="3" width="5" height="8" rx="1"/></svg>;
+const ISlack  = ()=><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 10c-.83 0-1.5-.67-1.5-1.5v-5c0-.83.67-1.5 1.5-1.5s1.5.67 1.5 1.5v5c0 .83-.67 1.5-1.5 1.5z"/><path d="M20.5 10H19V8.5c0-.83.67-1.5 1.5-1.5s1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/><path d="M9.5 14c.83 0 1.5.67 1.5 1.5v5c0 .83-.67 1.5-1.5 1.5S8 21.33 8 20.5v-5c0-.83.67-1.5 1.5-1.5z"/><path d="M3.5 14H5v1.5c0 .83-.67 1.5-1.5 1.5S2 16.33 2 15.5 2.67 14 3.5 14z"/><path d="M14 14.5c0-.83.67-1.5 1.5-1.5h5c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5h-5c-.83 0-1.5-.67-1.5-1.5z"/><path d="M15.5 19H14v1.5c0 .83.67 1.5 1.5 1.5s1.5-.67 1.5-1.5-.67-1.5-1.5-1.5z"/><path d="M10 9.5C10 8.67 9.33 8 8.5 8h-5C2.67 8 2 8.67 2 9.5S2.67 11 3.5 11h5c.83 0 1.5-.67 1.5-1.5z"/><path d="M8.5 5H10V3.5C10 2.67 9.33 2 8.5 2S7 2.67 7 3.5 7.67 5 8.5 5z"/></svg>;
+const IPlus   = ()=><svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>;
+const ISearch = ()=><svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>;
+const IX      = ()=><svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>;
+const IReset  = ()=><svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.63"/></svg>;
+const IZap    = ()=><svg width="12" height="12" fill="currentColor" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>;
+const ICheck  = ()=><svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>;
+
+/* =========== SIDEBAR =========== */
+function Sidebar() {
+  const { view, setView, area, setArea, user, setUser, demands, slack } = useApp();
+  const areas = ['Todas','Social','Design','Mídia Paga','Produto','RevOps'];
+
+  return (
+    <aside style={{width:216,background:'#002D72',display:'flex',flexDirection:'column',height:'100vh',flexShrink:0}}>
+      {/* Brand */}
+      <div style={{padding:'20px 16px 14px',borderBottom:'1px solid rgba(255,255,255,0.1)'}}>
+        <div style={{display:'flex',alignItems:'center',gap:10}}>
+          <div style={{width:34,height:34,background:'#0072CE',borderRadius:9,display:'flex',alignItems:'center',justifyContent:'center',fontWeight:700,color:'#fff',fontSize:15,flexShrink:0}}>N</div>
+          <div>
+            <div style={{color:'#fff',fontWeight:700,fontSize:13,lineHeight:1.2}}>Demandas</div>
+            <div style={{color:'#B8CCEA',fontSize:10}}>Nibo Marketing Ops</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Pipelines */}
+      <div style={{padding:'14px 10px 6px'}}>
+        <div style={{color:'rgba(184,204,234,0.6)',fontSize:9,fontWeight:600,letterSpacing:'0.08em',textTransform:'uppercase',marginBottom:6,paddingLeft:4}}>Pipelines</div>
+        {areas.map(a => {
+          const active = area === a;
+          const cnt = a==='Todas' ? demands.length : demands.filter(d=>d.area===a).length;
+          return (
+            <button key={a} onClick={()=>{setArea(a); if(view!=='kanban') setView('kanban');}}
+              style={{width:'100%',display:'flex',alignItems:'center',justifyContent:'space-between',padding:'5px 8px',borderRadius:6,border:'none',background:active?'#0072CE':'transparent',marginBottom:1,transition:'background 0.12s'}}>
+              <div style={{display:'flex',alignItems:'center',gap:7}}>
+                {a!=='Todas' && <div style={{width:6,height:6,borderRadius:'50%',background:AREA_CLR[a]||'#B8CCEA',flexShrink:0}}/>}
+                {a==='Todas' && <div style={{width:6,height:6,borderRadius:'50%',background:'#41B6E6',flexShrink:0}}/>}
+                <span style={{color:active?'#fff':'#B8CCEA',fontSize:11.5,fontWeight:active?600:400}}>{a}</span>
+              </div>
+              <span style={{color:active?'rgba(255,255,255,0.65)':'rgba(184,204,234,0.5)',fontSize:10,fontWeight:600}}>{cnt}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Módulos */}
+      <div style={{padding:'12px 10px 6px',flex:1}}>
+        <div style={{color:'rgba(184,204,234,0.6)',fontSize:9,fontWeight:600,letterSpacing:'0.08em',textTransform:'uppercase',marginBottom:6,paddingLeft:4}}>Módulos</div>
+        {[{id:'kanban',label:'Kanban',Icon:IKanban},{id:'slack',label:'Automações Slack',Icon:ISlack,badge:slack.length}].map(({id,label,Icon,badge})=>{
+          const active = view===id;
+          return (
+            <button key={id} onClick={()=>setView(id)}
+              style={{width:'100%',display:'flex',alignItems:'center',justifyContent:'space-between',padding:'6px 8px',borderRadius:6,border:'none',borderLeft:active?'2px solid #41B6E6':'2px solid transparent',background:active?'rgba(255,255,255,0.1)':'transparent',marginBottom:2,transition:'all 0.12s'}}>
+              <div style={{display:'flex',alignItems:'center',gap:8,color:active?'#fff':'#B8CCEA'}}>
+                <Icon />
+                <span style={{fontSize:11.5,fontWeight:active?600:400}}>{label}</span>
+              </div>
+              {badge>0 && <span style={{background:'#41B6E6',color:'#002D72',fontSize:9,fontWeight:800,padding:'1px 5px',borderRadius:8}}>{badge}</span>}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* User */}
+      <div style={{padding:'10px 12px 14px',borderTop:'1px solid rgba(255,255,255,0.1)'}}>
+        <div style={{color:'rgba(184,204,234,0.55)',fontSize:9,fontWeight:600,letterSpacing:'0.07em',textTransform:'uppercase',marginBottom:6}}>Perfil ativo</div>
+        <div style={{background:'rgba(255,255,255,0.07)',border:'1px solid rgba(255,255,255,0.12)',borderRadius:8,padding:'6px 10px',position:'relative'}}>
+          <div style={{fontSize:10,color:'#fff',fontWeight:600,marginBottom:2}}>{user.name}</div>
+          <div style={{fontSize:9,color:'#B8CCEA'}}>{user.area}</div>
+          <select value={user.id} onChange={e=>setUser(TEAM.find(m=>m.id===e.target.value))}
+            style={{position:'absolute',inset:0,opacity:0,width:'100%',cursor:'pointer'}}>
+            {TEAM.map(m=><option key={m.id} value={m.id}>{m.name} — {m.area}</option>)}
+          </select>
+        </div>
+      </div>
+    </aside>
+  );
+}
+
+/* =========== TOPBAR =========== */
+function TopBar() {
+  const { query, setQuery, setNewOpen, area, view, reset, slack } = useApp();
+  const title = view==='slack' ? 'Automações Slack' : area==='Todas' ? 'Todos os Pipelines' : 'Pipeline — '+area;
+  return (
+    <header style={{background:'#fff',borderBottom:'1px solid #E2EBF4',padding:'11px 22px',display:'flex',alignItems:'center',gap:12,flexShrink:0}}>
+      <div style={{flex:1}}>
+        <div style={{fontSize:14,fontWeight:700,color:'#002D72'}}>{title}</div>
+      </div>
+      {view==='kanban' && (
+        <div style={{position:'relative',width:260}}>
+          <span style={{position:'absolute',left:10,top:'50%',transform:'translateY(-50%)',color:'#94A3B8',pointerEvents:'none'}}><ISearch /></span>
+          <input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Buscar demanda..."
+            style={{width:'100%',background:'#F8FAFC',border:'1px solid #E2EBF4',borderRadius:8,padding:'7px 11px 7px 30px',fontSize:11.5,color:'#002D72',outline:'none'}}/>
+        </div>
+      )}
+      <button onClick={reset} title="Restaurar dados"
+        style={{padding:'7px 10px',background:'#F8FAFC',border:'1px solid #E2EBF4',borderRadius:8,color:'#64748B',display:'flex',alignItems:'center',lineHeight:1}}>
+        <IReset />
+      </button>
+      <button onClick={()=>setNewOpen(true)}
+        style={{display:'flex',alignItems:'center',gap:6,padding:'7px 14px',background:'#0072CE',border:'none',borderRadius:8,color:'#fff',fontSize:12,fontWeight:600}}>
+        <IPlus /> Nova Demanda
+      </button>
+    </header>
+  );
+}
+
+/* =========== CARD (SIMPLIFICADO) =========== */
+function Card({ demand }) {
+  const { setModal } = useApp();
+  const sla = getSla(demand.deadline);
+  const ps  = PRI_STL[demand.priority] || PRI_STL.Baixa;
+  const ac  = AREA_CLR[demand.area] || '#0072CE';
+  const slaStyle = !sla ? {} :
+    sla.type==='danger' ? {color:'#991B1B',background:'#FEE2E2'} :
+    sla.type==='warn'   ? {color:'#92400E',background:'#FEF3C7'} :
+    {color:'#475569',background:'#F1F5F9'};
+
+  return (
+    <div onClick={()=>setModal(demand.id)}
+      style={{background:'#fff',borderRadius:9,border:'1px solid #E2EBF4',borderLeft:'3px solid '+ac,padding:'10px 11px 9px',cursor:'pointer',transition:'box-shadow 0.12s, border-color 0.12s',marginBottom:8}}
+      onMouseEnter={e=>{e.currentTarget.style.boxShadow='0 2px 10px rgba(0,45,114,0.1)'; e.currentTarget.style.borderColor='#93C5FD'; e.currentTarget.style.borderLeftColor=ac;}}
+      onMouseLeave={e=>{e.currentTarget.style.boxShadow='none'; e.currentTarget.style.borderColor='#E2EBF4'; e.currentTarget.style.borderLeftColor=ac;}}>
+
+      {/* Priority badge */}
+      <div style={{display:'flex',justifyContent:'flex-end',marginBottom:5}}>
+        <span style={{fontSize:9,fontWeight:700,padding:'2px 6px',borderRadius:4,background:ps.bg,color:ps.txt,border:'1px solid '+ps.bdr,letterSpacing:'0.05em'}}>
+          {demand.priority.toUpperCase()}
+        </span>
+      </div>
+
+      {/* Title */}
+      <p style={{fontSize:12,fontWeight:600,color:'#002D72',lineHeight:1.45,display:'-webkit-box',WebkitLineClamp:2,WebkitBoxOrient:'vertical',overflow:'hidden',marginBottom:10}}>
+        {demand.title}
+      </p>
+
+      {/* Footer */}
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+        {sla
+          ? <span style={{fontSize:10,fontWeight:600,padding:'2px 6px',borderRadius:4,...slaStyle}}>{sla.label}</span>
+          : <span/>
+        }
+        <div style={{display:'flex'}}>
+          {demand.assignees.slice(0,2).map((init,i)=>(
+            <div key={i} title={init} style={{width:21,height:21,borderRadius:'50%',background:'#0072CE',color:'#fff',fontSize:8,fontWeight:700,display:'flex',alignItems:'center',justifyContent:'center',border:'2px solid #fff',marginLeft:i>0?-7:0,flexShrink:0}}>
+              {init}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* =========== COLUMN =========== */
+function Column({ stage, cards, areaColor }) {
+  const { setNewOpen } = useApp();
+  const headerClr = stage.isDone ? '#059669' : stage.isApproval ? '#D97706' : areaColor;
+  return (
+    <div style={{minWidth:215,maxWidth:230,flex:'0 0 215px',background:'#F8FAFC',borderRadius:12,border:'1px solid #E2EBF4',padding:11,display:'flex',flexDirection:'column'}}>
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10,paddingBottom:9,borderBottom:'1px solid #E2EBF4'}}>
+        <div style={{display:'flex',alignItems:'center',gap:6}}>
+          <div style={{width:6,height:6,borderRadius:'50%',background:headerClr}}/>
+          <span style={{fontSize:11,fontWeight:600,color:'#002D72'}}>{stage.name}</span>
+        </div>
+        <div style={{display:'flex',alignItems:'center',gap:6}}>
+          <span style={{fontSize:9.5,background:'#E8EFF7',color:'#64748B',fontWeight:700,padding:'1px 6px',borderRadius:8}}>{cards.length}</span>
+          <button onClick={()=>setNewOpen(true)} style={{background:'none',border:'none',color:'#B8CCEA',padding:2,display:'flex',alignItems:'center',lineHeight:1}}>
+            <IPlus/>
+          </button>
+        </div>
+      </div>
+      <div style={{flex:1,overflowY:'auto',maxHeight:'calc(100vh - 190px)'}} className="nb-scrollnone">
+        {cards.map(c=><Card key={c.id} demand={c}/>)}
+        {cards.length===0 && (
+          <div style={{border:'1.5px dashed #E2EBF4',borderRadius:8,padding:'20px 10px',textAlign:'center',color:'#CBD5E1',fontSize:11}}>
+            Vazio
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* =========== KANBAN =========== */
+function KanbanBoard() {
+  const { filtered, area } = useApp();
+  const areas = area==='Todas' ? Object.keys(PIPELINES) : [area];
+
+  if (area==='Todas') {
+    return (
+      <div style={{padding:'18px 22px',overflowY:'auto',height:'100%'}}>
+        {areas.map(a => {
+          const aCards = filtered.filter(d=>d.area===a);
+          const stages = PIPELINES[a];
+          return (
+            <div key={a} style={{marginBottom:28}}>
+              <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:10}}>
+                <div style={{width:9,height:9,borderRadius:'50%',background:AREA_CLR[a]}}/>
+                <span style={{fontWeight:700,color:'#002D72',fontSize:13}}>{a}</span>
+                <span style={{fontSize:11,color:'#94A3B8'}}>{aCards.length} demandas</span>
+              </div>
+              <div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:10}}>
+                {stages.map(stage => {
+                  const cs = aCards.filter(d=>d.stageId===stage.id);
+                  return (
+                    <div key={stage.id} style={{background:'#F8FAFC',borderRadius:10,border:'1px solid #E2EBF4',padding:'9px 10px'}}>
+                      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:7}}>
+                        <span style={{fontSize:10,fontWeight:600,color:stage.isDone?'#059669':stage.isApproval?'#D97706':'#002D72'}}>{stage.name}</span>
+                        <span style={{fontSize:9,background:'#E8EFF7',color:'#64748B',fontWeight:700,padding:'1px 5px',borderRadius:8}}>{cs.length}</span>
+                      </div>
+                      {cs.map(c=><Card key={c.id} demand={c}/>)}
+                      {cs.length===0&&<div style={{textAlign:'center',color:'#CBD5E1',fontSize:10,padding:'10px 0'}}>—</div>}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
+  const stages = PIPELINES[area]||[];
+  const areaCards = filtered.filter(d=>d.area===area);
+  const aClr = AREA_CLR[area]||'#0072CE';
+
+  return (
+    <div style={{display:'flex',gap:12,padding:'18px 22px',overflowX:'auto',height:'100%',alignItems:'flex-start'}} className="nb-scrollnone">
+      {stages.map(stage=>(
+        <Column key={stage.id} stage={stage} cards={areaCards.filter(d=>d.stageId===stage.id)} areaColor={aClr}/>
+      ))}
+    </div>
+  );
+}
+
+/* =========== SLACK FEED =========== */
+function SlackFeed() {
+  const { slack } = useApp();
+
+  const typeMap = {
+    approval:{ border:'#FCD34D', bg:'#FEFCE8', badge:'Aprovação', bdgClr:'#92400E', bdgBg:'#FEF3C7', dot:'#D97706' },
+    new:     { border:'#93C5FD', bg:'#EFF6FF', badge:'Nova demanda', bdgClr:'#1E40AF', bdgBg:'#DBEAFE', dot:'#0072CE' },
+    move:    { border:'#7DD3FC', bg:'#F0F9FF', badge:'Automação', bdgClr:'#0369A1', bdgBg:'#E0F2FE', dot:'#41B6E6' },
+  };
+
+  return (
+    <div style={{padding:'18px 22px',overflowY:'auto',height:'100%'}}>
+      {/* Header */}
+      <div style={{background:'#002D72',borderRadius:12,padding:'16px 20px',marginBottom:18,display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+        <div>
+          <div style={{display:'flex',alignItems:'center',gap:9,marginBottom:5}}>
+            <ISlack/>
+            <span style={{color:'#fff',fontWeight:700,fontSize:14}}>#automacoes-nibo</span>
+          </div>
+          <p style={{color:'#B8CCEA',fontSize:11}}>Caminho das automações disparadas ao mover cards no kanban</p>
+        </div>
+        <div style={{display:'flex',alignItems:'center',gap:7}}>
+          <div style={{width:8,height:8,borderRadius:'50%',background:'#22D3EE'}}/>
+          <span style={{color:'#41B6E6',fontSize:11,fontWeight:600}}>Bot ativo</span>
+        </div>
+      </div>
+
+      {/* Legenda */}
+      <div style={{display:'flex',gap:14,marginBottom:14,flexWrap:'wrap'}}>
+        {[{dot:'#41B6E6',label:'Automação de etapa'},{dot:'#D97706',label:'Enviado para aprovação'},{dot:'#0072CE',label:'Nova demanda criada'}].map(({dot,label})=>(
+          <div key={label} style={{display:'flex',alignItems:'center',gap:5}}>
+            <div style={{width:7,height:7,borderRadius:'50%',background:dot}}/>
+            <span style={{fontSize:10,color:'#64748B'}}>{label}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Mensagens */}
+      <div style={{display:'flex',flexDirection:'column',gap:10}}>
+        {slack.map(msg => {
+          const ts = typeMap[msg.type] || typeMap.move;
+          return (
+            <div key={msg.id} style={{background:'#fff',borderRadius:10,border:'1px solid #E2EBF4',borderLeft:'4px solid '+ts.border,padding:'12px 15px'}}>
+              {/* Header */}
+              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8}}>
+                <div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
+                  <span style={{background:'#002D72',color:'#fff',fontSize:9,fontWeight:700,padding:'2px 7px',borderRadius:4,letterSpacing:'0.05em',fontFamily:'monospace'}}>{msg.code}</span>
+                  <span style={{fontSize:10,fontWeight:700,color:AREA_CLR[msg.area]||'#0072CE'}}>{msg.area}</span>
+                  <span style={{background:ts.bdgBg,color:ts.bdgClr,fontSize:9,fontWeight:700,padding:'2px 7px',borderRadius:4}}>{ts.badge}</span>
+                </div>
+                <span style={{fontSize:10,color:'#94A3B8',flexShrink:0}}>{msg.time}</span>
+              </div>
+
+              {/* Caminho */}
+              <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:9}}>
+                <span style={{fontSize:10.5,color:'#64748B'}}>Caminho:</span>
+                <span style={{fontSize:10.5,fontWeight:700,color:'#002D72'}}>{msg.stagePath}</span>
+              </div>
+
+              {/* Detalhe */}
+              <div style={{background:'#F8FAFC',borderRadius:7,padding:'9px 11px'}}>
+                <div style={{display:'flex',alignItems:'flex-start',gap:6,marginBottom:6}}>
+                  <span style={{color:'#41B6E6',marginTop:1,flexShrink:0}}><IZap/></span>
+                  <div>
+                    <div style={{fontSize:9,color:'#94A3B8',fontWeight:600,letterSpacing:'0.04em',textTransform:'uppercase',marginBottom:2}}>Ação automatizada</div>
+                    <span style={{fontSize:11.5,color:'#002D72',fontWeight:500}}>{msg.action}</span>
+                  </div>
+                </div>
+                <div style={{display:'flex',alignItems:'flex-start',gap:6}}>
+                  <span style={{color:'#0072CE',marginTop:1,flexShrink:0,fontSize:11}}>→</span>
+                  <div>
+                    <div style={{fontSize:9,color:'#94A3B8',fontWeight:600,letterSpacing:'0.04em',textTransform:'uppercase',marginBottom:2}}>Próximo passo</div>
+                    <span style={{fontSize:11.5,color:'#0072CE',fontWeight:500}}>{msg.next}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+        {slack.length===0 && (
+          <div style={{textAlign:'center',padding:'60px 0',color:'#94A3B8',fontSize:13}}>
+            Nenhuma automação disparada ainda.
+            <br/><span style={{fontSize:11}}>Mova um card no kanban para ver o caminho da automação aqui.</span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* =========== CARD MODAL =========== */
+function CardModal() {
+  const { selDemand, setModal, moveStage, delDemand } = useApp();
+  if (!selDemand) return null;
+
+  const d   = selDemand;
+  const stages = PIPELINES[d.area]||[];
+  const ps  = PRI_STL[d.priority]||PRI_STL.Baixa;
+  const ac  = AREA_CLR[d.area]||'#0072CE';
+  const sla = getSla(d.deadline);
+
+  return (
+    <div onClick={()=>setModal(null)}
+      style={{position:'fixed',inset:0,background:'rgba(0,45,114,0.4)',zIndex:50,display:'flex',alignItems:'center',justifyContent:'center',padding:24}}>
+      <div onClick={e=>e.stopPropagation()}
+        style={{background:'#fff',borderRadius:16,width:'100%',maxWidth:520,maxHeight:'88vh',overflowY:'auto',boxShadow:'0 24px 64px rgba(0,45,114,0.3)'}}>
+
+        {/* Header */}
+        <div style={{padding:'18px 22px 14px',borderBottom:'1px solid #E2EBF4',display:'flex',alignItems:'flex-start',justifyContent:'space-between'}}>
+          <div style={{flex:1}}>
+            <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:6,flexWrap:'wrap'}}>
+              <span style={{fontSize:10,fontWeight:700,color:'#94A3B8',fontFamily:'monospace'}}>{d.code}</span>
+              <div style={{width:6,height:6,borderRadius:'50%',background:ac}}/>
+              <span style={{fontSize:11,fontWeight:700,color:ac}}>{d.area}</span>
+              <span style={{fontSize:9,fontWeight:700,padding:'2px 7px',borderRadius:4,background:ps.bg,color:ps.txt,border:'1px solid '+ps.bdr}}>{d.priority.toUpperCase()}</span>
+            </div>
+            <h2 style={{fontSize:15,fontWeight:700,color:'#002D72',lineHeight:1.3}}>{d.title}</h2>
+          </div>
+          <button onClick={()=>setModal(null)} style={{padding:6,background:'#F8FAFC',border:'1px solid #E2EBF4',borderRadius:8,color:'#64748B',display:'flex',marginLeft:12,flexShrink:0}}><IX/></button>
+        </div>
+
+        {/* Body */}
+        <div style={{padding:'18px 22px'}}>
+          {d.description && (
+            <div style={{marginBottom:18}}>
+              <div style={{fontSize:9,fontWeight:600,color:'#94A3B8',textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:5}}>Descrição</div>
+              <p style={{fontSize:12.5,color:'#334155',lineHeight:1.6}}>{d.description}</p>
+            </div>
+          )}
+
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:18}}>
+            <div style={{background:'#F8FAFC',borderRadius:8,padding:'9px 12px'}}>
+              <div style={{fontSize:9,fontWeight:600,color:'#94A3B8',textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:3}}>Solicitante</div>
+              <div style={{fontSize:12,color:'#002D72',fontWeight:600}}>{d.requester}</div>
+            </div>
+            <div style={{background:'#F8FAFC',borderRadius:8,padding:'9px 12px'}}>
+              <div style={{fontSize:9,fontWeight:600,color:'#94A3B8',textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:3}}>Prazo</div>
+              <div style={{fontSize:12,color:sla&&sla.type==='danger'?'#991B1B':'#002D72',fontWeight:600}}>
+                {fmtDate(d.deadline)}{sla?' ('+sla.label+')':''}
+              </div>
+            </div>
+          </div>
+
+          {/* Responsáveis */}
+          <div style={{marginBottom:20}}>
+            <div style={{fontSize:9,fontWeight:600,color:'#94A3B8',textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:7}}>Responsáveis</div>
+            <div style={{display:'flex',gap:7,flexWrap:'wrap'}}>
+              {d.assignees.map(init=>{
+                const mb = TEAM.find(m=>m.initials===init);
+                return (
+                  <div key={init} style={{display:'flex',alignItems:'center',gap:6,background:'#EFF4FB',borderRadius:16,padding:'3px 9px 3px 4px'}}>
+                    <div style={{width:23,height:23,borderRadius:'50%',background:'#0072CE',color:'#fff',fontSize:8.5,fontWeight:700,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>{init}</div>
+                    <span style={{fontSize:11,color:'#002D72',fontWeight:500}}>{mb?mb.name:init}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Mover etapa */}
+          <div>
+            <div style={{fontSize:9,fontWeight:600,color:'#94A3B8',textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:7}}>Mover para etapa</div>
+            <div style={{display:'flex',gap:7,flexWrap:'wrap',marginBottom:8}}>
+              {stages.map(stage=>{
+                const isCur = stage.id===d.stageId;
+                return (
+                  <button key={stage.id} onClick={()=>{ if(!isCur) moveStage(d.id,stage.id); }}
+                    style={{display:'flex',alignItems:'center',gap:5,padding:'5px 11px',borderRadius:6,fontSize:11,fontWeight:600,border:isCur?'1.5px solid '+ac:'1px solid #E2EBF4',background:isCur?ac:'#F8FAFC',color:isCur?'#fff':'#64748B',transition:'all 0.12s'}}>
+                    {isCur && <span style={{display:'flex',alignItems:'center',opacity:0.9}}><ICheck/></span>}
+                    {stage.name}
+                  </button>
+                );
+              })}
+            </div>
+            <p style={{fontSize:10,color:'#94A3B8'}}>Ao mover, o caminho da automação é enviado automaticamente para o Slack.</p>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div style={{padding:'12px 22px',borderTop:'1px solid #E2EBF4',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+          <button onClick={()=>delDemand(d.id)}
+            style={{padding:'7px 13px',background:'#FEF2F2',border:'1px solid #FECACA',borderRadius:8,fontSize:11,fontWeight:600,color:'#991B1B'}}>
+            Excluir
+          </button>
+          <button onClick={()=>setModal(null)}
+            style={{padding:'7px 18px',background:'#0072CE',border:'none',borderRadius:8,fontSize:11,fontWeight:600,color:'#fff'}}>
+            Fechar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* =========== NEW DEMAND MODAL =========== */
+function NewModal() {
+  const { newOpen, setNewOpen, addDemand, user, area } = useApp();
+  const initArea = area!=='Todas' ? area : 'Social';
+  const [form, setForm] = useState({ title:'', area:initArea, priority:'Média', deadline:dStr(7), description:'', requester:user.name, assignee:user.initials });
+
+  useEffect(() => {
+    if (newOpen) setForm(f=>({ ...f, area:area!=='Todas'?area:'Social', requester:user.name, assignee:user.initials }));
+  }, [newOpen, area, user]);
+
+  if (!newOpen) return null;
+
+  const set = (k,v) => setForm(f=>({...f,[k]:v}));
+
+  const submit = () => {
+    if (!form.title.trim()) return;
+    addDemand({ title:form.title, area:form.area, priority:form.priority, deadline:form.deadline, description:form.description, requester:form.requester, assignees:[form.assignee] });
+    setNewOpen(false);
+  };
+
+  const inp = { background:'#F8FAFC', border:'1px solid #E2EBF4', borderRadius:8, padding:'8px 11px', fontSize:12, color:'#002D72', width:'100%', outline:'none' };
+  const lbl = { fontSize:9.5, fontWeight:600, color:'#94A3B8', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:5 };
+
+  return (
+    <div onClick={()=>setNewOpen(false)}
+      style={{position:'fixed',inset:0,background:'rgba(0,45,114,0.4)',zIndex:50,display:'flex',alignItems:'center',justifyContent:'center',padding:24}}>
+      <div onClick={e=>e.stopPropagation()}
+        style={{background:'#fff',borderRadius:16,width:'100%',maxWidth:460,boxShadow:'0 24px 64px rgba(0,45,114,0.3)'}}>
+
+        <div style={{padding:'18px 22px 14px',borderBottom:'1px solid #E2EBF4',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+          <h2 style={{fontSize:15,fontWeight:700,color:'#002D72'}}>Nova Demanda</h2>
+          <button onClick={()=>setNewOpen(false)} style={{padding:6,background:'#F8FAFC',border:'1px solid #E2EBF4',borderRadius:8,color:'#64748B',display:'flex'}}><IX/></button>
+        </div>
+
+        <div style={{padding:'18px 22px',display:'flex',flexDirection:'column',gap:13}}>
+          <div>
+            <label style={lbl}>Título</label>
+            <input value={form.title} onChange={e=>set('title',e.target.value)} placeholder="O que precisa ser feito?" style={inp}/>
+          </div>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:11}}>
+            <div>
+              <label style={lbl}>Área</label>
+              <select value={form.area} onChange={e=>set('area',e.target.value)} style={inp}>
+                {['Social','Design','Mídia Paga','Produto','RevOps'].map(a=><option key={a}>{a}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={lbl}>Prioridade</label>
+              <select value={form.priority} onChange={e=>set('priority',e.target.value)} style={inp}>
+                {['Urgente','Alta','Média','Baixa'].map(p=><option key={p}>{p}</option>)}
+              </select>
+            </div>
+          </div>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:11}}>
+            <div>
+              <label style={lbl}>Prazo</label>
+              <input type="date" value={form.deadline} onChange={e=>set('deadline',e.target.value)} style={inp}/>
+            </div>
+            <div>
+              <label style={lbl}>Responsável</label>
+              <select value={form.assignee} onChange={e=>set('assignee',e.target.value)} style={inp}>
+                {TEAM.map(m=><option key={m.id} value={m.initials}>{m.name}</option>)}
+              </select>
+            </div>
+          </div>
+          <div>
+            <label style={lbl}>Contexto (opcional)</label>
+            <textarea value={form.description} onChange={e=>set('description',e.target.value)} rows={3}
+              placeholder="Referências, objetivo, link de briefing..." style={{...inp,resize:'vertical'}}/>
+          </div>
+        </div>
+
+        <div style={{padding:'12px 22px',borderTop:'1px solid #E2EBF4',display:'flex',justifyContent:'flex-end',gap:8}}>
+          <button onClick={()=>setNewOpen(false)}
+            style={{padding:'8px 15px',background:'#F8FAFC',border:'1px solid #E2EBF4',borderRadius:8,fontSize:11,fontWeight:600,color:'#64748B'}}>
+            Cancelar
+          </button>
+          <button onClick={submit}
+            style={{padding:'8px 20px',background:'#0072CE',border:'none',borderRadius:8,fontSize:11,fontWeight:700,color:'#fff'}}>
+            Criar Demanda
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* =========== APP =========== */
+function AppContent() {
+  const { view } = useApp();
+  return (
+    <div style={{display:'flex',height:'100vh',width:'100%',overflow:'hidden'}}>
+      <Sidebar/>
+      <div style={{flex:1,display:'flex',flexDirection:'column',minWidth:0,overflow:'hidden'}}>
+        <TopBar/>
+        <main style={{flex:1,overflow:'hidden'}}>
+          {view==='kanban' && <KanbanBoard/>}
+          {view==='slack'  && <SlackFeed/>}
+        </main>
+      </div>
+      <CardModal/>
+      <NewModal/>
+    </div>
+  );
+}
+
+function App() {
+  return <Provider><AppContent/></Provider>;
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>
