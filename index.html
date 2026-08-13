@@ -176,6 +176,7 @@ function Provider({ children }) {
   const [newOpen, setNewOpen] = useState(false);
   const [notifyPending, setNotifyPending] = useState(null);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [dragging, setDragging] = useState(null);
 
   useEffect(() => {
     const unsub = firebase.auth().onAuthStateChanged(u => {
@@ -266,7 +267,7 @@ function Provider({ children }) {
 
   const selDemand = modal ? demands.find(d=>d.id===modal)||null : null;
 
-  return <Ctx.Provider value={{ demands, filtered, slack, user, authReady, authError, setAuthError, view, setView, layout, setLayout, area, setArea, query, setQuery, priFilter, setPriFilter, selDemand, setModal, newOpen, setNewOpen, notifyPending, setNotifyPending, profileOpen, setProfileOpen, photos, profiles, logout, savePhoto, removePhoto, saveProfile, addDemand, moveStage, delDemand, reset }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ demands, filtered, slack, user, authReady, authError, setAuthError, view, setView, layout, setLayout, area, setArea, query, setQuery, priFilter, setPriFilter, selDemand, setModal, newOpen, setNewOpen, notifyPending, setNotifyPending, profileOpen, setProfileOpen, dragging, setDragging, photos, profiles, logout, savePhoto, removePhoto, saveProfile, addDemand, moveStage, delDemand, reset }}>{children}</Ctx.Provider>;
 }
 
 const useApp = () => useContext(Ctx);
@@ -652,14 +653,23 @@ function CardAvatar({ initials, offset }) {
 }
 
 function DemandCard({ demand }) {
-  const { setModal } = useApp();
+  const { setModal, dragging, setDragging } = useApp();
   const sla = getSla(demand.deadline);
   const ps  = PRI_STL[demand.priority] || PRI_STL.Baixa;
+  const isDragging = dragging && dragging.id === demand.id;
 
   return (
-    <div onClick={()=>setModal(demand.id)}
-      style={{background:'#fff',borderRadius:11,border:'1px solid '+NB.bd,padding:'14px 15px 13px',cursor:'pointer',transition:'box-shadow 0.14s, border-color 0.14s, transform 0.14s',marginBottom:10}}
-      onMouseEnter={e=>{e.currentTarget.style.boxShadow='0 4px 16px rgba(11,42,92,0.09)'; e.currentTarget.style.borderColor='#CFDCF0'; e.currentTarget.style.transform='translateY(-1px)';}}
+    <div
+      draggable
+      onDragStart={e=>{
+        setDragging(demand);
+        e.dataTransfer.effectAllowed = 'move';
+        try { e.dataTransfer.setData('text/plain', demand.id); } catch(err) {}
+      }}
+      onDragEnd={()=>setDragging(null)}
+      onClick={()=>setModal(demand.id)}
+      style={{background:'#fff',borderRadius:11,border:'1px solid '+NB.bd,padding:'14px 15px 13px',cursor:isDragging?'grabbing':'grab',transition:'box-shadow 0.14s, border-color 0.14s, transform 0.14s, opacity 0.14s',marginBottom:10,opacity:isDragging?0.4:1}}
+      onMouseEnter={e=>{ if(!dragging){ e.currentTarget.style.boxShadow='0 4px 16px rgba(11,42,92,0.09)'; e.currentTarget.style.borderColor='#CFDCF0'; e.currentTarget.style.transform='translateY(-1px)'; } }}
       onMouseLeave={e=>{e.currentTarget.style.boxShadow='none'; e.currentTarget.style.borderColor=NB.bd; e.currentTarget.style.transform='none';}}>
 
       <p style={{fontSize:14,fontWeight:500,color:NB.txt,lineHeight:1.45,display:'-webkit-box',WebkitLineClamp:2,WebkitBoxOrient:'vertical',overflow:'hidden',marginBottom:13}}>
@@ -687,18 +697,46 @@ function DemandCard({ demand }) {
 }
 
 /* =========== STAGE COLUMN =========== */
-function StageColumn({ stage, cards, compact }) {
+function StageColumn({ stage, cards, compact, areaName }) {
+  const { dragging, setDragging, moveStage, setNotifyPending } = useApp();
+  const [over, setOver] = useState(false);
+
+  /* Só aceita card do mesmo pipeline e que ainda não esteja nesta etapa */
+  const canDrop = !!dragging && dragging.area === areaName && dragging.stageId !== stage.id;
+  const blocked = !!dragging && dragging.area !== areaName;
+
+  const handleDrop = e => {
+    e.preventDefault();
+    setOver(false);
+    if (!canDrop) return;
+    const d = dragging;
+    setDragging(null);
+    if (d.area === 'Design' && stage.isDone) {
+      setNotifyPending({ demandId:d.id, stageId:stage.id, demandTitle:d.title });
+    } else {
+      moveStage(d.id, stage.id);
+    }
+  };
+
+  const border = over && canDrop ? '1.5px dashed '+NB.azul
+    : canDrop ? '1.5px dashed #CFDCF0'
+    : '1px solid '+NB.bdSoft;
+
   return (
-    <div style={{background:NB.col,borderRadius:12,border:'1px solid '+NB.bdSoft,padding:compact?'12px 12px 10px':'14px 14px 12px',display:'flex',flexDirection:'column',minWidth:0}}>
+    <div
+      onDragOver={e=>{ if(canDrop){ e.preventDefault(); e.dataTransfer.dropEffect='move'; setOver(true); } }}
+      onDragLeave={()=>setOver(false)}
+      onDrop={handleDrop}
+      style={{background:over&&canDrop?'#EAF3FD':NB.col,borderRadius:12,border:border,padding:compact?'12px 12px 10px':'14px 14px 12px',display:'flex',flexDirection:'column',minWidth:0,transition:'background 0.12s, border-color 0.12s, opacity 0.12s',opacity:blocked?0.45:1}}>
       <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:12,gap:8}}>
-        <span style={{fontSize:13.5,fontWeight:500,color:NB.txt,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{stage.name}</span>
+        <span style={{fontSize:13.5,fontWeight:500,color:over&&canDrop?NB.azul:NB.txt,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{stage.name}</span>
         <span style={{fontSize:12,color:NB.mut,fontWeight:500,flexShrink:0}}>{cards.length}</span>
       </div>
       <div style={{flex:1,minHeight:0}}>
         {cards.map(c=><DemandCard key={c.id} demand={c}/>)}
         {cards.length===0 && (
-          <div style={{border:'1.5px dashed #DFE7F2',borderRadius:10,padding:'30px 10px',textAlign:'center',color:NB.mut2,fontSize:12.5}}>
-            Nenhuma demanda
+          <div style={{border:'1.5px dashed '+(over&&canDrop?NB.azul:'#DFE7F2'),borderRadius:10,padding:'30px 10px',textAlign:'center',color:over&&canDrop?NB.azul:NB.mut2,fontSize:12.5,transition:'all 0.12s'}}>
+            {over&&canDrop ? 'Soltar aqui' : 'Nenhuma demanda'}
           </div>
         )}
       </div>
@@ -731,7 +769,7 @@ function AreaBlock({ areaName, cards }) {
       </div>
       <div style={{display:'grid',gridTemplateColumns:'repeat(5, minmax(0,1fr))',gap:18,alignItems:'start'}}>
         {stages.map(st=>(
-          <StageColumn key={st.id} stage={st} cards={cards.filter(d=>d.stageId===st.id)} compact/>
+          <StageColumn key={st.id} stage={st} cards={cards.filter(d=>d.stageId===st.id)} areaName={areaName} compact/>
         ))}
       </div>
     </div>
@@ -814,7 +852,7 @@ function KanbanBoard() {
     <div style={{padding:'22px 30px 30px',overflowY:'auto',overflowX:'hidden',height:'100%'}}>
       <div style={{display:'grid',gridTemplateColumns:'repeat(5, minmax(0,1fr))',gap:18,alignItems:'start'}}>
         {stages.map(st=>(
-          <StageColumn key={st.id} stage={st} cards={filtered.filter(d=>d.stageId===st.id)}/>
+          <StageColumn key={st.id} stage={st} cards={filtered.filter(d=>d.stageId===st.id)} areaName={area}/>
         ))}
       </div>
     </div>
@@ -1267,11 +1305,13 @@ function NewModal() {
 
 /* =========== APP =========== */
 function AppContent() {
-  const { view, user, authReady } = useApp();
+  const { view, user, authReady, setDragging } = useApp();
   if (!authReady) return <Splash/>;
   if (!user)      return <LoginScreen/>;
   return (
-    <div style={{display:'flex',height:'100vh',width:'100%',overflow:'hidden',background:NB.bg}}>
+    <div style={{display:'flex',height:'100vh',width:'100%',overflow:'hidden',background:NB.bg}}
+      onDragOver={e=>e.preventDefault()}
+      onDrop={()=>setDragging(null)}>
       <Sidebar/>
       <div style={{flex:1,display:'flex',flexDirection:'column',minWidth:0,overflow:'hidden'}}>
         <TopBar/>
