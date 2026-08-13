@@ -12,10 +12,10 @@
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Poppins', sans-serif; }
-html, body, #root { height: 100%; background: #EFF4FB; }
-::-webkit-scrollbar { width: 4px; height: 4px; }
+html, body, #root { height: 100%; background: #F6F7FA; }
+::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #B8CCEA; border-radius: 2px; }
+::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 4px; }
 .nb-scrollnone::-webkit-scrollbar { display: none; }
 .nb-scrollnone { -ms-overflow-style: none; scrollbar-width: none; }
 input, select, textarea, button { font-family: 'Poppins', sans-serif; }
@@ -29,16 +29,21 @@ button { cursor: pointer; }
 const { useState, createContext, useContext, useEffect, useRef, useCallback } = React;
 
 /* =========== DADOS =========== */
+const NIBO_DOMAIN = '@nibo.com.br';
+
 const TEAM = [
-  { id: 'u1', name: 'Mariana Araújo',   initials: 'MA', area: 'Gestão',     isApprover: true  },
-  { id: 'u2', name: 'Clara Abrantes',   initials: 'CA', area: 'Social',     isApprover: false },
-  { id: 'u3', name: 'Millena Barros',   initials: 'MB', area: 'Design',     isApprover: false },
-  { id: 'u4', name: 'Roberta',          initials: 'RO', area: 'Social',     isApprover: false },
-  { id: 'u5', name: 'Mikaella',         initials: 'MK', area: 'Design',     isApprover: false },
-  { id: 'u6', name: 'Vivian',           initials: 'VI', area: 'Mídia Paga', isApprover: false },
-  { id: 'u7', name: 'Jéssica',          initials: 'JE', area: 'RevOps',     isApprover: false },
-  { id: 'u8', name: 'Cláudio',          initials: 'CL', area: 'RevOps',     isApprover: false },
+  { id: 'u1', name: 'Mariana Araújo',    initials: 'MA', area: 'Gestão',     isApprover: true,  email: 'mariana.araujo'+NIBO_DOMAIN,    color: '#0072CE' },
+  { id: 'u2', name: 'Clara Abrantes',    initials: 'CA', area: 'Social',     isApprover: false, email: 'clara.abrantes'+NIBO_DOMAIN,    color: '#7C3AED' },
+  { id: 'u3', name: 'Millena Barros',    initials: 'MB', area: 'Design',     isApprover: false, email: 'millena.barros'+NIBO_DOMAIN,    color: '#0EA5E9' },
+  { id: 'u4', name: 'Roberta Rocha',     initials: 'RO', area: 'Social',     isApprover: false, email: 'roberta.rocha'+NIBO_DOMAIN,     color: '#D97706' },
+  { id: 'u5', name: 'Mikaella Nicomedes',initials: 'MK', area: 'Design',     isApprover: false, email: 'mikaella.nicomedes'+NIBO_DOMAIN,color: '#059669' },
+  { id: 'u6', name: 'Vivian Santos',     initials: 'VI', area: 'Mídia Paga', isApprover: false, email: 'vivian.santos'+NIBO_DOMAIN,     color: '#DB2777' },
+  { id: 'u7', name: 'Jéssica Gonçalves', initials: 'JE', area: 'RevOps',     isApprover: false, email: 'jessica.goncalves'+NIBO_DOMAIN, color: '#475569' },
+  { id: 'u8', name: 'Bianca Lisboa',     initials: 'BL', area: 'RevOps',     isApprover: false, email: 'bianca.lisboa'+NIBO_DOMAIN,     color: '#B91C1C' },
+  { id: 'u9', name: 'Cláudio',           initials: 'CL', area: 'RevOps',     isApprover: false, email: null,                            color: '#94A3B8' },
 ];
+
+const ACTIVE_TEAM = TEAM.filter(m => m.email);
 
 const PIPELINES = {
   Social:      [{ id:'soc-1', name:'Solicitado' },{ id:'soc-2', name:'Em Redação' },{ id:'soc-3', name:'Design de Arte', isDesign:true },{ id:'soc-4', name:'Aprovação', isApproval:true },{ id:'soc-5', name:'Publicado', isDone:true }],
@@ -81,14 +86,23 @@ const AUTO = {
   },
 };
 
-const AREA_CLR  = { Social:'#0072CE', Design:'#41B6E6', 'Mídia Paga':'#002D72', Produto:'#0E7490', RevOps:'#475569' };
-const AREA_TCLR = { Social:'#fff', Design:'#002D72', 'Mídia Paga':'#fff', Produto:'#fff', RevOps:'#fff' };
+/* Paleta Nibo — azul petróleo, azul, azul claro, roxo, pink, amarelo, gelo */
+const NB = {
+  petroleo:'#002D72', azul:'#0072CE', azulClaro:'#41B6E6',
+  roxo:'#6431E2', pink:'#FF40B3', amarelo:'#FFE800', gelo:'#B8CCEA',
+};
+
+/* Uma cor distinta por área, usando a paleta inteira em vez de só azuis */
+const AREA_CLR  = { Social:NB.azul, Design:NB.roxo, 'Mídia Paga':NB.pink, Produto:NB.azulClaro, RevOps:NB.petroleo };
+/* Tons claros para uso sobre a sidebar escura — AREA_CLR tem cores que somem no fundo petróleo */
+const AREA_CLR_DARKBG = { Todas:'#B8CCEA', Social:'#5EA9F0', Design:'#A98CFF', 'Mídia Paga':'#FF7ACB', Produto:'#41B6E6', RevOps:'#D7E3F5' };
+const AREA_ICON = { Todas:'◆', Social:'✦', Design:'✎', 'Mídia Paga':'◎', Produto:'▣', RevOps:'⚙' };
 
 const PRI_STL = {
-  Urgente:{ bg:'#FEF3C7', txt:'#92400E', bdr:'#FCD34D' },
-  Alta:   { bg:'#FEE2E2', txt:'#991B1B', bdr:'#FCA5A5' },
-  Média:  { bg:'#DBEAFE', txt:'#1E40AF', bdr:'#93C5FD' },
-  Baixa:  { bg:'#F1F5F9', txt:'#475569', bdr:'#CBD5E1' },
+  Urgente:{ bg:'#FFF3C4', txt:'#7A5C00', bdr:NB.amarelo },
+  Alta:   { bg:'#FFE4F4', txt:'#A1006A', bdr:'#FF9BD8' },
+  Média:  { bg:'#EDE7FE', txt:'#4A1FB8', bdr:'#C0A8FF' },
+  Baixa:  { bg:'#F1F5F9', txt:'#64748B', bdr:'#CBD5E1' },
 };
 
 const tod = new Date();
@@ -124,34 +138,69 @@ function Provider({ children }) {
   const [slack, setSlack] = useState(() => {
     try { const s=localStorage.getItem('nibo_slk_v3'); return s ? JSON.parse(s) : INIT_SLACK; } catch { return INIT_SLACK; }
   });
-  const [user, setUser]     = useState(TEAM[1]);
+  const [sessionId, setSessionId] = useState(() => {
+    try { return localStorage.getItem('nibo_session_v1') || null; } catch { return null; }
+  });
+  const [photos, setPhotos] = useState(() => {
+    try { const s=localStorage.getItem('nibo_photos_v1'); return s ? JSON.parse(s) : {}; } catch { return {}; }
+  });
+  const [profiles, setProfiles] = useState(() => {
+    try { const s=localStorage.getItem('nibo_profiles_v1'); return s ? JSON.parse(s) : {}; } catch { return {}; }
+  });
   const [view, setView]     = useState('kanban');
   const [area, setArea]     = useState('Social');
   const [query, setQuery]   = useState('');
   const [modal, setModal]   = useState(null);
   const [newOpen, setNewOpen] = useState(false);
+  const [notifyPending, setNotifyPending] = useState(null);
+  const [profileOpen, setProfileOpen] = useState(false);
+
+  const baseUser = TEAM.find(m=>m.id===sessionId) || null;
+  const user = baseUser ? { ...baseUser, ...(profiles[baseUser.id]||{}) } : null;
 
   useEffect(() => { try { localStorage.setItem('nibo_dem_v3', JSON.stringify(demands)); } catch {} }, [demands]);
   useEffect(() => { try { localStorage.setItem('nibo_slk_v3', JSON.stringify(slack)); } catch {} }, [slack]);
+  useEffect(() => { try { localStorage.setItem('nibo_photos_v1', JSON.stringify(photos)); } catch {} }, [photos]);
+  useEffect(() => { try { localStorage.setItem('nibo_profiles_v1', JSON.stringify(profiles)); } catch {} }, [profiles]);
+  useEffect(() => {
+    try { sessionId ? localStorage.setItem('nibo_session_v1', sessionId) : localStorage.removeItem('nibo_session_v1'); } catch {}
+  }, [sessionId]);
+
+  const login  = useCallback(id => setSessionId(id), []);
+  const logout = useCallback(() => { setSessionId(null); setProfileOpen(false); setModal(null); setNewOpen(false); }, []);
+  const savePhoto   = useCallback((id, dataUrl) => setPhotos(p=>({...p,[id]:dataUrl})), []);
+  const removePhoto = useCallback(id => setPhotos(p => { const n={...p}; delete n[id]; return n; }), []);
+  const saveProfile = useCallback((id, patch) => setProfiles(p=>({...p,[id]:{...(p[id]||{}),...patch}})), []);
+
+  const mentionNames = (inits) => inits.map(i => { const m=TEAM.find(t=>t.initials===i); return '@'+(m?m.name:i); }).join(' ');
 
   const addDemand = useCallback((data) => {
     const cnt = ++cntRef.current;
     const nd = { ...data, id:'d'+Date.now(), code:'DEM-'+(108+cnt), stageId:PIPELINES[data.area][0].id, createdAt:new Date().toISOString() };
     setDemands(p => [nd,...p]);
-    setSlack(p => [{ id:'s'+Date.now(), code:nd.code, area:data.area, time:t(new Date()), stagePath:'Nova demanda criada', action:'Solicitação registrada por '+data.requester, next:'Equipe de '+data.area+' notificada', type:'new' }, ...p]);
+    const who = data.assignees && data.assignees.length ? mentionNames(data.assignees) : 'equipe de '+data.area;
+    setSlack(p => [{ id:'s'+Date.now(), code:nd.code, area:data.area, time:t(new Date()), stagePath:'Nova demanda criada', action:'Solicitação registrada por '+data.requester+' — destinada a '+who, next:'Demanda solicitada no Slack para '+who, type:'new' }, ...p]);
     return nd;
   }, []);
 
-  const moveStage = useCallback((demId, newStageId) => {
+  const moveStage = useCallback((demId, newStageId, notifyTargets) => {
     setDemands(p => p.map(d => {
       if (d.id !== demId) return d;
       const oldStage = Object.values(PIPELINES).flat().find(s=>s.id===d.stageId);
       const newStage = Object.values(PIPELINES).flat().find(s=>s.id===newStageId);
+      let assignees = d.assignees;
+      if (newStage && newStage.isApproval && !assignees.includes('MA')) {
+        assignees = [...assignees, 'MA'];
+      }
       const auto = AUTO[d.area] && AUTO[d.area][newStageId];
       if (auto) {
-        setSlack(sp => [{ id:'s'+Date.now(), code:d.code, area:d.area, time:t(new Date()), stagePath:(oldStage?oldStage.name:'?')+' → '+(newStage?newStage.name:'?'), action:auto.action, next:auto.next, type:newStage&&newStage.isApproval?'approval':'move' }, ...sp]);
+        let action = auto.action;
+        if (notifyTargets && notifyTargets.length) {
+          action = action + ' — ' + mentionNames(notifyTargets) + ' notificados no Slack';
+        }
+        setSlack(sp => [{ id:'s'+Date.now(), code:d.code, area:d.area, time:t(new Date()), stagePath:(oldStage?oldStage.name:'?')+' → '+(newStage?newStage.name:'?'), action, next:auto.next, type:newStage&&newStage.isApproval?'approval':'move' }, ...sp]);
       }
-      return {...d, stageId:newStageId};
+      return {...d, stageId:newStageId, assignees};
     }));
   }, []);
 
@@ -170,7 +219,14 @@ function Provider({ children }) {
 
   const selDemand = modal ? demands.find(d=>d.id===modal)||null : null;
 
-  return <Ctx.Provider value={{ demands, filtered, slack, user, setUser, view, setView, area, setArea, query, setQuery, selDemand, setModal, newOpen, setNewOpen, addDemand, moveStage, delDemand, reset }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ demands, filtered, slack, user, view, setView, area, setArea, query, setQuery, selDemand, setModal, newOpen, setNewOpen, notifyPending, setNotifyPending, profileOpen, setProfileOpen, photos, profiles, login, logout, savePhoto, removePhoto, saveProfile, addDemand, moveStage, delDemand, reset }}>{children}</Ctx.Provider>;
+}
+
+/* Nome/foto podem ter sido editados no perfil — resolve o membro já com essas mudanças */
+function useMember(initials) {
+  const { profiles } = useApp();
+  const base = TEAM.find(m=>m.initials===initials);
+  return base ? { ...base, ...(profiles[base.id]||{}) } : null;
 }
 
 const useApp = () => useContext(Ctx);
@@ -186,116 +242,412 @@ function getSla(dl) {
 function fmtDate(s) { if(!s) return ''; const [,m,d]=s.split('-'); return d+'/'+m; }
 
 /* =========== ICONS (SVG inline) =========== */
-const IKanban = ()=><svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><rect x="3" y="3" width="5" height="18" rx="1"/><rect x="11" y="3" width="5" height="12" rx="1"/><rect x="19" y="3" width="5" height="8" rx="1"/></svg>;
-const ISlack  = ()=><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 10c-.83 0-1.5-.67-1.5-1.5v-5c0-.83.67-1.5 1.5-1.5s1.5.67 1.5 1.5v5c0 .83-.67 1.5-1.5 1.5z"/><path d="M20.5 10H19V8.5c0-.83.67-1.5 1.5-1.5s1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/><path d="M9.5 14c.83 0 1.5.67 1.5 1.5v5c0 .83-.67 1.5-1.5 1.5S8 21.33 8 20.5v-5c0-.83.67-1.5 1.5-1.5z"/><path d="M3.5 14H5v1.5c0 .83-.67 1.5-1.5 1.5S2 16.33 2 15.5 2.67 14 3.5 14z"/><path d="M14 14.5c0-.83.67-1.5 1.5-1.5h5c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5h-5c-.83 0-1.5-.67-1.5-1.5z"/><path d="M15.5 19H14v1.5c0 .83.67 1.5 1.5 1.5s1.5-.67 1.5-1.5-.67-1.5-1.5-1.5z"/><path d="M10 9.5C10 8.67 9.33 8 8.5 8h-5C2.67 8 2 8.67 2 9.5S2.67 11 3.5 11h5c.83 0 1.5-.67 1.5-1.5z"/><path d="M8.5 5H10V3.5C10 2.67 9.33 2 8.5 2S7 2.67 7 3.5 7.67 5 8.5 5z"/></svg>;
-const IPlus   = ()=><svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>;
-const ISearch = ()=><svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>;
-const IX      = ()=><svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>;
-const IReset  = ()=><svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.63"/></svg>;
-const IZap    = ()=><svg width="12" height="12" fill="currentColor" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>;
-const ICheck  = ()=><svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>;
+const IKanban = ()=><svg width="19" height="19" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><rect x="3" y="3" width="5" height="18" rx="1"/><rect x="11" y="3" width="5" height="12" rx="1"/><rect x="19" y="3" width="5" height="8" rx="1"/></svg>;
+const ISlack  = ()=><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 10c-.83 0-1.5-.67-1.5-1.5v-5c0-.83.67-1.5 1.5-1.5s1.5.67 1.5 1.5v5c0 .83-.67 1.5-1.5 1.5z"/><path d="M20.5 10H19V8.5c0-.83.67-1.5 1.5-1.5s1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/><path d="M9.5 14c.83 0 1.5.67 1.5 1.5v5c0 .83-.67 1.5-1.5 1.5S8 21.33 8 20.5v-5c0-.83.67-1.5 1.5-1.5z"/><path d="M3.5 14H5v1.5c0 .83-.67 1.5-1.5 1.5S2 16.33 2 15.5 2.67 14 3.5 14z"/><path d="M14 14.5c0-.83.67-1.5 1.5-1.5h5c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5h-5c-.83 0-1.5-.67-1.5-1.5z"/><path d="M15.5 19H14v1.5c0 .83.67 1.5 1.5 1.5s1.5-.67 1.5-1.5-.67-1.5-1.5-1.5z"/><path d="M10 9.5C10 8.67 9.33 8 8.5 8h-5C2.67 8 2 8.67 2 9.5S2.67 11 3.5 11h5c.83 0 1.5-.67 1.5-1.5z"/><path d="M8.5 5H10V3.5C10 2.67 9.33 2 8.5 2S7 2.67 7 3.5 7.67 5 8.5 5z"/></svg>;
+const IPlus   = ()=><svg width="19" height="19" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>;
+const ISearch = ()=><svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>;
+const IX      = ()=><svg width="19" height="19" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>;
+const IReset  = ()=><svg width="17" height="17" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.63"/></svg>;
+const IZap    = ()=><svg width="15" height="15" fill="currentColor" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>;
+const ICheck  = ()=><svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>;
+const ICamera = ()=><svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>;
+const ILogout = ()=><svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>;
+const IGoogle = ({size=20})=><svg width={size} height={size} viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>;
+
+/* Foto do perfil quando existe, iniciais como fallback */
+function Avatar({ member, size=32, ring=true, style, src }) {
+  const { photos } = useApp();
+  /* src !== undefined vence o que está salvo — usado pelo preview do perfil */
+  const photo = src !== undefined ? src : (member && photos[member.id]);
+  const clr = (member && member.color) || NB.azul;
+  const base = { width:size, height:size, borderRadius:'50%', flexShrink:0, border:'2px solid #fff', boxShadow: ring ? '0 0 0 2px '+clr : 'none', ...style };
+  if (photo) return <img src={photo} alt={member.name} title={member.name} style={{...base, objectFit:'cover'}}/>;
+  return (
+    <div title={member?member.name:''} style={{...base, background:clr, color:'#fff', fontSize:Math.round(size*0.38), fontWeight:700, display:'flex', alignItems:'center', justifyContent:'center'}}>
+      {member ? member.initials : '?'}
+    </div>
+  );
+}
+
+/* =========== LOGIN =========== */
+function LoginScreen() {
+  const { login, photos } = useApp();
+  const [step, setStep]   = useState('start'); // start | accounts | other
+  const [email, setEmail] = useState('');
+  const [error, setError] = useState('');
+
+  const tryEmail = () => {
+    const v = email.trim().toLowerCase();
+    if (!v) return setError('Digite seu e-mail corporativo.');
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v)) return setError('E-mail inválido.');
+    if (!v.endsWith(NIBO_DOMAIN)) return setError('Acesso restrito a contas '+NIBO_DOMAIN+'. Use sua conta Nibo.');
+    const found = ACTIVE_TEAM.find(m=>m.email===v);
+    if (!found) return setError('Não encontramos essa conta na equipe de Marketing. Fale com a Mariana para liberar seu acesso.');
+    login(found.id);
+  };
+
+  return (
+    <div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',padding:24,
+      background:'radial-gradient(1200px 600px at 15% -10%, '+NB.roxo+'26, transparent 60%), radial-gradient(900px 500px at 100% 100%, '+NB.pink+'1F, transparent 55%), linear-gradient(160deg,#001B45,'+NB.petroleo+' 55%,#003E93)'}}>
+      <div style={{width:'100%',maxWidth:1000,display:'grid',gridTemplateColumns:'1.05fr 1fr',background:'#fff',borderRadius:24,overflow:'hidden',boxShadow:'0 30px 80px rgba(0,20,60,0.45)'}}>
+
+        {/* Lado marca */}
+        <div style={{padding:'52px 46px',background:'linear-gradient(150deg,'+NB.petroleo+' 0%,#0A3F94 55%,'+NB.roxo+' 130%)',color:'#fff',position:'relative',overflow:'hidden'}}>
+          <div style={{position:'absolute',width:320,height:320,borderRadius:'50%',background:NB.pink,opacity:0.16,right:-120,top:-90}}/>
+          <div style={{position:'absolute',width:220,height:220,borderRadius:'50%',background:NB.azulClaro,opacity:0.18,left:-80,bottom:-70}}/>
+          <div style={{position:'relative'}}>
+            <div style={{display:'flex',alignItems:'center',gap:13,marginBottom:40}}>
+              <div style={{width:46,height:46,background:'#fff',borderRadius:13,display:'flex',alignItems:'center',justifyContent:'center',fontWeight:700,color:NB.petroleo,fontSize:22}}>N</div>
+              <div>
+                <div style={{fontWeight:700,fontSize:18,lineHeight:1.15}}>Demandas</div>
+                <div style={{fontSize:13,color:NB.gelo}}>Nibo Marketing Ops</div>
+              </div>
+            </div>
+            <h1 style={{fontSize:34,lineHeight:1.2,fontWeight:700,marginBottom:16}}>
+              Toda demanda de marketing<br/>em um só lugar.
+            </h1>
+            <p style={{fontSize:15,color:NB.gelo,lineHeight:1.65,maxWidth:380}}>
+              Solicite, acompanhe e aprove demandas de Social, Design, Mídia Paga, Produto e RevOps — com as automações caindo direto no Slack.
+            </p>
+            <div style={{display:'flex',gap:9,marginTop:38,flexWrap:'wrap'}}>
+              {ACTIVE_TEAM.slice(0,6).map(m=>(
+                <div key={m.id} style={{width:38,height:38,borderRadius:'50%',overflow:'hidden',border:'2px solid rgba(255,255,255,0.5)',flexShrink:0}}>
+                  {photos[m.id]
+                    ? <img src={photos[m.id]} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>
+                    : <div style={{width:'100%',height:'100%',background:m.color,color:'#fff',fontSize:13,fontWeight:700,display:'flex',alignItems:'center',justifyContent:'center'}}>{m.initials}</div>}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Lado login */}
+        <div style={{padding:'52px 46px',display:'flex',flexDirection:'column',justifyContent:'center'}}>
+          {step==='start' && (
+            <React.Fragment>
+              <h2 style={{fontSize:24,fontWeight:700,color:NB.petroleo,marginBottom:8}}>Entrar</h2>
+              <p style={{fontSize:14.5,color:'#64748B',lineHeight:1.6,marginBottom:32}}>
+                Use sua conta Google do Nibo. O acesso é restrito a e-mails <strong style={{color:NB.petroleo}}>{NIBO_DOMAIN}</strong>.
+              </p>
+              <button onClick={()=>setStep('accounts')}
+                style={{display:'flex',alignItems:'center',justifyContent:'center',gap:13,width:'100%',padding:'15px 20px',background:'#fff',border:'1.5px solid #DADCE0',borderRadius:12,fontSize:15.5,fontWeight:600,color:'#3C4043',boxShadow:'0 1px 3px rgba(0,0,0,0.08)'}}>
+                <IGoogle/> Entrar com Google
+              </button>
+              <div style={{display:'flex',alignItems:'center',gap:14,margin:'26px 0'}}>
+                <div style={{flex:1,height:1,background:'#E2E8F0'}}/>
+                <span style={{fontSize:12,color:'#94A3B8'}}>ou</span>
+                <div style={{flex:1,height:1,background:'#E2E8F0'}}/>
+              </div>
+              <button onClick={()=>{setStep('other');setError('');}}
+                style={{width:'100%',padding:'13px 20px',background:'#F6F7FA',border:'1px solid #E2E8F0',borderRadius:12,fontSize:14.5,fontWeight:600,color:'#475569'}}>
+                Entrar com e-mail corporativo
+              </button>
+            </React.Fragment>
+          )}
+
+          {step==='accounts' && (
+            <React.Fragment>
+              <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:6}}>
+                <IGoogle size={22}/>
+                <h2 style={{fontSize:21,fontWeight:700,color:NB.petroleo}}>Escolha uma conta</h2>
+              </div>
+              <p style={{fontSize:13.5,color:'#64748B',marginBottom:22}}>para continuar em Demandas · Nibo Marketing Ops</p>
+              <div style={{display:'flex',flexDirection:'column',gap:8,maxHeight:340,overflowY:'auto'}}>
+                {ACTIVE_TEAM.map(m=>(
+                  <button key={m.id} onClick={()=>login(m.id)}
+                    style={{display:'flex',alignItems:'center',gap:13,padding:'11px 14px',background:'#fff',border:'1px solid #E2E8F0',borderRadius:12,textAlign:'left'}}
+                    onMouseEnter={e=>{e.currentTarget.style.background='#F6F7FA';}}
+                    onMouseLeave={e=>{e.currentTarget.style.background='#fff';}}>
+                    <div style={{width:38,height:38,borderRadius:'50%',overflow:'hidden',flexShrink:0}}>
+                      {photos[m.id]
+                        ? <img src={photos[m.id]} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>
+                        : <div style={{width:'100%',height:'100%',background:m.color,color:'#fff',fontSize:13,fontWeight:700,display:'flex',alignItems:'center',justifyContent:'center'}}>{m.initials}</div>}
+                    </div>
+                    <div style={{minWidth:0}}>
+                      <div style={{fontSize:14.5,fontWeight:600,color:NB.petroleo}}>{m.name}</div>
+                      <div style={{fontSize:12.5,color:'#64748B',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{m.email}</div>
+                    </div>
+                  </button>
+                ))}
+                <button onClick={()=>{setStep('other');setError('');}}
+                  style={{display:'flex',alignItems:'center',gap:13,padding:'11px 14px',background:'#fff',border:'1px dashed #CBD5E1',borderRadius:12,textAlign:'left'}}>
+                  <div style={{width:38,height:38,borderRadius:'50%',background:'#F1F5F9',color:'#64748B',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><IPlus/></div>
+                  <span style={{fontSize:14.5,fontWeight:600,color:'#475569'}}>Usar outra conta</span>
+                </button>
+              </div>
+              <button onClick={()=>setStep('start')} style={{marginTop:18,background:'none',border:'none',color:NB.azul,fontSize:13.5,fontWeight:600,alignSelf:'flex-start'}}>← Voltar</button>
+            </React.Fragment>
+          )}
+
+          {step==='other' && (
+            <React.Fragment>
+              <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:6}}>
+                <IGoogle size={22}/>
+                <h2 style={{fontSize:21,fontWeight:700,color:NB.petroleo}}>Fazer login</h2>
+              </div>
+              <p style={{fontSize:13.5,color:'#64748B',marginBottom:22}}>Somente contas {NIBO_DOMAIN} têm acesso.</p>
+              <input value={email} autoFocus
+                onChange={e=>{setEmail(e.target.value); if(error) setError('');}}
+                onKeyDown={e=>{ if(e.key==='Enter') tryEmail(); }}
+                placeholder={'nome.sobrenome'+NIBO_DOMAIN}
+                style={{width:'100%',padding:'14px 16px',border:'1.5px solid '+(error?'#DC2626':'#CBD5E1'),borderRadius:12,fontSize:15,color:NB.petroleo,outline:'none'}}/>
+              {error && <p style={{fontSize:13,color:'#DC2626',marginTop:9,lineHeight:1.5}}>{error}</p>}
+              <button onClick={tryEmail}
+                style={{width:'100%',marginTop:20,padding:'14px 20px',background:NB.azul,border:'none',borderRadius:12,fontSize:15,fontWeight:700,color:'#fff'}}>
+                Continuar
+              </button>
+              <button onClick={()=>{setStep('start');setError('');}} style={{marginTop:18,background:'none',border:'none',color:NB.azul,fontSize:13.5,fontWeight:600,alignSelf:'flex-start'}}>← Voltar</button>
+            </React.Fragment>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 /* =========== SIDEBAR =========== */
 function Sidebar() {
-  const { view, setView, area, setArea, user, setUser, demands, slack } = useApp();
+  const { view, setView, area, setArea, user, demands, slack, setNewOpen, setProfileOpen, logout } = useApp();
   const areas = ['Todas','Social','Design','Mídia Paga','Produto','RevOps'];
+  const atrasadas = demands.filter(d => { const s=getSla(d.deadline); return s && s.type!=='ok'; }).length;
 
   return (
-    <aside style={{width:216,background:'#002D72',display:'flex',flexDirection:'column',height:'100vh',flexShrink:0}}>
+    <aside style={{width:320,background:'linear-gradient(180deg,'+NB.petroleo+' 0%,#00214F 100%)',display:'flex',flexDirection:'column',height:'100vh',flexShrink:0}}>
       {/* Brand */}
-      <div style={{padding:'20px 16px 14px',borderBottom:'1px solid rgba(255,255,255,0.1)'}}>
-        <div style={{display:'flex',alignItems:'center',gap:10}}>
-          <div style={{width:34,height:34,background:'#0072CE',borderRadius:9,display:'flex',alignItems:'center',justifyContent:'center',fontWeight:700,color:'#fff',fontSize:15,flexShrink:0}}>N</div>
+      <div style={{padding:'28px 24px 22px',borderBottom:'1px solid rgba(255,255,255,0.1)'}}>
+        <div style={{display:'flex',alignItems:'center',gap:14}}>
+          <div style={{width:48,height:48,background:'linear-gradient(135deg,'+NB.azul+','+NB.azulClaro+')',borderRadius:14,display:'flex',alignItems:'center',justifyContent:'center',fontWeight:700,color:'#fff',fontSize:23,flexShrink:0}}>N</div>
           <div>
-            <div style={{color:'#fff',fontWeight:700,fontSize:13,lineHeight:1.2}}>Demandas</div>
-            <div style={{color:'#B8CCEA',fontSize:10}}>Nibo Marketing Ops</div>
+            <div style={{color:'#fff',fontWeight:700,fontSize:19,lineHeight:1.15}}>Demandas</div>
+            <div style={{color:NB.gelo,fontSize:13.5}}>Nibo Marketing Ops</div>
           </div>
         </div>
       </div>
 
-      {/* Pipelines */}
-      <div style={{padding:'14px 10px 6px'}}>
-        <div style={{color:'rgba(184,204,234,0.6)',fontSize:9,fontWeight:600,letterSpacing:'0.08em',textTransform:'uppercase',marginBottom:6,paddingLeft:4}}>Pipelines</div>
-        {areas.map(a => {
-          const active = area === a;
-          const cnt = a==='Todas' ? demands.length : demands.filter(d=>d.area===a).length;
-          return (
-            <button key={a} onClick={()=>{setArea(a); if(view!=='kanban') setView('kanban');}}
-              style={{width:'100%',display:'flex',alignItems:'center',justifyContent:'space-between',padding:'5px 8px',borderRadius:6,border:'none',background:active?'#0072CE':'transparent',marginBottom:1,transition:'background 0.12s'}}>
-              <div style={{display:'flex',alignItems:'center',gap:7}}>
-                {a!=='Todas' && <div style={{width:6,height:6,borderRadius:'50%',background:AREA_CLR[a]||'#B8CCEA',flexShrink:0}}/>}
-                {a==='Todas' && <div style={{width:6,height:6,borderRadius:'50%',background:'#41B6E6',flexShrink:0}}/>}
-                <span style={{color:active?'#fff':'#B8CCEA',fontSize:11.5,fontWeight:active?600:400}}>{a}</span>
-              </div>
-              <span style={{color:active?'rgba(255,255,255,0.65)':'rgba(184,204,234,0.5)',fontSize:10,fontWeight:600}}>{cnt}</span>
-            </button>
-          );
-        })}
+      {/* CTA principal */}
+      <div style={{padding:'22px 24px 6px'}}>
+        <button onClick={()=>setNewOpen(true)}
+          style={{width:'100%',display:'flex',alignItems:'center',justifyContent:'center',gap:10,padding:'17px 18px',background:'linear-gradient(135deg,'+NB.pink+','+NB.roxo+')',border:'none',borderRadius:14,color:'#fff',fontSize:16.5,fontWeight:700,boxShadow:'0 6px 20px rgba(255,64,179,0.4)'}}>
+          <IPlus/> Solicitar Demanda
+        </button>
       </div>
 
-      {/* Módulos */}
-      <div style={{padding:'12px 10px 6px',flex:1}}>
-        <div style={{color:'rgba(184,204,234,0.6)',fontSize:9,fontWeight:600,letterSpacing:'0.08em',textTransform:'uppercase',marginBottom:6,paddingLeft:4}}>Módulos</div>
-        {[{id:'kanban',label:'Kanban',Icon:IKanban},{id:'slack',label:'Automações Slack',Icon:ISlack,badge:slack.length}].map(({id,label,Icon,badge})=>{
-          const active = view===id;
-          return (
-            <button key={id} onClick={()=>setView(id)}
-              style={{width:'100%',display:'flex',alignItems:'center',justifyContent:'space-between',padding:'6px 8px',borderRadius:6,border:'none',borderLeft:active?'2px solid #41B6E6':'2px solid transparent',background:active?'rgba(255,255,255,0.1)':'transparent',marginBottom:2,transition:'all 0.12s'}}>
-              <div style={{display:'flex',alignItems:'center',gap:8,color:active?'#fff':'#B8CCEA'}}>
-                <Icon />
-                <span style={{fontSize:11.5,fontWeight:active?600:400}}>{label}</span>
-              </div>
-              {badge>0 && <span style={{background:'#41B6E6',color:'#002D72',fontSize:9,fontWeight:800,padding:'1px 5px',borderRadius:8}}>{badge}</span>}
-            </button>
-          );
-        })}
+      {/* Resumo rápido */}
+      <div style={{padding:'16px 24px 4px',display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+        <div style={{background:'rgba(255,255,255,0.07)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:12,padding:'11px 13px'}}>
+          <div style={{fontSize:24,fontWeight:700,color:'#fff',lineHeight:1.1}}>{demands.length}</div>
+          <div style={{fontSize:11.5,color:NB.gelo}}>demandas ativas</div>
+        </div>
+        <div style={{background:atrasadas?'rgba(255,64,179,0.16)':'rgba(255,255,255,0.07)',border:'1px solid '+(atrasadas?'rgba(255,64,179,0.5)':'rgba(255,255,255,0.1)'),borderRadius:12,padding:'11px 13px'}}>
+          <div style={{fontSize:24,fontWeight:700,color:atrasadas?'#FF8FD3':'#fff',lineHeight:1.1}}>{atrasadas}</div>
+          <div style={{fontSize:11.5,color:atrasadas?'#FFC7EA':NB.gelo}}>vencendo/atrasadas</div>
+        </div>
+      </div>
+
+      <div style={{flex:1,overflowY:'auto',paddingBottom:8}} className="nb-scrollnone">
+        {/* Pipelines */}
+        <div style={{padding:'22px 16px 8px'}}>
+          <div style={{color:'rgba(184,204,234,0.65)',fontSize:11.5,fontWeight:700,letterSpacing:'0.1em',textTransform:'uppercase',marginBottom:10,paddingLeft:8}}>Pipelines</div>
+          {areas.map(a => {
+            const active = area === a;
+            const cnt = a==='Todas' ? demands.length : demands.filter(d=>d.area===a).length;
+            const clr = AREA_CLR_DARKBG[a]||NB.gelo;
+            return (
+              <button key={a} onClick={()=>{setArea(a); if(view!=='kanban') setView('kanban');}}
+                style={{width:'100%',display:'flex',alignItems:'center',justifyContent:'space-between',padding:'12px 14px',borderRadius:11,border:'none',background:active?'rgba(255,255,255,0.13)':'transparent',marginBottom:3,transition:'background 0.12s'}}
+                onMouseEnter={e=>{ if(!active) e.currentTarget.style.background='rgba(255,255,255,0.06)'; }}
+                onMouseLeave={e=>{ if(!active) e.currentTarget.style.background='transparent'; }}>
+                <div style={{display:'flex',alignItems:'center',gap:12,minWidth:0}}>
+                  <div style={{width:32,height:32,borderRadius:9,background:active?clr:clr+'2E',color:active?NB.petroleo:clr,fontSize:15,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,fontWeight:700}}>{AREA_ICON[a]}</div>
+                  <span style={{color:active?'#fff':clr,fontSize:15.5,fontWeight:active?700:600}}>{a}</span>
+                </div>
+                <span style={{color:active?'#fff':'rgba(184,204,234,0.6)',fontSize:13.5,fontWeight:700,background:active?'rgba(255,255,255,0.18)':'transparent',padding:active?'2px 9px':'2px 0',borderRadius:9}}>{cnt}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Módulos */}
+        <div style={{padding:'14px 16px 8px'}}>
+          <div style={{color:'rgba(184,204,234,0.65)',fontSize:11.5,fontWeight:700,letterSpacing:'0.1em',textTransform:'uppercase',marginBottom:10,paddingLeft:8}}>Módulos</div>
+          {[{id:'kanban',label:'Kanban',Icon:IKanban},{id:'slack',label:'Automações Slack',Icon:ISlack,badge:slack.length}].map(({id,label,Icon,badge})=>{
+            const active = view===id;
+            return (
+              <button key={id} onClick={()=>setView(id)}
+                style={{width:'100%',display:'flex',alignItems:'center',justifyContent:'space-between',padding:'12px 14px',borderRadius:11,border:'none',background:active?'rgba(255,255,255,0.13)':'transparent',marginBottom:3,transition:'all 0.12s'}}
+                onMouseEnter={e=>{ if(!active) e.currentTarget.style.background='rgba(255,255,255,0.06)'; }}
+                onMouseLeave={e=>{ if(!active) e.currentTarget.style.background='transparent'; }}>
+                <div style={{display:'flex',alignItems:'center',gap:12,color:active?'#fff':NB.gelo}}>
+                  <div style={{width:32,height:32,borderRadius:9,background:active?NB.azulClaro:'rgba(184,204,234,0.14)',color:active?NB.petroleo:NB.gelo,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><Icon /></div>
+                  <span style={{fontSize:15.5,fontWeight:active?700:600}}>{label}</span>
+                </div>
+                {badge>0 && <span style={{background:NB.amarelo,color:NB.petroleo,fontSize:12,fontWeight:800,padding:'2px 9px',borderRadius:9}}>{badge}</span>}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* User */}
-      <div style={{padding:'10px 12px 14px',borderTop:'1px solid rgba(255,255,255,0.1)'}}>
-        <div style={{color:'rgba(184,204,234,0.55)',fontSize:9,fontWeight:600,letterSpacing:'0.07em',textTransform:'uppercase',marginBottom:6}}>Perfil ativo</div>
-        <div style={{background:'rgba(255,255,255,0.07)',border:'1px solid rgba(255,255,255,0.12)',borderRadius:8,padding:'6px 10px',position:'relative'}}>
-          <div style={{fontSize:10,color:'#fff',fontWeight:600,marginBottom:2}}>{user.name}</div>
-          <div style={{fontSize:9,color:'#B8CCEA'}}>{user.area}</div>
-          <select value={user.id} onChange={e=>setUser(TEAM.find(m=>m.id===e.target.value))}
-            style={{position:'absolute',inset:0,opacity:0,width:'100%',cursor:'pointer'}}>
-            {TEAM.map(m=><option key={m.id} value={m.id}>{m.name} — {m.area}</option>)}
-          </select>
+      <div style={{padding:'16px 20px 20px',borderTop:'1px solid rgba(255,255,255,0.1)'}}>
+        <div style={{display:'flex',alignItems:'center',gap:8}}>
+          <button onClick={()=>setProfileOpen(true)} title="Editar meu perfil"
+            style={{flex:1,minWidth:0,background:'rgba(255,255,255,0.08)',border:'1px solid rgba(255,255,255,0.14)',borderRadius:12,padding:'11px 13px',display:'flex',alignItems:'center',gap:12,textAlign:'left'}}
+            onMouseEnter={e=>{e.currentTarget.style.background='rgba(255,255,255,0.14)';}}
+            onMouseLeave={e=>{e.currentTarget.style.background='rgba(255,255,255,0.08)';}}>
+            <Avatar member={user} size={42}/>
+            <div style={{minWidth:0,flex:1}}>
+              <div style={{fontSize:14,color:'#fff',fontWeight:600,marginBottom:2,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{user.name}</div>
+              <div style={{fontSize:11.5,color:NB.gelo,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{user.email}</div>
+            </div>
+            <span style={{color:NB.gelo,flexShrink:0}}><ICamera/></span>
+          </button>
+          <button onClick={logout} title="Sair"
+            style={{padding:'13px',background:'rgba(255,255,255,0.08)',border:'1px solid rgba(255,255,255,0.14)',borderRadius:12,color:NB.gelo,display:'flex',alignItems:'center',flexShrink:0}}>
+            <ILogout/>
+          </button>
         </div>
       </div>
     </aside>
   );
 }
 
+/* =========== PERFIL =========== */
+function ProfileModal() {
+  const { profileOpen, setProfileOpen, user, savePhoto, removePhoto, saveProfile, photos } = useApp();
+  const fileRef = useRef(null);
+  const [name, setName]   = useState('');
+  const [err, setErr]     = useState('');
+  /* undefined = foto inalterada | string = foto nova | null = remover ao salvar */
+  const [photoDraft, setPhotoDraft] = useState(undefined);
+
+  /* Só recarrega os campos ao abrir o modal ou trocar de pessoa. Depender do objeto
+     `user` faria o que foi digitado ser sobrescrito a cada re-render do Provider —
+     era o que apagava o nome novo logo depois de escolher a foto. */
+  const userId   = user ? user.id : null;
+  const nameRef  = useRef('');
+  nameRef.current = user ? user.name : '';
+
+  useEffect(() => {
+    if (profileOpen && userId) { setName(nameRef.current); setPhotoDraft(undefined); setErr(''); }
+  }, [profileOpen, userId]);
+
+  if (!profileOpen || !user) return null;
+
+  const currentPhoto = photoDraft !== undefined ? photoDraft : (photos[user.id] || null);
+
+  const pick = e => {
+    const f = e.target.files && e.target.files[0];
+    e.target.value = '';                       // permite reescolher o mesmo arquivo
+    if (!f) return;
+    if (!f.type.startsWith('image/')) return setErr('Escolha um arquivo de imagem.');
+    if (f.size > 3 * 1024 * 1024) return setErr('Imagem muito grande. Use um arquivo de até 3 MB.');
+    const rd = new FileReader();
+    rd.onload = () => { setPhotoDraft(rd.result); setErr(''); };
+    rd.onerror = () => setErr('Não foi possível ler a imagem.');
+    rd.readAsDataURL(f);
+  };
+
+  const save = () => {
+    saveProfile(user.id, { name: name.trim() || nameRef.current });
+    if (photoDraft !== undefined) {
+      photoDraft ? savePhoto(user.id, photoDraft) : removePhoto(user.id);
+    }
+    setProfileOpen(false);
+  };
+
+  return (
+    <div onClick={()=>setProfileOpen(false)}
+      style={{position:'fixed',inset:0,background:'rgba(0,45,114,0.45)',zIndex:70,display:'flex',alignItems:'center',justifyContent:'center',padding:24}}>
+      <div onClick={e=>e.stopPropagation()}
+        style={{background:'#fff',borderRadius:20,width:'100%',maxWidth:460,boxShadow:'0 24px 64px rgba(0,45,114,0.32)',overflow:'hidden'}}>
+
+        <div style={{height:96,background:'linear-gradient(120deg,'+user.color+','+NB.roxo+')'}}/>
+        <div style={{padding:'0 28px 24px',marginTop:-46}}>
+          <div style={{display:'flex',alignItems:'flex-end',gap:16,marginBottom:22}}>
+            <div style={{position:'relative'}}>
+              <Avatar member={user} src={currentPhoto} size={92} ring={false} style={{border:'4px solid #fff',boxShadow:'0 4px 14px rgba(0,45,114,0.2)'}}/>
+              <button onClick={()=>fileRef.current && fileRef.current.click()} title="Trocar foto"
+                style={{position:'absolute',right:-2,bottom:-2,width:32,height:32,borderRadius:'50%',background:NB.azul,border:'3px solid #fff',color:'#fff',display:'flex',alignItems:'center',justifyContent:'center'}}>
+                <ICamera/>
+              </button>
+              <input ref={fileRef} type="file" accept="image/*" onChange={pick} style={{display:'none'}}/>
+            </div>
+            <div style={{paddingBottom:6,minWidth:0}}>
+              <div style={{fontSize:12,color:'#94A3B8',fontWeight:600,textTransform:'uppercase',letterSpacing:'0.07em'}}>{user.area}</div>
+              <div style={{fontSize:13.5,color:'#64748B',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{user.email}</div>
+            </div>
+          </div>
+
+          <label style={{fontSize:11.5,fontWeight:600,color:'#94A3B8',textTransform:'uppercase',letterSpacing:'0.07em',display:'block',marginBottom:6}}>Nome de exibição</label>
+          <input value={name} onChange={e=>setName(e.target.value)}
+            style={{width:'100%',background:'#F6F7FA',border:'1px solid #E2E8F0',borderRadius:10,padding:'11px 14px',fontSize:15,color:NB.petroleo,outline:'none'}}/>
+
+          <div style={{display:'flex',gap:9,marginTop:16,flexWrap:'wrap'}}>
+            <button onClick={()=>fileRef.current && fileRef.current.click()}
+              style={{display:'flex',alignItems:'center',gap:8,padding:'9px 15px',background:'#F6F7FA',border:'1px solid #E2E8F0',borderRadius:10,fontSize:13.5,fontWeight:600,color:'#475569'}}>
+              <ICamera/> {currentPhoto ? 'Trocar foto' : 'Adicionar foto'}
+            </button>
+            {currentPhoto && (
+              <button onClick={()=>setPhotoDraft(null)}
+                style={{padding:'9px 15px',background:'#FEF2F2',border:'1px solid #FECACA',borderRadius:10,fontSize:13.5,fontWeight:600,color:'#991B1B'}}>
+                Remover foto
+              </button>
+            )}
+          </div>
+          {err && <p style={{fontSize:12.5,color:'#DC2626',marginTop:10}}>{err}</p>}
+          <p style={{fontSize:12,color:'#94A3B8',marginTop:12,lineHeight:1.5}}>
+            {photoDraft !== undefined
+              ? 'Clique em Salvar perfil para aplicar a nova foto.'
+              : 'A foto fica salva neste navegador e aparece nos cards, no login e nas menções.'}
+          </p>
+        </div>
+
+        <div style={{padding:'16px 28px',borderTop:'1px solid #E2E8F0',display:'flex',justifyContent:'flex-end',gap:10}}>
+          <button onClick={()=>setProfileOpen(false)}
+            style={{padding:'10px 18px',background:'#F6F7FA',border:'1px solid #E2E8F0',borderRadius:10,fontSize:13.5,fontWeight:600,color:'#64748B'}}>
+            Cancelar
+          </button>
+          <button onClick={save}
+            style={{padding:'10px 22px',background:NB.azul,border:'none',borderRadius:10,fontSize:13.5,fontWeight:700,color:'#fff'}}>
+            Salvar perfil
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* =========== TOPBAR =========== */
 function TopBar() {
-  const { query, setQuery, setNewOpen, area, view, reset, slack } = useApp();
+  const { query, setQuery, area, view, reset } = useApp();
   const title = view==='slack' ? 'Automações Slack' : area==='Todas' ? 'Todos os Pipelines' : 'Pipeline — '+area;
   return (
-    <header style={{background:'#fff',borderBottom:'1px solid #E2EBF4',padding:'11px 22px',display:'flex',alignItems:'center',gap:12,flexShrink:0}}>
+    <header style={{background:'#fff',borderBottom:'1px solid #E2E8F0',padding:'16px 28px',display:'flex',alignItems:'center',gap:16,flexShrink:0}}>
       <div style={{flex:1}}>
-        <div style={{fontSize:14,fontWeight:700,color:'#002D72'}}>{title}</div>
+        <div style={{fontSize:18,fontWeight:700,color:'#002D72'}}>{title}</div>
       </div>
       {view==='kanban' && (
-        <div style={{position:'relative',width:260}}>
-          <span style={{position:'absolute',left:10,top:'50%',transform:'translateY(-50%)',color:'#94A3B8',pointerEvents:'none'}}><ISearch /></span>
+        <div style={{position:'relative',width:320}}>
+          <span style={{position:'absolute',left:13,top:'50%',transform:'translateY(-50%)',color:'#94A3B8',pointerEvents:'none'}}><ISearch /></span>
           <input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Buscar demanda..."
-            style={{width:'100%',background:'#F8FAFC',border:'1px solid #E2EBF4',borderRadius:8,padding:'7px 11px 7px 30px',fontSize:11.5,color:'#002D72',outline:'none'}}/>
+            style={{width:'100%',background:'#F6F7FA',border:'1px solid #E2E8F0',borderRadius:9,padding:'10px 14px 10px 38px',fontSize:14,color:'#002D72',outline:'none'}}/>
         </div>
       )}
       <button onClick={reset} title="Restaurar dados"
-        style={{padding:'7px 10px',background:'#F8FAFC',border:'1px solid #E2EBF4',borderRadius:8,color:'#64748B',display:'flex',alignItems:'center',lineHeight:1}}>
+        style={{padding:'10px 13px',background:'#F6F7FA',border:'1px solid #E2E8F0',borderRadius:9,color:'#64748B',display:'flex',alignItems:'center',lineHeight:1}}>
         <IReset />
-      </button>
-      <button onClick={()=>setNewOpen(true)}
-        style={{display:'flex',alignItems:'center',gap:6,padding:'7px 14px',background:'#0072CE',border:'none',borderRadius:8,color:'#fff',fontSize:12,fontWeight:600}}>
-        <IPlus /> Nova Demanda
       </button>
     </header>
   );
 }
 
 /* =========== CARD (SIMPLIFICADO) =========== */
+function CardAvatar({ initials, offset }) {
+  const mb = useMember(initials);
+  return <Avatar member={mb} size={30} style={{marginLeft:offset>0?-10:0,zIndex:offset,boxShadow:'0 0 0 1.5px '+((mb&&mb.color)||NB.azul)+', 0 2px 4px rgba(0,0,0,0.15)'}}/>;
+}
+
 function Card({ demand }) {
   const { setModal } = useApp();
   const sla = getSla(demand.deadline);
@@ -308,33 +660,31 @@ function Card({ demand }) {
 
   return (
     <div onClick={()=>setModal(demand.id)}
-      style={{background:'#fff',borderRadius:9,border:'1px solid #E2EBF4',borderLeft:'3px solid '+ac,padding:'10px 11px 9px',cursor:'pointer',transition:'box-shadow 0.12s, border-color 0.12s',marginBottom:8}}
+      style={{background:'#fff',borderRadius:11,border:'1px solid #E2E8F0',borderLeft:'4px solid '+ac,padding:'14px 15px 12px',cursor:'pointer',transition:'box-shadow 0.12s, border-color 0.12s',marginBottom:11}}
       onMouseEnter={e=>{e.currentTarget.style.boxShadow='0 2px 10px rgba(0,45,114,0.1)'; e.currentTarget.style.borderColor='#93C5FD'; e.currentTarget.style.borderLeftColor=ac;}}
-      onMouseLeave={e=>{e.currentTarget.style.boxShadow='none'; e.currentTarget.style.borderColor='#E2EBF4'; e.currentTarget.style.borderLeftColor=ac;}}>
+      onMouseLeave={e=>{e.currentTarget.style.boxShadow='none'; e.currentTarget.style.borderColor='#E2E8F0'; e.currentTarget.style.borderLeftColor=ac;}}>
 
       {/* Priority badge */}
-      <div style={{display:'flex',justifyContent:'flex-end',marginBottom:5}}>
-        <span style={{fontSize:9,fontWeight:700,padding:'2px 6px',borderRadius:4,background:ps.bg,color:ps.txt,border:'1px solid '+ps.bdr,letterSpacing:'0.05em'}}>
+      <div style={{display:'flex',justifyContent:'flex-end',marginBottom:7}}>
+        <span style={{fontSize:11,fontWeight:700,padding:'3px 8px',borderRadius:5,background:ps.bg,color:ps.txt,border:'1px solid '+ps.bdr,letterSpacing:'0.05em'}}>
           {demand.priority.toUpperCase()}
         </span>
       </div>
 
       {/* Title */}
-      <p style={{fontSize:12,fontWeight:600,color:'#002D72',lineHeight:1.45,display:'-webkit-box',WebkitLineClamp:2,WebkitBoxOrient:'vertical',overflow:'hidden',marginBottom:10}}>
+      <p style={{fontSize:15,fontWeight:600,color:'#002D72',lineHeight:1.45,display:'-webkit-box',WebkitLineClamp:2,WebkitBoxOrient:'vertical',overflow:'hidden',marginBottom:13}}>
         {demand.title}
       </p>
 
       {/* Footer */}
       <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
         {sla
-          ? <span style={{fontSize:10,fontWeight:600,padding:'2px 6px',borderRadius:4,...slaStyle}}>{sla.label}</span>
+          ? <span style={{fontSize:12.5,fontWeight:600,padding:'3px 8px',borderRadius:5,...slaStyle}}>{sla.label}</span>
           : <span/>
         }
         <div style={{display:'flex'}}>
-          {demand.assignees.slice(0,2).map((init,i)=>(
-            <div key={i} title={init} style={{width:21,height:21,borderRadius:'50%',background:'#0072CE',color:'#fff',fontSize:8,fontWeight:700,display:'flex',alignItems:'center',justifyContent:'center',border:'2px solid #fff',marginLeft:i>0?-7:0,flexShrink:0}}>
-              {init}
-            </div>
+          {demand.assignees.slice(0,3).map((init,i)=>(
+            <CardAvatar key={init+i} initials={init} offset={i}/>
           ))}
         </div>
       </div>
@@ -347,23 +697,22 @@ function Column({ stage, cards, areaColor }) {
   const { setNewOpen } = useApp();
   const headerClr = stage.isDone ? '#059669' : stage.isApproval ? '#D97706' : areaColor;
   return (
-    <div style={{minWidth:215,maxWidth:230,flex:'0 0 215px',background:'#F8FAFC',borderRadius:12,border:'1px solid #E2EBF4',padding:11,display:'flex',flexDirection:'column'}}>
-      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10,paddingBottom:9,borderBottom:'1px solid #E2EBF4'}}>
-        <div style={{display:'flex',alignItems:'center',gap:6}}>
-          <div style={{width:6,height:6,borderRadius:'50%',background:headerClr}}/>
-          <span style={{fontSize:11,fontWeight:600,color:'#002D72'}}>{stage.name}</span>
+    <div style={{minWidth:268,maxWidth:290,flex:'0 0 268px',background:'#F6F7FA',borderRadius:14,border:'1px solid #E2E8F0',borderTop:'3px solid '+headerClr,padding:14,display:'flex',flexDirection:'column'}}>
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:13,paddingBottom:12,borderBottom:'1px solid #E2E8F0'}}>
+        <div style={{display:'flex',alignItems:'center',gap:8}}>
+          <span style={{fontSize:14,fontWeight:700,color:headerClr}}>{stage.name}</span>
         </div>
-        <div style={{display:'flex',alignItems:'center',gap:6}}>
-          <span style={{fontSize:9.5,background:'#E8EFF7',color:'#64748B',fontWeight:700,padding:'1px 6px',borderRadius:8}}>{cards.length}</span>
+        <div style={{display:'flex',alignItems:'center',gap:8}}>
+          <span style={{fontSize:12,background:'#EEF1F6',color:'#64748B',fontWeight:700,padding:'2px 8px',borderRadius:9}}>{cards.length}</span>
           <button onClick={()=>setNewOpen(true)} style={{background:'none',border:'none',color:'#B8CCEA',padding:2,display:'flex',alignItems:'center',lineHeight:1}}>
             <IPlus/>
           </button>
         </div>
       </div>
-      <div style={{flex:1,overflowY:'auto',maxHeight:'calc(100vh - 190px)'}} className="nb-scrollnone">
+      <div style={{flex:1,overflowY:'auto',maxHeight:'calc(100vh - 230px)'}} className="nb-scrollnone">
         {cards.map(c=><Card key={c.id} demand={c}/>)}
         {cards.length===0 && (
-          <div style={{border:'1.5px dashed #E2EBF4',borderRadius:8,padding:'20px 10px',textAlign:'center',color:'#CBD5E1',fontSize:11}}>
+          <div style={{border:'1.5px dashed #E2E8F0',borderRadius:9,padding:'26px 12px',textAlign:'center',color:'#CBD5E1',fontSize:13.5}}>
             Vazio
           </div>
         )}
@@ -379,28 +728,28 @@ function KanbanBoard() {
 
   if (area==='Todas') {
     return (
-      <div style={{padding:'18px 22px',overflowY:'auto',height:'100%'}}>
+      <div style={{padding:'22px 26px',overflowY:'auto',height:'100%'}}>
         {areas.map(a => {
           const aCards = filtered.filter(d=>d.area===a);
           const stages = PIPELINES[a];
           return (
-            <div key={a} style={{marginBottom:28}}>
-              <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:10}}>
-                <div style={{width:9,height:9,borderRadius:'50%',background:AREA_CLR[a]}}/>
-                <span style={{fontWeight:700,color:'#002D72',fontSize:13}}>{a}</span>
-                <span style={{fontSize:11,color:'#94A3B8'}}>{aCards.length} demandas</span>
+            <div key={a} style={{marginBottom:34}}>
+              <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:13,borderLeft:'4px solid '+AREA_CLR[a],paddingLeft:10}}>
+                <span style={{fontWeight:700,color:AREA_CLR[a],fontSize:16}}>{a}</span>
+                <span style={{fontSize:13,color:'#94A3B8'}}>{aCards.length} demandas</span>
               </div>
-              <div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:10}}>
+              <div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:13}}>
                 {stages.map(stage => {
                   const cs = aCards.filter(d=>d.stageId===stage.id);
+                  const stClr = stage.isDone?'#059669':stage.isApproval?'#D97706':AREA_CLR[a];
                   return (
-                    <div key={stage.id} style={{background:'#F8FAFC',borderRadius:10,border:'1px solid #E2EBF4',padding:'9px 10px'}}>
-                      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:7}}>
-                        <span style={{fontSize:10,fontWeight:600,color:stage.isDone?'#059669':stage.isApproval?'#D97706':'#002D72'}}>{stage.name}</span>
-                        <span style={{fontSize:9,background:'#E8EFF7',color:'#64748B',fontWeight:700,padding:'1px 5px',borderRadius:8}}>{cs.length}</span>
+                    <div key={stage.id} style={{background:'#F6F7FA',borderRadius:12,border:'1px solid #E2E8F0',borderTop:'3px solid '+stClr,padding:'12px 13px'}}>
+                      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:9}}>
+                        <span style={{fontSize:13,fontWeight:700,color:stClr}}>{stage.name}</span>
+                        <span style={{fontSize:11.5,background:'#EEF1F6',color:'#64748B',fontWeight:700,padding:'2px 7px',borderRadius:9}}>{cs.length}</span>
                       </div>
                       {cs.map(c=><Card key={c.id} demand={c}/>)}
-                      {cs.length===0&&<div style={{textAlign:'center',color:'#CBD5E1',fontSize:10,padding:'10px 0'}}>—</div>}
+                      {cs.length===0&&<div style={{textAlign:'center',color:'#CBD5E1',fontSize:13,padding:'13px 0'}}>—</div>}
                     </div>
                   );
                 })}
@@ -417,7 +766,7 @@ function KanbanBoard() {
   const aClr = AREA_CLR[area]||'#0072CE';
 
   return (
-    <div style={{display:'flex',gap:12,padding:'18px 22px',overflowX:'auto',height:'100%',alignItems:'flex-start'}} className="nb-scrollnone">
+    <div style={{display:'flex',gap:16,padding:'22px 26px',overflowX:'auto',height:'100%',alignItems:'flex-start'}} className="nb-scrollnone">
       {stages.map(stage=>(
         <Column key={stage.id} stage={stage} cards={areaCards.filter(d=>d.stageId===stage.id)} areaColor={aClr}/>
       ))}
@@ -436,68 +785,68 @@ function SlackFeed() {
   };
 
   return (
-    <div style={{padding:'18px 22px',overflowY:'auto',height:'100%'}}>
+    <div style={{padding:'22px 26px',overflowY:'auto',height:'100%'}}>
       {/* Header */}
-      <div style={{background:'#002D72',borderRadius:12,padding:'16px 20px',marginBottom:18,display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+      <div style={{background:'#002D72',borderRadius:14,padding:'20px 24px',marginBottom:22,display:'flex',alignItems:'center',justifyContent:'space-between'}}>
         <div>
-          <div style={{display:'flex',alignItems:'center',gap:9,marginBottom:5}}>
+          <div style={{display:'flex',alignItems:'center',gap:11,marginBottom:6}}>
             <ISlack/>
-            <span style={{color:'#fff',fontWeight:700,fontSize:14}}>#automacoes-nibo</span>
+            <span style={{color:'#fff',fontWeight:700,fontSize:17}}>#automacoes-nibo</span>
           </div>
-          <p style={{color:'#B8CCEA',fontSize:11}}>Caminho das automações disparadas ao mover cards no kanban</p>
+          <p style={{color:'#B8CCEA',fontSize:13}}>Caminho das automações disparadas ao mover cards no kanban</p>
         </div>
-        <div style={{display:'flex',alignItems:'center',gap:7}}>
-          <div style={{width:8,height:8,borderRadius:'50%',background:'#22D3EE'}}/>
-          <span style={{color:'#41B6E6',fontSize:11,fontWeight:600}}>Bot ativo</span>
+        <div style={{display:'flex',alignItems:'center',gap:9}}>
+          <div style={{width:10,height:10,borderRadius:'50%',background:'#22D3EE'}}/>
+          <span style={{color:'#41B6E6',fontSize:13,fontWeight:600}}>Bot ativo</span>
         </div>
       </div>
 
       {/* Legenda */}
-      <div style={{display:'flex',gap:14,marginBottom:14,flexWrap:'wrap'}}>
+      <div style={{display:'flex',gap:18,marginBottom:18,flexWrap:'wrap'}}>
         {[{dot:'#41B6E6',label:'Automação de etapa'},{dot:'#D97706',label:'Enviado para aprovação'},{dot:'#0072CE',label:'Nova demanda criada'}].map(({dot,label})=>(
-          <div key={label} style={{display:'flex',alignItems:'center',gap:5}}>
-            <div style={{width:7,height:7,borderRadius:'50%',background:dot}}/>
-            <span style={{fontSize:10,color:'#64748B'}}>{label}</span>
+          <div key={label} style={{display:'flex',alignItems:'center',gap:7}}>
+            <div style={{width:9,height:9,borderRadius:'50%',background:dot}}/>
+            <span style={{fontSize:12.5,color:'#64748B'}}>{label}</span>
           </div>
         ))}
       </div>
 
       {/* Mensagens */}
-      <div style={{display:'flex',flexDirection:'column',gap:10}}>
+      <div style={{display:'flex',flexDirection:'column',gap:13}}>
         {slack.map(msg => {
           const ts = typeMap[msg.type] || typeMap.move;
           return (
-            <div key={msg.id} style={{background:'#fff',borderRadius:10,border:'1px solid #E2EBF4',borderLeft:'4px solid '+ts.border,padding:'12px 15px'}}>
+            <div key={msg.id} style={{background:'#fff',borderRadius:12,border:'1px solid #E2E8F0',borderLeft:'5px solid '+ts.border,padding:'15px 18px'}}>
               {/* Header */}
-              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8}}>
-                <div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
-                  <span style={{background:'#002D72',color:'#fff',fontSize:9,fontWeight:700,padding:'2px 7px',borderRadius:4,letterSpacing:'0.05em',fontFamily:'monospace'}}>{msg.code}</span>
-                  <span style={{fontSize:10,fontWeight:700,color:AREA_CLR[msg.area]||'#0072CE'}}>{msg.area}</span>
-                  <span style={{background:ts.bdgBg,color:ts.bdgClr,fontSize:9,fontWeight:700,padding:'2px 7px',borderRadius:4}}>{ts.badge}</span>
+              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10}}>
+                <div style={{display:'flex',alignItems:'center',gap:10,flexWrap:'wrap'}}>
+                  <span style={{background:'#002D72',color:'#fff',fontSize:11,fontWeight:700,padding:'3px 9px',borderRadius:5,letterSpacing:'0.05em',fontFamily:'monospace'}}>{msg.code}</span>
+                  <span style={{fontSize:12.5,fontWeight:700,color:AREA_CLR[msg.area]||'#0072CE'}}>{msg.area}</span>
+                  <span style={{background:ts.bdgBg,color:ts.bdgClr,fontSize:11,fontWeight:700,padding:'3px 9px',borderRadius:5}}>{ts.badge}</span>
                 </div>
-                <span style={{fontSize:10,color:'#94A3B8',flexShrink:0}}>{msg.time}</span>
+                <span style={{fontSize:12.5,color:'#94A3B8',flexShrink:0}}>{msg.time}</span>
               </div>
 
               {/* Caminho */}
-              <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:9}}>
-                <span style={{fontSize:10.5,color:'#64748B'}}>Caminho:</span>
-                <span style={{fontSize:10.5,fontWeight:700,color:'#002D72'}}>{msg.stagePath}</span>
+              <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:12}}>
+                <span style={{fontSize:13,color:'#64748B'}}>Caminho:</span>
+                <span style={{fontSize:13,fontWeight:700,color:'#002D72'}}>{msg.stagePath}</span>
               </div>
 
               {/* Detalhe */}
-              <div style={{background:'#F8FAFC',borderRadius:7,padding:'9px 11px'}}>
-                <div style={{display:'flex',alignItems:'flex-start',gap:6,marginBottom:6}}>
+              <div style={{background:'#F6F7FA',borderRadius:9,padding:'12px 14px'}}>
+                <div style={{display:'flex',alignItems:'flex-start',gap:8,marginBottom:8}}>
                   <span style={{color:'#41B6E6',marginTop:1,flexShrink:0}}><IZap/></span>
                   <div>
-                    <div style={{fontSize:9,color:'#94A3B8',fontWeight:600,letterSpacing:'0.04em',textTransform:'uppercase',marginBottom:2}}>Ação automatizada</div>
-                    <span style={{fontSize:11.5,color:'#002D72',fontWeight:500}}>{msg.action}</span>
+                    <div style={{fontSize:11,color:'#94A3B8',fontWeight:600,letterSpacing:'0.04em',textTransform:'uppercase',marginBottom:3}}>Ação automatizada</div>
+                    <span style={{fontSize:14,color:'#002D72',fontWeight:500}}>{msg.action}</span>
                   </div>
                 </div>
-                <div style={{display:'flex',alignItems:'flex-start',gap:6}}>
-                  <span style={{color:'#0072CE',marginTop:1,flexShrink:0,fontSize:11}}>→</span>
+                <div style={{display:'flex',alignItems:'flex-start',gap:8}}>
+                  <span style={{color:'#0072CE',marginTop:1,flexShrink:0,fontSize:13.5}}>→</span>
                   <div>
-                    <div style={{fontSize:9,color:'#94A3B8',fontWeight:600,letterSpacing:'0.04em',textTransform:'uppercase',marginBottom:2}}>Próximo passo</div>
-                    <span style={{fontSize:11.5,color:'#0072CE',fontWeight:500}}>{msg.next}</span>
+                    <div style={{fontSize:11,color:'#94A3B8',fontWeight:600,letterSpacing:'0.04em',textTransform:'uppercase',marginBottom:3}}>Próximo passo</div>
+                    <span style={{fontSize:14,color:'#0072CE',fontWeight:500}}>{msg.next}</span>
                   </div>
                 </div>
               </div>
@@ -505,9 +854,9 @@ function SlackFeed() {
           );
         })}
         {slack.length===0 && (
-          <div style={{textAlign:'center',padding:'60px 0',color:'#94A3B8',fontSize:13}}>
+          <div style={{textAlign:'center',padding:'70px 0',color:'#94A3B8',fontSize:16}}>
             Nenhuma automação disparada ainda.
-            <br/><span style={{fontSize:11}}>Mova um card no kanban para ver o caminho da automação aqui.</span>
+            <br/><span style={{fontSize:13}}>Mova um card no kanban para ver o caminho da automação aqui.</span>
           </div>
         )}
       </div>
@@ -516,8 +865,19 @@ function SlackFeed() {
 }
 
 /* =========== CARD MODAL =========== */
+function AssigneeChip({ initials }) {
+  const mb = useMember(initials);
+  const mc = (mb && mb.color) || NB.azul;
+  return (
+    <div style={{display:'flex',alignItems:'center',gap:9,background:mc+'12',border:'1px solid '+mc+'40',borderRadius:20,padding:'5px 13px 5px 5px'}}>
+      <Avatar member={mb} size={30}/>
+      <span style={{fontSize:14,color:NB.petroleo,fontWeight:600}}>{mb?mb.name:initials}</span>
+    </div>
+  );
+}
+
 function CardModal() {
-  const { selDemand, setModal, moveStage, delDemand } = useApp();
+  const { selDemand, setModal, moveStage, delDemand, setNotifyPending } = useApp();
   if (!selDemand) return null;
 
   const d   = selDemand;
@@ -530,87 +890,83 @@ function CardModal() {
     <div onClick={()=>setModal(null)}
       style={{position:'fixed',inset:0,background:'rgba(0,45,114,0.4)',zIndex:50,display:'flex',alignItems:'center',justifyContent:'center',padding:24}}>
       <div onClick={e=>e.stopPropagation()}
-        style={{background:'#fff',borderRadius:16,width:'100%',maxWidth:520,maxHeight:'88vh',overflowY:'auto',boxShadow:'0 24px 64px rgba(0,45,114,0.3)'}}>
+        style={{background:'#fff',borderRadius:18,width:'100%',maxWidth:600,maxHeight:'88vh',overflowY:'auto',boxShadow:'0 24px 64px rgba(0,45,114,0.3)'}}>
 
         {/* Header */}
-        <div style={{padding:'18px 22px 14px',borderBottom:'1px solid #E2EBF4',display:'flex',alignItems:'flex-start',justifyContent:'space-between'}}>
+        <div style={{padding:'22px 26px 18px',borderBottom:'1px solid #E2E8F0',display:'flex',alignItems:'flex-start',justifyContent:'space-between'}}>
           <div style={{flex:1}}>
-            <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:6,flexWrap:'wrap'}}>
-              <span style={{fontSize:10,fontWeight:700,color:'#94A3B8',fontFamily:'monospace'}}>{d.code}</span>
-              <div style={{width:6,height:6,borderRadius:'50%',background:ac}}/>
-              <span style={{fontSize:11,fontWeight:700,color:ac}}>{d.area}</span>
-              <span style={{fontSize:9,fontWeight:700,padding:'2px 7px',borderRadius:4,background:ps.bg,color:ps.txt,border:'1px solid '+ps.bdr}}>{d.priority.toUpperCase()}</span>
+            <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:8,flexWrap:'wrap'}}>
+              <span style={{fontSize:12.5,fontWeight:700,color:'#94A3B8',fontFamily:'monospace'}}>{d.code}</span>
+              <span style={{fontSize:13.5,fontWeight:700,color:ac}}>{d.area}</span>
+              <span style={{fontSize:11,fontWeight:700,padding:'3px 9px',borderRadius:5,background:ps.bg,color:ps.txt,border:'1px solid '+ps.bdr}}>{d.priority.toUpperCase()}</span>
             </div>
-            <h2 style={{fontSize:15,fontWeight:700,color:'#002D72',lineHeight:1.3}}>{d.title}</h2>
+            <h2 style={{fontSize:19,fontWeight:700,color:'#002D72',lineHeight:1.3}}>{d.title}</h2>
           </div>
-          <button onClick={()=>setModal(null)} style={{padding:6,background:'#F8FAFC',border:'1px solid #E2EBF4',borderRadius:8,color:'#64748B',display:'flex',marginLeft:12,flexShrink:0}}><IX/></button>
+          <button onClick={()=>setModal(null)} style={{padding:8,background:'#F6F7FA',border:'1px solid #E2E8F0',borderRadius:9,color:'#64748B',display:'flex',marginLeft:14,flexShrink:0}}><IX/></button>
         </div>
 
         {/* Body */}
-        <div style={{padding:'18px 22px'}}>
+        <div style={{padding:'22px 26px'}}>
           {d.description && (
-            <div style={{marginBottom:18}}>
-              <div style={{fontSize:9,fontWeight:600,color:'#94A3B8',textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:5}}>Descrição</div>
-              <p style={{fontSize:12.5,color:'#334155',lineHeight:1.6}}>{d.description}</p>
+            <div style={{marginBottom:22}}>
+              <div style={{fontSize:11,fontWeight:600,color:'#94A3B8',textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:7}}>Descrição</div>
+              <p style={{fontSize:15,color:'#334155',lineHeight:1.6}}>{d.description}</p>
             </div>
           )}
 
-          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:18}}>
-            <div style={{background:'#F8FAFC',borderRadius:8,padding:'9px 12px'}}>
-              <div style={{fontSize:9,fontWeight:600,color:'#94A3B8',textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:3}}>Solicitante</div>
-              <div style={{fontSize:12,color:'#002D72',fontWeight:600}}>{d.requester}</div>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:13,marginBottom:22}}>
+            <div style={{background:'#F6F7FA',borderRadius:9,padding:'12px 15px'}}>
+              <div style={{fontSize:11,fontWeight:600,color:'#94A3B8',textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:4}}>Solicitante</div>
+              <div style={{fontSize:15,color:'#002D72',fontWeight:600}}>{d.requester}</div>
             </div>
-            <div style={{background:'#F8FAFC',borderRadius:8,padding:'9px 12px'}}>
-              <div style={{fontSize:9,fontWeight:600,color:'#94A3B8',textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:3}}>Prazo</div>
-              <div style={{fontSize:12,color:sla&&sla.type==='danger'?'#991B1B':'#002D72',fontWeight:600}}>
+            <div style={{background:'#F6F7FA',borderRadius:9,padding:'12px 15px'}}>
+              <div style={{fontSize:11,fontWeight:600,color:'#94A3B8',textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:4}}>Prazo</div>
+              <div style={{fontSize:15,color:sla&&sla.type==='danger'?'#991B1B':'#002D72',fontWeight:600}}>
                 {fmtDate(d.deadline)}{sla?' ('+sla.label+')':''}
               </div>
             </div>
           </div>
 
           {/* Responsáveis */}
-          <div style={{marginBottom:20}}>
-            <div style={{fontSize:9,fontWeight:600,color:'#94A3B8',textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:7}}>Responsáveis</div>
-            <div style={{display:'flex',gap:7,flexWrap:'wrap'}}>
-              {d.assignees.map(init=>{
-                const mb = TEAM.find(m=>m.initials===init);
-                return (
-                  <div key={init} style={{display:'flex',alignItems:'center',gap:6,background:'#EFF4FB',borderRadius:16,padding:'3px 9px 3px 4px'}}>
-                    <div style={{width:23,height:23,borderRadius:'50%',background:'#0072CE',color:'#fff',fontSize:8.5,fontWeight:700,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>{init}</div>
-                    <span style={{fontSize:11,color:'#002D72',fontWeight:500}}>{mb?mb.name:init}</span>
-                  </div>
-                );
-              })}
+          <div style={{marginBottom:24}}>
+            <div style={{fontSize:11,fontWeight:600,color:'#94A3B8',textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:9}}>Responsáveis</div>
+            <div style={{display:'flex',gap:9,flexWrap:'wrap'}}>
+              {d.assignees.map(init => <AssigneeChip key={init} initials={init}/>)}
             </div>
           </div>
 
           {/* Mover etapa */}
           <div>
-            <div style={{fontSize:9,fontWeight:600,color:'#94A3B8',textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:7}}>Mover para etapa</div>
-            <div style={{display:'flex',gap:7,flexWrap:'wrap',marginBottom:8}}>
+            <div style={{fontSize:11,fontWeight:600,color:'#94A3B8',textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:9}}>Mover para etapa</div>
+            <div style={{display:'flex',gap:9,flexWrap:'wrap',marginBottom:10}}>
               {stages.map(stage=>{
                 const isCur = stage.id===d.stageId;
+                const needsNotify = d.area==='Design' && stage.isDone;
                 return (
-                  <button key={stage.id} onClick={()=>{ if(!isCur) moveStage(d.id,stage.id); }}
-                    style={{display:'flex',alignItems:'center',gap:5,padding:'5px 11px',borderRadius:6,fontSize:11,fontWeight:600,border:isCur?'1.5px solid '+ac:'1px solid #E2EBF4',background:isCur?ac:'#F8FAFC',color:isCur?'#fff':'#64748B',transition:'all 0.12s'}}>
+                  <button key={stage.id} onClick={()=>{
+                    if (isCur) return;
+                    if (needsNotify) setNotifyPending({ demandId:d.id, stageId:stage.id, demandTitle:d.title });
+                    else moveStage(d.id, stage.id);
+                  }}
+                    style={{display:'flex',alignItems:'center',gap:7,padding:'7px 14px',borderRadius:7,fontSize:13.5,fontWeight:600,border:isCur?'1.5px solid '+ac:'1px solid #E2E8F0',background:isCur?ac:'#F6F7FA',color:isCur?'#fff':'#64748B',transition:'all 0.12s'}}>
                     {isCur && <span style={{display:'flex',alignItems:'center',opacity:0.9}}><ICheck/></span>}
                     {stage.name}
                   </button>
                 );
               })}
             </div>
-            <p style={{fontSize:10,color:'#94A3B8'}}>Ao mover, o caminho da automação é enviado automaticamente para o Slack.</p>
+            <p style={{fontSize:12.5,color:'#94A3B8'}}>Ao mover, o caminho da automação é enviado automaticamente para o Slack. Etapas de aprovação são sempre encaminhadas para @Mariana Araújo.</p>
           </div>
         </div>
 
         {/* Footer */}
-        <div style={{padding:'12px 22px',borderTop:'1px solid #E2EBF4',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+        <div style={{padding:'16px 26px',borderTop:'1px solid #E2E8F0',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
           <button onClick={()=>delDemand(d.id)}
-            style={{padding:'7px 13px',background:'#FEF2F2',border:'1px solid #FECACA',borderRadius:8,fontSize:11,fontWeight:600,color:'#991B1B'}}>
+            style={{padding:'9px 16px',background:'#FEF2F2',border:'1px solid #FECACA',borderRadius:9,fontSize:13.5,fontWeight:600,color:'#991B1B'}}>
             Excluir
           </button>
           <button onClick={()=>setModal(null)}
-            style={{padding:'7px 18px',background:'#0072CE',border:'none',borderRadius:8,fontSize:11,fontWeight:600,color:'#fff'}}>
+            style={{padding:'9px 22px',background:'#0072CE',border:'none',borderRadius:9,fontSize:13.5,fontWeight:600,color:'#fff'}}>
             Fechar
           </button>
         </div>
@@ -619,46 +975,125 @@ function CardModal() {
   );
 }
 
+/* =========== NOTIFICAR ENTREGA (DESIGN) =========== */
+const DESIGN_NOTIFY_OPTIONS = ['RO','CA','MA'];
+
+function NotifyOption({ initials, checked, onToggle }) {
+  const mb = useMember(initials);
+  return (
+    <label style={{display:'flex',alignItems:'center',gap:11,padding:'10px 13px',borderRadius:10,background:checked?NB.azul+'12':'#F6F7FA',border:'1px solid '+(checked?NB.azul+'66':'#E2E8F0'),cursor:'pointer'}}>
+      <input type="checkbox" checked={checked} onChange={onToggle} style={{width:16,height:16,accentColor:NB.azul}}/>
+      <Avatar member={mb} size={28}/>
+      <span style={{fontSize:14,color:NB.petroleo,fontWeight:600}}>{mb?mb.name:initials}</span>
+    </label>
+  );
+}
+
+function NotifyModal() {
+  const { notifyPending, setNotifyPending, moveStage } = useApp();
+  const [picked, setPicked] = useState([]);
+
+  useEffect(() => { if (notifyPending) setPicked([]); }, [notifyPending]);
+
+  if (!notifyPending) return null;
+
+  const toggle = init => setPicked(p => p.includes(init) ? p.filter(i=>i!==init) : [...p, init]);
+  const allSelected = DESIGN_NOTIFY_OPTIONS.every(i=>picked.includes(i));
+  const toggleAll = () => setPicked(allSelected ? [] : [...DESIGN_NOTIFY_OPTIONS]);
+
+  const confirm = () => {
+    moveStage(notifyPending.demandId, notifyPending.stageId, picked);
+    setNotifyPending(null);
+  };
+
+  return (
+    <div onClick={()=>setNotifyPending(null)}
+      style={{position:'fixed',inset:0,background:'rgba(0,45,114,0.4)',zIndex:60,display:'flex',alignItems:'center',justifyContent:'center',padding:24}}>
+      <div onClick={e=>e.stopPropagation()}
+        style={{background:'#fff',borderRadius:18,width:'100%',maxWidth:440,boxShadow:'0 24px 64px rgba(0,45,114,0.3)'}}>
+        <div style={{padding:'22px 26px 14px'}}>
+          <h2 style={{fontSize:17,fontWeight:700,color:'#002D72',marginBottom:6}}>Notificar entrega no Slack</h2>
+          <p style={{fontSize:13.5,color:'#64748B',lineHeight:1.5}}>Arte de <strong>{notifyPending.demandTitle}</strong> foi aprovada e vai para Entregue. Quem deve receber a menção?</p>
+        </div>
+        <div style={{padding:'6px 26px 8px',display:'flex',flexDirection:'column',gap:8}}>
+          <label style={{display:'flex',alignItems:'center',gap:11,padding:'10px 13px',borderRadius:10,background:allSelected?NB.azul+'12':'#F6F7FA',border:'1px solid '+(allSelected?NB.azul+'66':'#E2E8F0'),cursor:'pointer'}}>
+            <input type="checkbox" checked={allSelected} onChange={toggleAll} style={{width:16,height:16,accentColor:NB.azul}}/>
+            <span style={{fontSize:14,fontWeight:700,color:NB.petroleo}}>Todos</span>
+          </label>
+          {DESIGN_NOTIFY_OPTIONS.map(init => (
+            <NotifyOption key={init} initials={init} checked={picked.includes(init)} onToggle={()=>toggle(init)}/>
+          ))}
+        </div>
+        <div style={{padding:'16px 26px',borderTop:'1px solid #E2E8F0',display:'flex',justifyContent:'flex-end',gap:10}}>
+          <button onClick={()=>setNotifyPending(null)}
+            style={{padding:'10px 18px',background:'#F6F7FA',border:'1px solid #E2E8F0',borderRadius:9,fontSize:13.5,fontWeight:600,color:'#64748B'}}>
+            Cancelar
+          </button>
+          <button onClick={confirm} disabled={picked.length===0}
+            style={{padding:'10px 22px',background:picked.length?'#0072CE':'#CBD5E1',border:'none',borderRadius:9,fontSize:13.5,fontWeight:700,color:'#fff',cursor:picked.length?'pointer':'not-allowed'}}>
+            Mover e notificar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* =========== NEW DEMAND MODAL =========== */
+function AssigneePick({ member, checked, onToggle }) {
+  const m = useMember(member.initials) || member;
+  return (
+    <button type="button" onClick={onToggle}
+      style={{display:'flex',alignItems:'center',gap:9,padding:'6px 14px 6px 6px',borderRadius:22,border:'1.5px solid '+(checked?m.color:'#E2E8F0'),background:checked?m.color+'14':'#F6F7FA'}}>
+      <Avatar member={m} size={26} ring={false}/>
+      <span style={{fontSize:13.5,fontWeight:600,color:checked?NB.petroleo:'#64748B'}}>{m.name}</span>
+    </button>
+  );
+}
+
 function NewModal() {
   const { newOpen, setNewOpen, addDemand, user, area } = useApp();
   const initArea = area!=='Todas' ? area : 'Social';
-  const [form, setForm] = useState({ title:'', area:initArea, priority:'Média', deadline:dStr(7), description:'', requester:user.name, assignee:user.initials });
+  const [form, setForm] = useState({ title:'', area:initArea, priority:'Média', deadline:dStr(7), description:'', requester:user.name, assignees:[user.initials] });
 
   useEffect(() => {
-    if (newOpen) setForm(f=>({ ...f, area:area!=='Todas'?area:'Social', requester:user.name, assignee:user.initials }));
+    if (newOpen) setForm(f=>({ ...f, area:area!=='Todas'?area:'Social', requester:user.name, assignees:[user.initials] }));
   }, [newOpen, area, user]);
 
   if (!newOpen) return null;
 
   const set = (k,v) => setForm(f=>({...f,[k]:v}));
+  const toggleAssignee = init => setForm(f => ({ ...f, assignees: f.assignees.includes(init) ? f.assignees.filter(i=>i!==init) : [...f.assignees, init] }));
 
   const submit = () => {
-    if (!form.title.trim()) return;
-    addDemand({ title:form.title, area:form.area, priority:form.priority, deadline:form.deadline, description:form.description, requester:form.requester, assignees:[form.assignee] });
+    if (!form.title.trim() || form.assignees.length===0) return;
+    addDemand({ title:form.title, area:form.area, priority:form.priority, deadline:form.deadline, description:form.description, requester:form.requester, assignees:form.assignees });
     setNewOpen(false);
   };
 
-  const inp = { background:'#F8FAFC', border:'1px solid #E2EBF4', borderRadius:8, padding:'8px 11px', fontSize:12, color:'#002D72', width:'100%', outline:'none' };
-  const lbl = { fontSize:9.5, fontWeight:600, color:'#94A3B8', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:5 };
+  const inp = { background:'#F6F7FA', border:'1px solid #E2E8F0', borderRadius:9, padding:'10px 14px', fontSize:14.5, color:'#002D72', width:'100%', outline:'none' };
+  const lbl = { fontSize:11.5, fontWeight:600, color:'#94A3B8', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:6 };
 
   return (
     <div onClick={()=>setNewOpen(false)}
       style={{position:'fixed',inset:0,background:'rgba(0,45,114,0.4)',zIndex:50,display:'flex',alignItems:'center',justifyContent:'center',padding:24}}>
       <div onClick={e=>e.stopPropagation()}
-        style={{background:'#fff',borderRadius:16,width:'100%',maxWidth:460,boxShadow:'0 24px 64px rgba(0,45,114,0.3)'}}>
+        style={{background:'#fff',borderRadius:18,width:'100%',maxWidth:560,maxHeight:'88vh',overflowY:'auto',boxShadow:'0 24px 64px rgba(0,45,114,0.3)'}}>
 
-        <div style={{padding:'18px 22px 14px',borderBottom:'1px solid #E2EBF4',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-          <h2 style={{fontSize:15,fontWeight:700,color:'#002D72'}}>Nova Demanda</h2>
-          <button onClick={()=>setNewOpen(false)} style={{padding:6,background:'#F8FAFC',border:'1px solid #E2EBF4',borderRadius:8,color:'#64748B',display:'flex'}}><IX/></button>
+        <div style={{padding:'22px 26px 18px',borderBottom:'1px solid #E2E8F0',display:'flex',alignItems:'flex-start',justifyContent:'space-between'}}>
+          <div>
+            <h2 style={{fontSize:19,fontWeight:700,color:'#002D72',marginBottom:4}}>Solicitar Nova Demanda</h2>
+            <p style={{fontSize:12.5,color:'#94A3B8'}}>A demanda será solicitada no Slack para quem você escolher abaixo.</p>
+          </div>
+          <button onClick={()=>setNewOpen(false)} style={{padding:8,background:'#F6F7FA',border:'1px solid #E2E8F0',borderRadius:9,color:'#64748B',display:'flex',marginLeft:14,flexShrink:0}}><IX/></button>
         </div>
 
-        <div style={{padding:'18px 22px',display:'flex',flexDirection:'column',gap:13}}>
+        <div style={{padding:'22px 26px',display:'flex',flexDirection:'column',gap:16}}>
           <div>
             <label style={lbl}>Título</label>
             <input value={form.title} onChange={e=>set('title',e.target.value)} placeholder="O que precisa ser feito?" style={inp}/>
           </div>
-          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:11}}>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}}>
             <div>
               <label style={lbl}>Área</label>
               <select value={form.area} onChange={e=>set('area',e.target.value)} style={inp}>
@@ -672,17 +1107,18 @@ function NewModal() {
               </select>
             </div>
           </div>
-          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:11}}>
-            <div>
-              <label style={lbl}>Prazo</label>
-              <input type="date" value={form.deadline} onChange={e=>set('deadline',e.target.value)} style={inp}/>
+          <div>
+            <label style={lbl}>Prazo</label>
+            <input type="date" value={form.deadline} onChange={e=>set('deadline',e.target.value)} style={inp}/>
+          </div>
+          <div>
+            <label style={lbl}>Para quem vai a demanda</label>
+            <div style={{display:'flex',flexWrap:'wrap',gap:8}}>
+              {ACTIVE_TEAM.map(m => (
+                <AssigneePick key={m.id} member={m} checked={form.assignees.includes(m.initials)} onToggle={()=>toggleAssignee(m.initials)}/>
+              ))}
             </div>
-            <div>
-              <label style={lbl}>Responsável</label>
-              <select value={form.assignee} onChange={e=>set('assignee',e.target.value)} style={inp}>
-                {TEAM.map(m=><option key={m.id} value={m.initials}>{m.name}</option>)}
-              </select>
-            </div>
+            {form.assignees.length===0 && <p style={{fontSize:11.5,color:'#DC2626',marginTop:6}}>Selecione ao menos uma pessoa.</p>}
           </div>
           <div>
             <label style={lbl}>Contexto (opcional)</label>
@@ -691,14 +1127,14 @@ function NewModal() {
           </div>
         </div>
 
-        <div style={{padding:'12px 22px',borderTop:'1px solid #E2EBF4',display:'flex',justifyContent:'flex-end',gap:8}}>
+        <div style={{padding:'16px 26px',borderTop:'1px solid #E2E8F0',display:'flex',justifyContent:'flex-end',gap:10}}>
           <button onClick={()=>setNewOpen(false)}
-            style={{padding:'8px 15px',background:'#F8FAFC',border:'1px solid #E2EBF4',borderRadius:8,fontSize:11,fontWeight:600,color:'#64748B'}}>
+            style={{padding:'10px 18px',background:'#F6F7FA',border:'1px solid #E2E8F0',borderRadius:9,fontSize:13.5,fontWeight:600,color:'#64748B'}}>
             Cancelar
           </button>
-          <button onClick={submit}
-            style={{padding:'8px 20px',background:'#0072CE',border:'none',borderRadius:8,fontSize:11,fontWeight:700,color:'#fff'}}>
-            Criar Demanda
+          <button onClick={submit} disabled={!form.title.trim()||form.assignees.length===0}
+            style={{padding:'10px 24px',background:(form.title.trim()&&form.assignees.length)?'#0072CE':'#CBD5E1',border:'none',borderRadius:9,fontSize:13.5,fontWeight:700,color:'#fff',cursor:(form.title.trim()&&form.assignees.length)?'pointer':'not-allowed'}}>
+            Solicitar no Slack
           </button>
         </div>
       </div>
@@ -708,7 +1144,8 @@ function NewModal() {
 
 /* =========== APP =========== */
 function AppContent() {
-  const { view } = useApp();
+  const { view, user } = useApp();
+  if (!user) return <LoginScreen/>;
   return (
     <div style={{display:'flex',height:'100vh',width:'100%',overflow:'hidden'}}>
       <Sidebar/>
@@ -721,6 +1158,8 @@ function AppContent() {
       </div>
       <CardModal/>
       <NewModal/>
+      <NotifyModal/>
+      <ProfileModal/>
     </div>
   );
 }
