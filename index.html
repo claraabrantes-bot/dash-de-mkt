@@ -590,15 +590,15 @@ function TopBar() {
   const togglePri = p => setPriFilter(v => v.includes(p) ? v.filter(x=>x!==p) : [...v,p]);
 
   return (
-    <header style={{background:'#fff',borderBottom:'1px solid '+NB.bd,padding:'18px 30px',display:'flex',alignItems:'center',gap:14,flexShrink:0}}>
-      <div style={{flex:1,minWidth:0}}>
-        <div style={{fontSize:22,fontWeight:600,color:NB.txt,letterSpacing:'-0.015em',lineHeight:1.2}}>{title}</div>
-        <div style={{fontSize:13.5,color:NB.mut,marginTop:3}}>{sub}</div>
+    <header style={{background:'#fff',borderBottom:'1px solid '+NB.bd,padding:'18px 30px',display:'flex',alignItems:'center',gap:14,flexShrink:0,flexWrap:'wrap',rowGap:12}}>
+      <div style={{flex:'1 1 220px',minWidth:0}}>
+        <div style={{fontSize:22,fontWeight:600,color:NB.txt,letterSpacing:'-0.015em',lineHeight:1.2,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{title}</div>
+        <div style={{fontSize:13.5,color:NB.mut,marginTop:3,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{sub}</div>
       </div>
 
       {view==='kanban' && (
         <React.Fragment>
-          <div style={{position:'relative',width:270}}>
+          <div style={{position:'relative',flex:'0 1 270px',minWidth:150}}>
             <span style={{position:'absolute',left:14,top:'50%',transform:'translateY(-50%)',color:NB.mut2,pointerEvents:'none',display:'flex'}}><ISearch/></span>
             <input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Buscar demanda..."
               style={{width:'100%',background:'#fff',border:'1px solid '+NB.bd,borderRadius:10,padding:'10px 14px 10px 40px',fontSize:13.5,color:NB.txt,outline:'none'}}
@@ -714,7 +714,7 @@ function AreaBlock({ areaName, cards }) {
   const clr = AREA_CLR[areaName];
 
   return (
-    <div style={{background:'#fff',borderRadius:16,border:'1px solid '+NB.bd,padding:'18px 20px 20px',marginBottom:18,boxShadow:'0 1px 3px rgba(11,42,92,0.04)'}}>
+    <div style={{background:'#fff',borderRadius:16,border:'1px solid '+NB.bd,padding:'20px 22px 22px',marginBottom:24,boxShadow:'0 1px 3px rgba(11,42,92,0.04)'}}>
       <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:16,gap:12}}>
         <div style={{display:'flex',alignItems:'center',gap:11,minWidth:0}}>
           <span style={{color:clr,display:'flex',flexShrink:0}}><Icon s={20}/></span>
@@ -729,7 +729,7 @@ function AreaBlock({ areaName, cards }) {
           Ver todas <IChev s={14}/>
         </button>
       </div>
-      <div style={{display:'grid',gridTemplateColumns:'repeat(5, minmax(0,1fr))',gap:12,alignItems:'start'}}>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(5, minmax(0,1fr))',gap:18,alignItems:'start'}}>
         {stages.map(st=>(
           <StageColumn key={st.id} stage={st} cards={cards.filter(d=>d.stageId===st.id)} compact/>
         ))}
@@ -796,12 +796,12 @@ function KanbanBoard() {
   const { filtered, area, layout } = useApp();
 
   if (layout==='list') {
-    return <div style={{padding:'22px 30px 30px',overflowY:'auto',height:'100%'}}><ListView/></div>;
+    return <div style={{padding:'22px 30px 30px',overflowY:'auto',overflowX:'hidden',height:'100%'}}><ListView/></div>;
   }
 
   if (area==='Todas') {
     return (
-      <div style={{padding:'22px 30px 30px',overflowY:'auto',height:'100%'}}>
+      <div style={{padding:'22px 30px 30px',overflowY:'auto',overflowX:'hidden',height:'100%'}}>
         {Object.keys(PIPELINES).map(a=>(
           <AreaBlock key={a} areaName={a} cards={filtered.filter(d=>d.area===a)}/>
         ))}
@@ -811,8 +811,8 @@ function KanbanBoard() {
 
   const stages = PIPELINES[area]||[];
   return (
-    <div style={{padding:'22px 30px 30px',overflowY:'auto',height:'100%'}}>
-      <div style={{display:'grid',gridTemplateColumns:'repeat(5, minmax(0,1fr))',gap:14,alignItems:'start'}}>
+    <div style={{padding:'22px 30px 30px',overflowY:'auto',overflowX:'hidden',height:'100%'}}>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(5, minmax(0,1fr))',gap:18,alignItems:'start'}}>
         {stages.map(st=>(
           <StageColumn key={st.id} stage={st} cards={filtered.filter(d=>d.stageId===st.id)}/>
         ))}
@@ -831,7 +831,7 @@ function SlackFeed() {
   };
 
   return (
-    <div style={{padding:'22px 30px 30px',overflowY:'auto',height:'100%'}}>
+    <div style={{padding:'22px 30px 30px',overflowY:'auto',overflowX:'hidden',height:'100%'}}>
       <div style={{background:'linear-gradient(120deg,'+NB.navy1+','+NB.petroleo+')',borderRadius:16,padding:'20px 24px',marginBottom:18,display:'flex',alignItems:'center',justifyContent:'space-between',gap:16}}>
         <div>
           <div style={{display:'flex',alignItems:'center',gap:11,marginBottom:5,color:'#fff'}}>
