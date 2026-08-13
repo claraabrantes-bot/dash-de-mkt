@@ -10,6 +10,21 @@
 <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script>
+  firebase.initializeApp({
+    apiKey:            "AIzaSyBeQH2kszFsrETr0p-xqQ4xiPaRncQEkpg",
+    authDomain:        "nibo-social.firebaseapp.com",
+    projectId:         "nibo-social",
+    storageBucket:     "nibo-social.firebasestorage.app",
+    messagingSenderId: "694877241679",
+    appId:             "1:694877241679:web:6ebc0a706b713b76bbc53a",
+    measurementId:     "G-KKFB2CWQW4"
+  });
+</script>
+
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Poppins', sans-serif; }
 html, body, #root { height: 100%; background: #F6F7FA; }
@@ -21,6 +36,8 @@ html, body, #root { height: 100%; background: #F6F7FA; }
 input, select, textarea, button { font-family: 'Poppins', sans-serif; }
 select { appearance: none; -webkit-appearance: none; }
 button { cursor: pointer; }
+@keyframes nb-pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+@keyframes nb-spin { to { transform: rotate(360deg) } }
 </style>
 </head>
 <body>
@@ -92,9 +109,7 @@ const NB = {
   roxo:'#6431E2', pink:'#FF40B3', amarelo:'#FFE800', gelo:'#B8CCEA',
 };
 
-/* Uma cor distinta por área, usando a paleta inteira em vez de só azuis */
 const AREA_CLR  = { Social:NB.azul, Design:NB.roxo, 'Mídia Paga':NB.pink, Produto:NB.azulClaro, RevOps:NB.petroleo };
-/* Tons claros para uso sobre a sidebar escura — AREA_CLR tem cores que somem no fundo petróleo */
 const AREA_CLR_DARKBG = { Todas:'#B8CCEA', Social:'#5EA9F0', Design:'#A98CFF', 'Mídia Paga':'#FF7ACB', Produto:'#41B6E6', RevOps:'#D7E3F5' };
 const AREA_ICON = { Todas:'◆', Social:'✦', Design:'✎', 'Mídia Paga':'◎', Produto:'▣', RevOps:'⚙' };
 
@@ -138,15 +153,18 @@ function Provider({ children }) {
   const [slack, setSlack] = useState(() => {
     try { const s=localStorage.getItem('nibo_slk_v3'); return s ? JSON.parse(s) : INIT_SLACK; } catch { return INIT_SLACK; }
   });
-  const [sessionId, setSessionId] = useState(() => {
-    try { return localStorage.getItem('nibo_session_v1') || null; } catch { return null; }
-  });
   const [photos, setPhotos] = useState(() => {
     try { const s=localStorage.getItem('nibo_photos_v1'); return s ? JSON.parse(s) : {}; } catch { return {}; }
   });
   const [profiles, setProfiles] = useState(() => {
     try { const s=localStorage.getItem('nibo_profiles_v1'); return s ? JSON.parse(s) : {}; } catch { return {}; }
   });
+
+  /* --- Autenticação Google via Firebase --- */
+  const [fbUser, setFbUser]       = useState(null);
+  const [authReady, setAuthReady] = useState(false);
+  const [authError, setAuthError] = useState('');
+
   const [view, setView]     = useState('kanban');
   const [area, setArea]     = useState('Social');
   const [query, setQuery]   = useState('');
@@ -155,19 +173,43 @@ function Provider({ children }) {
   const [notifyPending, setNotifyPending] = useState(null);
   const [profileOpen, setProfileOpen] = useState(false);
 
-  const baseUser = TEAM.find(m=>m.id===sessionId) || null;
-  const user = baseUser ? { ...baseUser, ...(profiles[baseUser.id]||{}) } : null;
+  useEffect(() => {
+    const unsub = firebase.auth().onAuthStateChanged(u => {
+      if (!u) { setFbUser(null); setAuthReady(true); return; }
+      const mail = (u.email || '').toLowerCase();
+      if (!mail.endsWith(NIBO_DOMAIN)) {
+        setAuthError('Acesso restrito a contas ' + NIBO_DOMAIN + '. Você entrou com ' + mail + '.');
+        firebase.auth().signOut();
+        return;
+      }
+      const found = ACTIVE_TEAM.find(m => m.email === mail);
+      if (!found) {
+        setAuthError('A conta ' + mail + ' não está na lista da equipe de Marketing. Peça para adicionarem seu e-mail.');
+        firebase.auth().signOut();
+        return;
+      }
+      setAuthError('');
+      setFbUser({ email: mail, photoURL: u.photoURL || null, displayName: u.displayName || '' });
+      setAuthReady(true);
+    });
+    return unsub;
+  }, []);
+
+  const baseUser = fbUser ? ACTIVE_TEAM.find(m => m.email === fbUser.email) : null;
+  const user = baseUser
+    ? { ...baseUser, googlePhoto: fbUser.photoURL, ...(profiles[baseUser.id] || {}) }
+    : null;
 
   useEffect(() => { try { localStorage.setItem('nibo_dem_v3', JSON.stringify(demands)); } catch {} }, [demands]);
   useEffect(() => { try { localStorage.setItem('nibo_slk_v3', JSON.stringify(slack)); } catch {} }, [slack]);
   useEffect(() => { try { localStorage.setItem('nibo_photos_v1', JSON.stringify(photos)); } catch {} }, [photos]);
   useEffect(() => { try { localStorage.setItem('nibo_profiles_v1', JSON.stringify(profiles)); } catch {} }, [profiles]);
-  useEffect(() => {
-    try { sessionId ? localStorage.setItem('nibo_session_v1', sessionId) : localStorage.removeItem('nibo_session_v1'); } catch {}
-  }, [sessionId]);
 
-  const login  = useCallback(id => setSessionId(id), []);
-  const logout = useCallback(() => { setSessionId(null); setProfileOpen(false); setModal(null); setNewOpen(false); }, []);
+  const logout = useCallback(() => {
+    setProfileOpen(false); setModal(null); setNewOpen(false); setNotifyPending(null);
+    firebase.auth().signOut();
+  }, []);
+
   const savePhoto   = useCallback((id, dataUrl) => setPhotos(p=>({...p,[id]:dataUrl})), []);
   const removePhoto = useCallback(id => setPhotos(p => { const n={...p}; delete n[id]; return n; }), []);
   const saveProfile = useCallback((id, patch) => setProfiles(p=>({...p,[id]:{...(p[id]||{}),...patch}})), []);
@@ -219,8 +261,10 @@ function Provider({ children }) {
 
   const selDemand = modal ? demands.find(d=>d.id===modal)||null : null;
 
-  return <Ctx.Provider value={{ demands, filtered, slack, user, view, setView, area, setArea, query, setQuery, selDemand, setModal, newOpen, setNewOpen, notifyPending, setNotifyPending, profileOpen, setProfileOpen, photos, profiles, login, logout, savePhoto, removePhoto, saveProfile, addDemand, moveStage, delDemand, reset }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ demands, filtered, slack, user, authReady, authError, setAuthError, view, setView, area, setArea, query, setQuery, selDemand, setModal, newOpen, setNewOpen, notifyPending, setNotifyPending, profileOpen, setProfileOpen, photos, profiles, logout, savePhoto, removePhoto, saveProfile, addDemand, moveStage, delDemand, reset }}>{children}</Ctx.Provider>;
 }
+
+const useApp = () => useContext(Ctx);
 
 /* Nome/foto podem ter sido editados no perfil — resolve o membro já com essas mudanças */
 function useMember(initials) {
@@ -228,8 +272,6 @@ function useMember(initials) {
   const base = TEAM.find(m=>m.initials===initials);
   return base ? { ...base, ...(profiles[base.id]||{}) } : null;
 }
-
-const useApp = () => useContext(Ctx);
 
 /* =========== UTILS =========== */
 function getSla(dl) {
@@ -254,11 +296,11 @@ const ICamera = ()=><svg width="16" height="16" fill="none" stroke="currentColor
 const ILogout = ()=><svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>;
 const IGoogle = ({size=20})=><svg width={size} height={size} viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>;
 
-/* Foto do perfil quando existe, iniciais como fallback */
+/* Foto do perfil quando existe, foto do Google depois, iniciais como último recurso */
 function Avatar({ member, size=32, ring=true, style, src }) {
   const { photos } = useApp();
   /* src !== undefined vence o que está salvo — usado pelo preview do perfil */
-  const photo = src !== undefined ? src : (member && photos[member.id]);
+  const photo = src !== undefined ? src : (member && (photos[member.id] || member.googlePhoto));
   const clr = (member && member.color) || NB.azul;
   const base = { width:size, height:size, borderRadius:'50%', flexShrink:0, border:'2px solid #fff', boxShadow: ring ? '0 0 0 2px '+clr : 'none', ...style };
   if (photo) return <img src={photo} alt={member.name} title={member.name} style={{...base, objectFit:'cover'}}/>;
@@ -269,22 +311,49 @@ function Avatar({ member, size=32, ring=true, style, src }) {
   );
 }
 
+/* =========== SPLASH =========== */
+function Splash() {
+  return (
+    <div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',background:'linear-gradient(160deg,#001B45,'+NB.petroleo+' 55%,#003E93)'}}>
+      <div style={{textAlign:'center'}}>
+        <div style={{width:56,height:56,background:'linear-gradient(135deg,'+NB.azul+','+NB.azulClaro+')',borderRadius:16,display:'flex',alignItems:'center',justifyContent:'center',fontWeight:700,color:'#fff',fontSize:26,margin:'0 auto 16px',animation:'nb-pulse 1.4s ease-in-out infinite'}}>N</div>
+        <div style={{color:NB.gelo,fontSize:14,fontWeight:500}}>Verificando seu acesso…</div>
+      </div>
+    </div>
+  );
+}
+
 /* =========== LOGIN =========== */
 function LoginScreen() {
-  const { login, photos } = useApp();
-  const [step, setStep]   = useState('start'); // start | accounts | other
-  const [email, setEmail] = useState('');
-  const [error, setError] = useState('');
+  const { photos, authError, setAuthError } = useApp();
+  const [busy, setBusy]   = useState(false);
+  const [local, setLocal] = useState('');
 
-  const tryEmail = () => {
-    const v = email.trim().toLowerCase();
-    if (!v) return setError('Digite seu e-mail corporativo.');
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v)) return setError('E-mail inválido.');
-    if (!v.endsWith(NIBO_DOMAIN)) return setError('Acesso restrito a contas '+NIBO_DOMAIN+'. Use sua conta Nibo.');
-    const found = ACTIVE_TEAM.find(m=>m.email===v);
-    if (!found) return setError('Não encontramos essa conta na equipe de Marketing. Fale com a Mariana para liberar seu acesso.');
-    login(found.id);
+  const signIn = async () => {
+    setBusy(true); setLocal(''); setAuthError('');
+    try {
+      const provider = new firebase.auth.GoogleAuthProvider();
+      provider.setCustomParameters({ hd: 'nibo.com.br', prompt: 'select_account' });
+      await firebase.auth().signInWithPopup(provider);
+      /* Quem assume daqui é o onAuthStateChanged no Provider */
+    } catch (err) {
+      const code = err && err.code;
+      if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') {
+        /* fechou o popup de propósito — sem erro na tela */
+      } else if (code === 'auth/unauthorized-domain') {
+        setLocal('Este endereço não está autorizado no Firebase. Adicione o domínio em Authentication → Settings → Authorized domains.');
+      } else if (code === 'auth/popup-blocked') {
+        setLocal('Seu navegador bloqueou a janela do Google. Libere pop-ups para este site e tente de novo.');
+      } else if (code === 'auth/operation-not-allowed') {
+        setLocal('O login com Google está desligado no Firebase. Ative em Authentication → Sign-in method → Google.');
+      } else {
+        setLocal('Não foi possível entrar. Erro: ' + (code || 'desconhecido'));
+      }
+      setBusy(false);
+    }
   };
+
+  const msg = local || authError;
 
   return (
     <div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',padding:24,
@@ -323,82 +392,30 @@ function LoginScreen() {
 
         {/* Lado login */}
         <div style={{padding:'52px 46px',display:'flex',flexDirection:'column',justifyContent:'center'}}>
-          {step==='start' && (
-            <React.Fragment>
-              <h2 style={{fontSize:24,fontWeight:700,color:NB.petroleo,marginBottom:8}}>Entrar</h2>
-              <p style={{fontSize:14.5,color:'#64748B',lineHeight:1.6,marginBottom:32}}>
-                Use sua conta Google do Nibo. O acesso é restrito a e-mails <strong style={{color:NB.petroleo}}>{NIBO_DOMAIN}</strong>.
-              </p>
-              <button onClick={()=>setStep('accounts')}
-                style={{display:'flex',alignItems:'center',justifyContent:'center',gap:13,width:'100%',padding:'15px 20px',background:'#fff',border:'1.5px solid #DADCE0',borderRadius:12,fontSize:15.5,fontWeight:600,color:'#3C4043',boxShadow:'0 1px 3px rgba(0,0,0,0.08)'}}>
-                <IGoogle/> Entrar com Google
-              </button>
-              <div style={{display:'flex',alignItems:'center',gap:14,margin:'26px 0'}}>
-                <div style={{flex:1,height:1,background:'#E2E8F0'}}/>
-                <span style={{fontSize:12,color:'#94A3B8'}}>ou</span>
-                <div style={{flex:1,height:1,background:'#E2E8F0'}}/>
-              </div>
-              <button onClick={()=>{setStep('other');setError('');}}
-                style={{width:'100%',padding:'13px 20px',background:'#F6F7FA',border:'1px solid #E2E8F0',borderRadius:12,fontSize:14.5,fontWeight:600,color:'#475569'}}>
-                Entrar com e-mail corporativo
-              </button>
-            </React.Fragment>
+          <h2 style={{fontSize:24,fontWeight:700,color:NB.petroleo,marginBottom:8}}>Entrar</h2>
+          <p style={{fontSize:14.5,color:'#64748B',lineHeight:1.6,marginBottom:32}}>
+            Use sua conta Google do Nibo. O acesso é restrito a e-mails <strong style={{color:NB.petroleo}}>{NIBO_DOMAIN}</strong>.
+          </p>
+
+          <button onClick={signIn} disabled={busy}
+            style={{display:'flex',alignItems:'center',justifyContent:'center',gap:13,width:'100%',padding:'15px 20px',background:'#fff',border:'1.5px solid #DADCE0',borderRadius:12,fontSize:15.5,fontWeight:600,color:'#3C4043',boxShadow:'0 1px 3px rgba(0,0,0,0.08)',opacity:busy?0.6:1,cursor:busy?'wait':'pointer'}}
+            onMouseEnter={e=>{ if(!busy) e.currentTarget.style.background='#F8F9FB'; }}
+            onMouseLeave={e=>{ e.currentTarget.style.background='#fff'; }}>
+            {busy
+              ? <span style={{width:18,height:18,border:'2px solid #DADCE0',borderTopColor:'#4285F4',borderRadius:'50%',animation:'nb-spin 0.7s linear infinite',display:'inline-block'}}/>
+              : <IGoogle/>}
+            {busy ? 'Abrindo o Google…' : 'Entrar com Google'}
+          </button>
+
+          {msg && (
+            <div style={{marginTop:18,padding:'13px 16px',background:'#FEF2F2',border:'1px solid #FECACA',borderRadius:10,fontSize:13,color:'#991B1B',lineHeight:1.55}}>
+              {msg}
+            </div>
           )}
 
-          {step==='accounts' && (
-            <React.Fragment>
-              <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:6}}>
-                <IGoogle size={22}/>
-                <h2 style={{fontSize:21,fontWeight:700,color:NB.petroleo}}>Escolha uma conta</h2>
-              </div>
-              <p style={{fontSize:13.5,color:'#64748B',marginBottom:22}}>para continuar em Demandas · Nibo Marketing Ops</p>
-              <div style={{display:'flex',flexDirection:'column',gap:8,maxHeight:340,overflowY:'auto'}}>
-                {ACTIVE_TEAM.map(m=>(
-                  <button key={m.id} onClick={()=>login(m.id)}
-                    style={{display:'flex',alignItems:'center',gap:13,padding:'11px 14px',background:'#fff',border:'1px solid #E2E8F0',borderRadius:12,textAlign:'left'}}
-                    onMouseEnter={e=>{e.currentTarget.style.background='#F6F7FA';}}
-                    onMouseLeave={e=>{e.currentTarget.style.background='#fff';}}>
-                    <div style={{width:38,height:38,borderRadius:'50%',overflow:'hidden',flexShrink:0}}>
-                      {photos[m.id]
-                        ? <img src={photos[m.id]} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>
-                        : <div style={{width:'100%',height:'100%',background:m.color,color:'#fff',fontSize:13,fontWeight:700,display:'flex',alignItems:'center',justifyContent:'center'}}>{m.initials}</div>}
-                    </div>
-                    <div style={{minWidth:0}}>
-                      <div style={{fontSize:14.5,fontWeight:600,color:NB.petroleo}}>{m.name}</div>
-                      <div style={{fontSize:12.5,color:'#64748B',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{m.email}</div>
-                    </div>
-                  </button>
-                ))}
-                <button onClick={()=>{setStep('other');setError('');}}
-                  style={{display:'flex',alignItems:'center',gap:13,padding:'11px 14px',background:'#fff',border:'1px dashed #CBD5E1',borderRadius:12,textAlign:'left'}}>
-                  <div style={{width:38,height:38,borderRadius:'50%',background:'#F1F5F9',color:'#64748B',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><IPlus/></div>
-                  <span style={{fontSize:14.5,fontWeight:600,color:'#475569'}}>Usar outra conta</span>
-                </button>
-              </div>
-              <button onClick={()=>setStep('start')} style={{marginTop:18,background:'none',border:'none',color:NB.azul,fontSize:13.5,fontWeight:600,alignSelf:'flex-start'}}>← Voltar</button>
-            </React.Fragment>
-          )}
-
-          {step==='other' && (
-            <React.Fragment>
-              <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:6}}>
-                <IGoogle size={22}/>
-                <h2 style={{fontSize:21,fontWeight:700,color:NB.petroleo}}>Fazer login</h2>
-              </div>
-              <p style={{fontSize:13.5,color:'#64748B',marginBottom:22}}>Somente contas {NIBO_DOMAIN} têm acesso.</p>
-              <input value={email} autoFocus
-                onChange={e=>{setEmail(e.target.value); if(error) setError('');}}
-                onKeyDown={e=>{ if(e.key==='Enter') tryEmail(); }}
-                placeholder={'nome.sobrenome'+NIBO_DOMAIN}
-                style={{width:'100%',padding:'14px 16px',border:'1.5px solid '+(error?'#DC2626':'#CBD5E1'),borderRadius:12,fontSize:15,color:NB.petroleo,outline:'none'}}/>
-              {error && <p style={{fontSize:13,color:'#DC2626',marginTop:9,lineHeight:1.5}}>{error}</p>}
-              <button onClick={tryEmail}
-                style={{width:'100%',marginTop:20,padding:'14px 20px',background:NB.azul,border:'none',borderRadius:12,fontSize:15,fontWeight:700,color:'#fff'}}>
-                Continuar
-              </button>
-              <button onClick={()=>{setStep('start');setError('');}} style={{marginTop:18,background:'none',border:'none',color:NB.azul,fontSize:13.5,fontWeight:600,alignSelf:'flex-start'}}>← Voltar</button>
-            </React.Fragment>
-          )}
+          <p style={{marginTop:28,fontSize:12.5,color:'#94A3B8',lineHeight:1.6}}>
+            Não consegue entrar? Fale com a Mariana para liberar seu e-mail no acesso da equipe.
+          </p>
         </div>
       </div>
     </div>
@@ -521,9 +538,6 @@ function ProfileModal() {
   /* undefined = foto inalterada | string = foto nova | null = remover ao salvar */
   const [photoDraft, setPhotoDraft] = useState(undefined);
 
-  /* Só recarrega os campos ao abrir o modal ou trocar de pessoa. Depender do objeto
-     `user` faria o que foi digitado ser sobrescrito a cada re-render do Provider —
-     era o que apagava o nome novo logo depois de escolher a foto. */
   const userId   = user ? user.id : null;
   const nameRef  = useRef('');
   nameRef.current = user ? user.name : '';
@@ -534,11 +548,11 @@ function ProfileModal() {
 
   if (!profileOpen || !user) return null;
 
-  const currentPhoto = photoDraft !== undefined ? photoDraft : (photos[user.id] || null);
+  const currentPhoto = photoDraft !== undefined ? photoDraft : (photos[user.id] || user.googlePhoto || null);
 
   const pick = e => {
     const f = e.target.files && e.target.files[0];
-    e.target.value = '';                       // permite reescolher o mesmo arquivo
+    e.target.value = '';
     if (!f) return;
     if (!f.type.startsWith('image/')) return setErr('Escolha um arquivo de imagem.');
     if (f.size > 3 * 1024 * 1024) return setErr('Imagem muito grande. Use um arquivo de até 3 MB.');
@@ -599,7 +613,7 @@ function ProfileModal() {
           <p style={{fontSize:12,color:'#94A3B8',marginTop:12,lineHeight:1.5}}>
             {photoDraft !== undefined
               ? 'Clique em Salvar perfil para aplicar a nova foto.'
-              : 'A foto fica salva neste navegador e aparece nos cards, no login e nas menções.'}
+              : 'Por padrão usamos sua foto do Google. A foto que você subir fica salva neste navegador.'}
           </p>
         </div>
 
@@ -642,7 +656,7 @@ function TopBar() {
   );
 }
 
-/* =========== CARD (SIMPLIFICADO) =========== */
+/* =========== CARD =========== */
 function CardAvatar({ initials, offset }) {
   const mb = useMember(initials);
   return <Avatar member={mb} size={30} style={{marginLeft:offset>0?-10:0,zIndex:offset,boxShadow:'0 0 0 1.5px '+((mb&&mb.color)||NB.azul)+', 0 2px 4px rgba(0,0,0,0.15)'}}/>;
@@ -664,19 +678,16 @@ function Card({ demand }) {
       onMouseEnter={e=>{e.currentTarget.style.boxShadow='0 2px 10px rgba(0,45,114,0.1)'; e.currentTarget.style.borderColor='#93C5FD'; e.currentTarget.style.borderLeftColor=ac;}}
       onMouseLeave={e=>{e.currentTarget.style.boxShadow='none'; e.currentTarget.style.borderColor='#E2E8F0'; e.currentTarget.style.borderLeftColor=ac;}}>
 
-      {/* Priority badge */}
       <div style={{display:'flex',justifyContent:'flex-end',marginBottom:7}}>
         <span style={{fontSize:11,fontWeight:700,padding:'3px 8px',borderRadius:5,background:ps.bg,color:ps.txt,border:'1px solid '+ps.bdr,letterSpacing:'0.05em'}}>
           {demand.priority.toUpperCase()}
         </span>
       </div>
 
-      {/* Title */}
       <p style={{fontSize:15,fontWeight:600,color:'#002D72',lineHeight:1.45,display:'-webkit-box',WebkitLineClamp:2,WebkitBoxOrient:'vertical',overflow:'hidden',marginBottom:13}}>
         {demand.title}
       </p>
 
-      {/* Footer */}
       <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
         {sla
           ? <span style={{fontSize:12.5,fontWeight:600,padding:'3px 8px',borderRadius:5,...slaStyle}}>{sla.label}</span>
@@ -786,7 +797,6 @@ function SlackFeed() {
 
   return (
     <div style={{padding:'22px 26px',overflowY:'auto',height:'100%'}}>
-      {/* Header */}
       <div style={{background:'#002D72',borderRadius:14,padding:'20px 24px',marginBottom:22,display:'flex',alignItems:'center',justifyContent:'space-between'}}>
         <div>
           <div style={{display:'flex',alignItems:'center',gap:11,marginBottom:6}}>
@@ -801,7 +811,6 @@ function SlackFeed() {
         </div>
       </div>
 
-      {/* Legenda */}
       <div style={{display:'flex',gap:18,marginBottom:18,flexWrap:'wrap'}}>
         {[{dot:'#41B6E6',label:'Automação de etapa'},{dot:'#D97706',label:'Enviado para aprovação'},{dot:'#0072CE',label:'Nova demanda criada'}].map(({dot,label})=>(
           <div key={label} style={{display:'flex',alignItems:'center',gap:7}}>
@@ -811,13 +820,11 @@ function SlackFeed() {
         ))}
       </div>
 
-      {/* Mensagens */}
       <div style={{display:'flex',flexDirection:'column',gap:13}}>
         {slack.map(msg => {
           const ts = typeMap[msg.type] || typeMap.move;
           return (
             <div key={msg.id} style={{background:'#fff',borderRadius:12,border:'1px solid #E2E8F0',borderLeft:'5px solid '+ts.border,padding:'15px 18px'}}>
-              {/* Header */}
               <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10}}>
                 <div style={{display:'flex',alignItems:'center',gap:10,flexWrap:'wrap'}}>
                   <span style={{background:'#002D72',color:'#fff',fontSize:11,fontWeight:700,padding:'3px 9px',borderRadius:5,letterSpacing:'0.05em',fontFamily:'monospace'}}>{msg.code}</span>
@@ -827,13 +834,11 @@ function SlackFeed() {
                 <span style={{fontSize:12.5,color:'#94A3B8',flexShrink:0}}>{msg.time}</span>
               </div>
 
-              {/* Caminho */}
               <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:12}}>
                 <span style={{fontSize:13,color:'#64748B'}}>Caminho:</span>
                 <span style={{fontSize:13,fontWeight:700,color:'#002D72'}}>{msg.stagePath}</span>
               </div>
 
-              {/* Detalhe */}
               <div style={{background:'#F6F7FA',borderRadius:9,padding:'12px 14px'}}>
                 <div style={{display:'flex',alignItems:'flex-start',gap:8,marginBottom:8}}>
                   <span style={{color:'#41B6E6',marginTop:1,flexShrink:0}}><IZap/></span>
@@ -892,7 +897,6 @@ function CardModal() {
       <div onClick={e=>e.stopPropagation()}
         style={{background:'#fff',borderRadius:18,width:'100%',maxWidth:600,maxHeight:'88vh',overflowY:'auto',boxShadow:'0 24px 64px rgba(0,45,114,0.3)'}}>
 
-        {/* Header */}
         <div style={{padding:'22px 26px 18px',borderBottom:'1px solid #E2E8F0',display:'flex',alignItems:'flex-start',justifyContent:'space-between'}}>
           <div style={{flex:1}}>
             <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:8,flexWrap:'wrap'}}>
@@ -905,7 +909,6 @@ function CardModal() {
           <button onClick={()=>setModal(null)} style={{padding:8,background:'#F6F7FA',border:'1px solid #E2E8F0',borderRadius:9,color:'#64748B',display:'flex',marginLeft:14,flexShrink:0}}><IX/></button>
         </div>
 
-        {/* Body */}
         <div style={{padding:'22px 26px'}}>
           {d.description && (
             <div style={{marginBottom:22}}>
@@ -927,7 +930,6 @@ function CardModal() {
             </div>
           </div>
 
-          {/* Responsáveis */}
           <div style={{marginBottom:24}}>
             <div style={{fontSize:11,fontWeight:600,color:'#94A3B8',textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:9}}>Responsáveis</div>
             <div style={{display:'flex',gap:9,flexWrap:'wrap'}}>
@@ -935,7 +937,6 @@ function CardModal() {
             </div>
           </div>
 
-          {/* Mover etapa */}
           <div>
             <div style={{fontSize:11,fontWeight:600,color:'#94A3B8',textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:9}}>Mover para etapa</div>
             <div style={{display:'flex',gap:9,flexWrap:'wrap',marginBottom:10}}>
@@ -959,7 +960,6 @@ function CardModal() {
           </div>
         </div>
 
-        {/* Footer */}
         <div style={{padding:'16px 26px',borderTop:'1px solid #E2E8F0',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
           <button onClick={()=>delDemand(d.id)}
             style={{padding:'9px 16px',background:'#FEF2F2',border:'1px solid #FECACA',borderRadius:9,fontSize:13.5,fontWeight:600,color:'#991B1B'}}>
@@ -1144,8 +1144,9 @@ function NewModal() {
 
 /* =========== APP =========== */
 function AppContent() {
-  const { view, user } = useApp();
-  if (!user) return <LoginScreen/>;
+  const { view, user, authReady } = useApp();
+  if (!authReady) return <Splash/>;
+  if (!user)      return <LoginScreen/>;
   return (
     <div style={{display:'flex',height:'100vh',width:'100%',overflow:'hidden'}}>
       <Sidebar/>
