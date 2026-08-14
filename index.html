@@ -785,14 +785,6 @@ function DemandCard({ demand }) {
 }
 
 /* =========== STAGE COLUMN =========== */
-function StageDivider({ areaName }) {
-  const { dragging } = useApp();
-  const active = !!dragging && dragging.area === areaName;
-  return (
-    <div style={{width:1,alignSelf:'stretch',borderRadius:1,background:active?NB.azulClaro:'#D9E5F6',transition:'background 0.15s'}}/>
-  );
-}
-
 function StageColumn({ stage, cards, compact, areaName }) {
   const { dragging, setDragging, moveStage, setNotifyPending } = useApp();
   const [over, setOver] = useState(false);
@@ -815,23 +807,23 @@ function StageColumn({ stage, cards, compact, areaName }) {
   };
 
   const border = over && canDrop ? '1.5px dashed '+NB.azul
-    : canDrop ? '1.5px dashed #CFDCF0'
-    : '1.5px dashed transparent';
+    : canDrop ? '1.5px dashed '+NB.azulClaro
+    : '1.5px solid #D3E0F2';
 
   return (
     <div
       onDragOver={e=>{ if(canDrop){ e.preventDefault(); e.dataTransfer.dropEffect='move'; setOver(true); } }}
       onDragLeave={()=>setOver(false)}
       onDrop={handleDrop}
-      style={{background:over&&canDrop?'#EAF3FD':NB.col,borderRadius:12,border:border,padding:compact?'12px 12px 10px':'14px 14px 12px',display:'flex',flexDirection:'column',minWidth:0,minHeight:132,transition:'background 0.12s, border-color 0.12s, opacity 0.12s',opacity:blocked?0.4:1}}>
-      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:12,gap:8}}>
-        <span style={{fontSize:13.5,fontWeight:500,color:over&&canDrop?NB.azul:NB.txt,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{stage.name}</span>
-        <span style={{fontSize:12,color:NB.mut,fontWeight:500,flexShrink:0}}>{cards.length}</span>
+      style={{background:over&&canDrop?'#E4F0FD':'#F2F6FC',borderRadius:12,border:border,padding:compact?'0 0 10px':'0 0 12px',display:'flex',flexDirection:'column',minWidth:0,minHeight:140,transition:'background 0.12s, border-color 0.12s, opacity 0.12s',opacity:blocked?0.4:1,overflow:'hidden'}}>
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8,padding:compact?'11px 12px':'12px 14px',borderBottom:'1px solid #DFE8F5',background:'#EAF1FA'}}>
+        <span style={{fontSize:13.5,fontWeight:600,color:over&&canDrop?NB.azul:NB.txt,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{stage.name}</span>
+        <span style={{fontSize:11.5,color:NB.mut,fontWeight:600,flexShrink:0,background:'#fff',border:'1px solid #DFE8F5',borderRadius:20,padding:'1px 8px'}}>{cards.length}</span>
       </div>
-      <div style={{flex:1,minHeight:0}}>
+      <div style={{flex:1,minHeight:0,padding:compact?'11px 11px 0':'12px 13px 0'}}>
         {cards.map(c=><DemandCard key={c.id} demand={c}/>)}
         {cards.length===0 && (
-          <div style={{border:'1.5px dashed '+(over&&canDrop?NB.azul:'#DFE7F2'),borderRadius:10,padding:'30px 10px',textAlign:'center',color:over&&canDrop?NB.azul:NB.mut2,fontSize:12.5,transition:'all 0.12s'}}>
+          <div style={{border:'1.5px dashed '+(over&&canDrop?NB.azul:'#D3E0F2'),borderRadius:10,padding:'26px 10px',textAlign:'center',color:over&&canDrop?NB.azul:NB.mut2,fontSize:12.5,transition:'all 0.12s'}}>
             {over&&canDrop ? 'Soltar aqui' : 'Nenhuma demanda'}
           </div>
         )}
@@ -863,12 +855,9 @@ function AreaBlock({ areaName, cards }) {
           Ver todas <IChev s={14}/>
         </button>
       </div>
-      <div style={{display:'grid',gridTemplateColumns:stages.map(()=>'minmax(0,1fr)').join(' 1px '),gap:16,alignItems:'stretch'}}>
-        {stages.map((st,i)=>(
-          <React.Fragment key={st.id}>
-            {i>0 && <StageDivider areaName={areaName}/>}
-            <StageColumn stage={st} cards={cards.filter(d=>d.stageId===st.id)} areaName={areaName} compact/>
-          </React.Fragment>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(5, minmax(0,1fr))',gap:14,alignItems:'stretch'}}>
+        {stages.map(st=>(
+          <StageColumn key={st.id} stage={st} cards={cards.filter(d=>d.stageId===st.id)} areaName={areaName} compact/>
         ))}
       </div>
     </div>
@@ -949,12 +938,9 @@ function KanbanBoard() {
   const stages = PIPELINES[area]||[];
   return (
     <div style={{padding:'22px 30px 30px',overflowY:'auto',overflowX:'hidden',height:'100%'}}>
-      <div style={{display:'grid',gridTemplateColumns:stages.map(()=>'minmax(0,1fr)').join(' 1px '),gap:18,alignItems:'stretch'}}>
-        {stages.map((st,i)=>(
-          <React.Fragment key={st.id}>
-            {i>0 && <StageDivider areaName={area}/>}
-            <StageColumn stage={st} cards={filtered.filter(d=>d.stageId===st.id)} areaName={area}/>
-          </React.Fragment>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(5, minmax(0,1fr))',gap:16,alignItems:'stretch'}}>
+        {stages.map(st=>(
+          <StageColumn key={st.id} stage={st} cards={filtered.filter(d=>d.stageId===st.id)} areaName={area}/>
         ))}
       </div>
     </div>
