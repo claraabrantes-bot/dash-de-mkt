@@ -179,8 +179,8 @@ function Provider({ children }) {
 
   /* Etapas editáveis por área. pipesRef evita closure velha nos useCallback([]). */
   const [pipes, setPipes] = useState(() => {
-    try { const v=localStorage.getItem('nibo_pipes_v1'); return v ? JSON.parse(v) : DEFAULT_pipesRef.current; }
-    catch { return DEFAULT_pipesRef.current; }
+    try { const v=localStorage.getItem('nibo_pipes_v1'); return v ? JSON.parse(v) : DEFAULT_PIPELINES; }
+    catch { return DEFAULT_PIPELINES; }
   });
   const pipesRef = useRef(pipes);
   pipesRef.current = pipes;
@@ -2749,7 +2749,7 @@ function NewModal() {
 
 /* =========== APP =========== */
 function AppContent() {
-  const { view, user, authReady, setDragging } = useApp();
+  const { view, user, authReady, setDragging, editStages, setEditStages } = useApp();
   if (!authReady) return <Splash/>;
   if (!user)      return <LoginScreen/>;
   return (
