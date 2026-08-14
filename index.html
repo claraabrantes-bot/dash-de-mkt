@@ -58,7 +58,7 @@ const TEAM = [
   { id: 'u1', name: 'Mariana Araújo',    initials: 'MA', area: 'Gestão',     isApprover: true,  email: 'mariana.araujo'+NIBO_DOMAIN,    color: '#0072CE' },
   { id: 'u2', name: 'Clara Abrantes',    initials: 'CA', area: 'Social',     isApprover: false, email: 'clara.abrantes'+NIBO_DOMAIN,    color: '#6431E2' },
   { id: 'u3', name: 'Millena Barros',    initials: 'MB', area: 'Design',     isApprover: false, email: 'millena.barros'+NIBO_DOMAIN,    color: '#0EA5E9' },
-  { id: 'u4', name: 'Roberta Rocha',     initials: 'RO', area: 'Social',     isApprover: false, email: 'roberta.rocha'+NIBO_DOMAIN,     color: '#D97706' },
+  { id: 'u4', name: 'Roberta Rocha',     initials: 'RO', area: 'Produto',    isApprover: false, email: 'roberta.rocha'+NIBO_DOMAIN,     color: '#D97706' },
   { id: 'u5', name: 'Mikaella Nicomedes',initials: 'MK', area: 'Design',     isApprover: false, email: 'mikaella.nicomedes'+NIBO_DOMAIN,color: '#059669' },
   { id: 'u6', name: 'Vivian Santos',     initials: 'VI', area: 'Mídia Paga', isApprover: false, email: 'vivian.santos'+NIBO_DOMAIN,     color: '#FF40B3' },
   { id: 'u7', name: 'Jéssica Gonçalves', initials: 'JE', area: 'RevOps',     isApprover: false, email: 'jessica.goncalves'+NIBO_DOMAIN, color: '#475569' },
@@ -930,10 +930,8 @@ function StageColumn({ stage, cards, compact, areaName }) {
 /* Quem está nesta área: o time fixo dela + quem estiver em card dessa área agora */
 function AreaPeople({ areaName, cards, max=5 }) {
   const { profiles } = useApp();
-  const fixos = TEAM.filter(m => m.area === areaName).map(m => m.initials);
-  const nosCards = cards.reduce((acc,d) => acc.concat(d.assignees), []);
-  const inits = [];
-  fixos.concat(nosCards).forEach(i => { if (!inits.includes(i)) inits.push(i); });
+  /* Só quem é do setor. Quem apenas participa de um card aparece no próprio card. */
+  const inits = TEAM.filter(m => m.area === areaName).map(m => m.initials);
   if (!inits.length) return null;
 
   const show = inits.slice(0, max);
