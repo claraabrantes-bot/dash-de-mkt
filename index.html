@@ -164,6 +164,16 @@ function Provider({ children }) {
   const [googlePhotos, setGooglePhotos] = useState(() => {
     try { const s=localStorage.getItem('nibo_gphotos_v1'); return s ? JSON.parse(s) : {}; } catch { return {}; }
   });
+  /* Anexos e comentários moram em chaves próprias: se a cota estourar,
+     o salvamento das demandas continua funcionando. */
+  const [attach, setAttach] = useState(() => {
+    try { const s=localStorage.getItem('nibo_attach_v1'); return s ? JSON.parse(s) : {}; } catch { return {}; }
+  });
+  const [comments, setComments] = useState(() => {
+    try { const s=localStorage.getItem('nibo_comments_v1'); return s ? JSON.parse(s) : {}; } catch { return {}; }
+  });
+  const [storageWarn, setStorageWarn] = useState('');
+
   const [profiles, setProfiles] = useState(() => {
     try { const s=localStorage.getItem('nibo_profiles_v1'); return s ? JSON.parse(s) : {}; } catch { return {}; }
   });
@@ -214,6 +224,11 @@ function Provider({ children }) {
   useEffect(() => { try { localStorage.setItem('nibo_dem_v3', JSON.stringify(demands)); } catch {} }, [demands]);
   useEffect(() => { try { localStorage.setItem('nibo_slk_v3', JSON.stringify(slack)); } catch {} }, [slack]);
   useEffect(() => { try { localStorage.setItem('nibo_photos_v1', JSON.stringify(photos)); } catch {} }, [photos]);
+  useEffect(() => {
+    try { localStorage.setItem('nibo_attach_v1', JSON.stringify(attach)); setStorageWarn(''); }
+    catch { setStorageWarn('O armazenamento do navegador encheu. Remova anexos antigos ou use links em vez de arquivos.'); }
+  }, [attach]);
+  useEffect(() => { try { localStorage.setItem('nibo_comments_v1', JSON.stringify(comments)); } catch {} }, [comments]);
   useEffect(() => { try { localStorage.setItem('nibo_gphotos_v1', JSON.stringify(googlePhotos)); } catch {} }, [googlePhotos]);
   useEffect(() => { try { localStorage.setItem('nibo_profiles_v1', JSON.stringify(profiles)); } catch {} }, [profiles]);
 
@@ -256,6 +271,37 @@ function Provider({ children }) {
       }
       return {...d, stageId:newStageId, assignees};
     }));
+  }, []);
+
+  const MAX_FILE = 700 * 1024;
+
+  const feed = (d, stagePath, action, next, type) => setSlack(sp => [{
+    id:'s'+Date.now()+Math.random().toString(36).slice(2,6), code:d.code, area:d.area,
+    time:t(new Date()), stagePath, action, next, type }, ...sp]);
+
+  const addAttachment = useCallback((demand, item) => {
+    const rec = { ...item, id:'at'+Date.now()+Math.random().toString(36).slice(2,6), at:new Date().toISOString() };
+    setAttach(p => ({ ...p, [demand.id]: [ ...(p[demand.id]||[]), rec ] }));
+    feed(demand, 'Anexo adicionado',
+      (rec.kind==='link' ? 'Link' : 'Arquivo') + ' "' + rec.name + '" anexado por ' + rec.by,
+      'Disponível no card ' + demand.code, 'move');
+  }, []);
+
+  const removeAttachment = useCallback((demandId, attId) => {
+    setAttach(p => ({ ...p, [demandId]: (p[demandId]||[]).filter(a=>a.id!==attId) }));
+  }, []);
+
+  const addComment = useCallback((demand, text, by) => {
+    const rec = { id:'c'+Date.now(), text, by, at:new Date().toISOString() };
+    setComments(p => ({ ...p, [demand.id]: [ ...(p[demand.id]||[]), rec ] }));
+    const who = demand.assignees.map(i=>{ const m=TEAM.find(x=>x.initials===i); return '@'+(m?m.name:i); }).join(' ');
+    feed(demand, 'Novo comentário',
+      (TEAM.find(m=>m.initials===by)||{name:by}).name + ' comentou: "' + (text.length>90?text.slice(0,90)+'…':text) + '"',
+      who + ' notificados no Slack', 'new');
+  }, []);
+
+  const removeComment = useCallback((demandId, cid) => {
+    setComments(p => ({ ...p, [demandId]: (p[demandId]||[]).filter(c=>c.id!==cid) }));
   }, []);
 
   const setAssignees = useCallback((demId, list) => {
@@ -332,7 +378,7 @@ function Provider({ children }) {
 
   const selDemand = modal ? demands.find(d=>d.id===modal)||null : null;
 
-  return <Ctx.Provider value={{ demands, active, archived, filtered, slack, user, authReady, authError, setAuthError, view, setView, layout, setLayout, area, setArea, query, setQuery, priFilter, setPriFilter, selDemand, setModal, newOpen, setNewOpen, notifyPending, setNotifyPending, profileOpen, setProfileOpen, dragging, setDragging, photos, googlePhotos, profiles, logout, savePhoto, removePhoto, saveProfile, addDemand, moveStage, setAssignees, updateDemand, archiveDemand, restoreDemand, delDemand, reset }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ demands, active, archived, filtered, slack, user, authReady, authError, setAuthError, view, setView, layout, setLayout, area, setArea, query, setQuery, priFilter, setPriFilter, selDemand, setModal, newOpen, setNewOpen, notifyPending, setNotifyPending, profileOpen, setProfileOpen, dragging, setDragging, photos, googlePhotos, profiles, attach, comments, storageWarn, MAX_FILE, addAttachment, removeAttachment, addComment, removeComment, logout, savePhoto, removePhoto, saveProfile, addDemand, moveStage, setAssignees, updateDemand, archiveDemand, restoreDemand, delDemand, reset }}>{children}</Ctx.Provider>;
 }
 
 const useApp = () => useContext(Ctx);
@@ -381,6 +427,13 @@ const ICheck  = ({s=15})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw} 
 const IZap    = ({s=14})=><svg width={s} height={s} viewBox="0 0 24 24" fill="currentColor"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>;
 const IArchive = ({s=18})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}><rect x="2.5" y="3.5" width="19" height="5" rx="1.5"/><path d="M4.5 8.5V19a1.5 1.5 0 0 0 1.5 1.5h12a1.5 1.5 0 0 0 1.5-1.5V8.5"/><line x1="9.8" y1="12.5" x2="14.2" y2="12.5"/></svg>;
 const IUndo    = ({s=15})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}><polyline points="9 14 4 9 9 4"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg>;
+const IClip    = ({s=16})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}><path d="M21.4 11.05l-9.19 9.19a5.5 5.5 0 0 1-7.78-7.78l9.2-9.19a3.67 3.67 0 0 1 5.18 5.18l-9.2 9.2a1.83 1.83 0 0 1-2.59-2.6l8.49-8.48"/></svg>;
+const ILink    = ({s=15})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>;
+const IChatBox = ({s=16})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8z"/></svg>;
+const IFile    = ({s=15})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>;
+const IExt     = ({s=13})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>;
+const IDown    = ({s=13})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>;
+const ITrash   = ({s=14})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>;
 const IGoogle = ({size=20})=><svg width={size} height={size} viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>;
 
 const AREA_ICON = { Todas:ILayers, Social:IChat, Design:IBrush, 'Mídia Paga':ITarget, Produto:IBox, RevOps:ITrend };
@@ -748,10 +801,12 @@ function CardAvatar({ initials, offset }) {
 }
 
 function DemandCard({ demand }) {
-  const { setModal, dragging, setDragging } = useApp();
+  const { setModal, dragging, setDragging, attach, comments } = useApp();
   const sla = getSla(demand.deadline);
   const ps  = PRI_STL[demand.priority] || PRI_STL.Baixa;
   const isDragging = dragging && dragging.id === demand.id;
+  const nA = (attach[demand.id]||[]).length;
+  const nC = (comments[demand.id]||[]).length;
 
   return (
     <div
@@ -772,12 +827,16 @@ function DemandCard({ demand }) {
       </p>
 
       <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8}}>
-        {sla && (sla.type==='ok'
-          ? <span style={{display:'flex',alignItems:'center',gap:6,fontSize:12.5,color:NB.mut}}><ICal/> {sla.label}</span>
-          : <span style={{fontSize:12,fontWeight:500,padding:'4px 9px',borderRadius:6,
-              background: sla.type==='danger' ? '#FEECEC' : '#FFF6DE',
-              color:      sla.type==='danger' ? '#B4232A' : '#8A6206'}}>{sla.label}</span>
-        )}
+        <div style={{display:'flex',alignItems:'center',gap:9,minWidth:0}}>
+          {sla && (sla.type==='ok'
+            ? <span style={{display:'flex',alignItems:'center',gap:6,fontSize:12.5,color:NB.mut}}><ICal/> {sla.label}</span>
+            : <span style={{fontSize:12,fontWeight:500,padding:'4px 9px',borderRadius:6,
+                background: sla.type==='danger' ? '#FEECEC' : '#FFF6DE',
+                color:      sla.type==='danger' ? '#B4232A' : '#8A6206'}}>{sla.label}</span>
+          )}
+          {nA>0 && <span title={nA+' anexo(s)'} style={{display:'flex',alignItems:'center',gap:3,fontSize:12,color:NB.mut2}}><IClip s={13}/>{nA}</span>}
+          {nC>0 && <span title={nC+' comentário(s)'} style={{display:'flex',alignItems:'center',gap:3,fontSize:12,color:NB.mut2}}><IChatBox s={13}/>{nC}</span>}
+        </div>
         <div style={{display:'flex',alignItems:'center',gap:9,flexShrink:0}}>
           <span title={'Prioridade '+demand.priority} style={{width:7,height:7,borderRadius:2,background:ps.bdr,flexShrink:0}}/>
           <div style={{display:'flex'}}>
@@ -1153,6 +1212,187 @@ function ArchivedView() {
   );
 }
 
+/* =========== ANEXOS =========== */
+const fmtBytes = b => b < 1024 ? b+' B' : b < 1048576 ? (b/1024).toFixed(0)+' KB' : (b/1048576).toFixed(1)+' MB';
+const fmtWhen = iso => { const d=new Date(iso); return d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})+' às '+d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}); };
+
+function AttachPanel({ demand }) {
+  const { attach, addAttachment, removeAttachment, user, MAX_FILE, storageWarn } = useApp();
+  const list = attach[demand.id] || [];
+  const fileRef = useRef(null);
+  const [mode, setMode] = useState(null);          // null | 'link'
+  const [ln, setLn] = useState({ name:'', url:'' });
+  const [err, setErr] = useState('');
+
+  const saveLink = () => {
+    let url = ln.url.trim();
+    if (!url) return setErr('Cole o endereço do link.');
+    if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+    try { new URL(url); } catch { return setErr('Esse endereço não parece válido.'); }
+    addAttachment(demand, { kind:'link', name: ln.name.trim() || url.replace(/^https?:\/\//,'').slice(0,50), url, by:user.name });
+    setLn({name:'',url:''}); setMode(null); setErr('');
+  };
+
+  const pickFiles = e => {
+    const files = Array.from(e.target.files||[]);
+    e.target.value = '';
+    setErr('');
+    files.forEach(f => {
+      if (f.size > MAX_FILE) {
+        setErr('"'+f.name+'" tem '+fmtBytes(f.size)+'. O limite é '+fmtBytes(MAX_FILE)+' — para arquivos maiores, use um link do Drive ou Canva.');
+        return;
+      }
+      const rd = new FileReader();
+      rd.onload = () => addAttachment(demand, { kind:'file', name:f.name, size:f.size, mime:f.type, data:rd.result, by:user.name });
+      rd.onerror = () => setErr('Não foi possível ler "'+f.name+'".');
+      rd.readAsDataURL(f);
+    });
+  };
+
+  return (
+    <div>
+      <div style={{display:'flex',gap:9,marginBottom:list.length||mode?14:0,flexWrap:'wrap'}}>
+        <button onClick={()=>fileRef.current && fileRef.current.click()}
+          style={{display:'flex',alignItems:'center',gap:7,padding:'9px 14px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:9,fontSize:13,fontWeight:500,color:NB.mut}}>
+          <IClip s={15}/> Anexar arquivo
+        </button>
+        <input ref={fileRef} type="file" multiple onChange={pickFiles} style={{display:'none'}}/>
+        <button onClick={()=>{setMode(m=>m==='link'?null:'link'); setErr('');}}
+          style={{display:'flex',alignItems:'center',gap:7,padding:'9px 14px',background:mode==='link'?'#EAF3FD':'#fff',border:'1px solid '+(mode==='link'?NB.azul:NB.bd),borderRadius:9,fontSize:13,fontWeight:500,color:mode==='link'?NB.azul:NB.mut}}>
+          <ILink/> Adicionar link
+        </button>
+      </div>
+
+      {mode==='link' && (
+        <div style={{background:NB.col,border:'1px solid '+NB.bd,borderRadius:11,padding:'14px 15px',marginBottom:14,display:'flex',flexDirection:'column',gap:9}}>
+          <input value={ln.url} autoFocus placeholder="drive.google.com/..." onChange={e=>{setLn(v=>({...v,url:e.target.value})); setErr('');}}
+            onKeyDown={e=>{ if(e.key==='Enter') saveLink(); }}
+            style={{...inp,padding:'9px 12px',fontSize:13.5}}/>
+          <input value={ln.name} placeholder="Nome (opcional) — ex: Briefing no Drive" onChange={e=>setLn(v=>({...v,name:e.target.value}))}
+            onKeyDown={e=>{ if(e.key==='Enter') saveLink(); }}
+            style={{...inp,padding:'9px 12px',fontSize:13.5}}/>
+          <div style={{display:'flex',gap:8,justifyContent:'flex-end'}}>
+            <button onClick={()=>{setMode(null);setErr('');}} style={{padding:'8px 14px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:8,fontSize:12.5,fontWeight:500,color:NB.mut}}>Cancelar</button>
+            <button onClick={saveLink} style={{padding:'8px 16px',background:NB.azul,border:'none',borderRadius:8,fontSize:12.5,fontWeight:500,color:'#fff'}}>Salvar link</button>
+          </div>
+        </div>
+      )}
+
+      {(err || storageWarn) && (
+        <div style={{marginBottom:12,padding:'10px 13px',background:'#FFF6DE',border:'1px solid #F3D98A',borderRadius:9,fontSize:12.5,color:'#8A6206',lineHeight:1.55}}>
+          {err || storageWarn}
+        </div>
+      )}
+
+      {list.length===0 ? (
+        <p style={{fontSize:13,color:NB.mut2,lineHeight:1.6}}>
+          Nenhum anexo ainda. Arquivos até {fmtBytes(MAX_FILE)} ficam salvos aqui; para peças grandes do Canva ou Drive, prefira o link.
+        </p>
+      ) : (
+        <div style={{display:'flex',flexDirection:'column',gap:8}}>
+          {list.map(a=>{
+            const img = a.kind==='file' && a.mime && a.mime.startsWith('image/');
+            return (
+              <div key={a.id} style={{display:'flex',alignItems:'center',gap:12,background:'#fff',border:'1px solid '+NB.bd,borderRadius:10,padding:'10px 12px'}}>
+                {img
+                  ? <img src={a.data} alt="" style={{width:38,height:38,borderRadius:8,objectFit:'cover',flexShrink:0,border:'1px solid '+NB.bd}}/>
+                  : <div style={{width:38,height:38,borderRadius:8,background:a.kind==='link'?'#EAF3FD':NB.col,color:a.kind==='link'?NB.azul:NB.mut,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                      {a.kind==='link' ? <ILink s={17}/> : <IFile s={17}/>}
+                    </div>}
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:13.5,fontWeight:500,color:NB.txt,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{a.name}</div>
+                  <div style={{fontSize:11.5,color:NB.mut2,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>
+                    {a.kind==='file' ? fmtBytes(a.size)+' · ' : ''}{a.by} · {fmtWhen(a.at)}
+                  </div>
+                </div>
+                <div style={{display:'flex',gap:5,flexShrink:0}}>
+                  {a.kind==='link'
+                    ? <a href={a.url} target="_blank" rel="noopener noreferrer" title="Abrir link"
+                        style={{padding:'7px 9px',border:'1px solid '+NB.bd,borderRadius:8,color:NB.mut,display:'flex',textDecoration:'none'}}><IExt/></a>
+                    : <a href={a.data} download={a.name} title="Baixar"
+                        style={{padding:'7px 9px',border:'1px solid '+NB.bd,borderRadius:8,color:NB.mut,display:'flex',textDecoration:'none'}}><IDown/></a>}
+                  <button onClick={()=>removeAttachment(demand.id,a.id)} title="Remover"
+                    style={{padding:'7px 9px',border:'1px solid '+NB.bd,borderRadius:8,color:NB.mut,background:'#fff',display:'flex'}}
+                    onMouseEnter={e=>{e.currentTarget.style.color='#B4232A'; e.currentTarget.style.borderColor='#FBD5D5';}}
+                    onMouseLeave={e=>{e.currentTarget.style.color=NB.mut; e.currentTarget.style.borderColor=NB.bd;}}>
+                    <ITrash/>
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* =========== COMENTÁRIOS =========== */
+function CommentPanel({ demand }) {
+  const { comments, addComment, removeComment, user } = useApp();
+  const list = comments[demand.id] || [];
+  const [text, setText] = useState('');
+
+  const send = () => {
+    const v = text.trim();
+    if (!v) return;
+    addComment(demand, v, user.initials);
+    setText('');
+  };
+
+  return (
+    <div>
+      <div style={{display:'flex',gap:11,marginBottom:list.length?16:0}}>
+        <Avatar member={user} size={34} ring={false} style={{boxShadow:'0 0 0 1.5px '+user.color}}/>
+        <div style={{flex:1,minWidth:0}}>
+          <textarea value={text} onChange={e=>setText(e.target.value)} rows={2}
+            placeholder="Escreva um comentário... (Ctrl+Enter envia)"
+            onKeyDown={e=>{ if(e.key==='Enter' && (e.metaKey||e.ctrlKey)){ e.preventDefault(); send(); } }}
+            style={{...inp,resize:'vertical',lineHeight:1.6,fontSize:13.5}}
+            onFocus={e=>{e.target.style.borderColor=NB.azul;}} onBlur={e=>{e.target.style.borderColor=NB.bd;}}/>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginTop:8,gap:10}}>
+            <span style={{fontSize:11.5,color:NB.mut2}}>Os responsáveis são notificados no Slack.</span>
+            <button onClick={send} disabled={!text.trim()}
+              style={{padding:'8px 18px',background:text.trim()?NB.azul:'#CFD8E6',border:'none',borderRadius:8,fontSize:12.5,fontWeight:500,color:'#fff',cursor:text.trim()?'pointer':'not-allowed',flexShrink:0}}>
+              Comentar
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {list.length===0 ? (
+        <p style={{fontSize:13,color:NB.mut2,lineHeight:1.6,marginTop:14}}>Nenhum comentário ainda. Use este espaço para alinhar ajustes sem sair da demanda.</p>
+      ) : (
+        <div style={{display:'flex',flexDirection:'column',gap:12,borderTop:'1px solid '+NB.bdSoft,paddingTop:16}}>
+          {list.slice().reverse().map(c=>{
+            const mb = TEAM.find(m=>m.initials===c.by);
+            return (
+              <div key={c.id} style={{display:'flex',gap:11}}>
+                <Avatar member={mb} size={32} ring={false} style={{boxShadow:'0 0 0 1.5px '+((mb&&mb.color)||NB.azul)}}/>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{display:'flex',alignItems:'center',gap:9,marginBottom:3,flexWrap:'wrap'}}>
+                    <span style={{fontSize:13,fontWeight:500,color:NB.txt}}>{mb?mb.name:c.by}</span>
+                    <span style={{fontSize:11.5,color:NB.mut2}}>{fmtWhen(c.at)}</span>
+                    {c.by===user.initials && (
+                      <button onClick={()=>removeComment(demand.id,c.id)} title="Apagar comentário"
+                        style={{background:'none',border:'none',padding:2,color:NB.mut2,display:'flex',marginLeft:'auto'}}
+                        onMouseEnter={e=>{e.currentTarget.style.color='#B4232A';}}
+                        onMouseLeave={e=>{e.currentTarget.style.color=NB.mut2;}}>
+                        <ITrash s={13}/>
+                      </button>
+                    )}
+                  </div>
+                  <div style={{fontSize:13.5,color:'#3D4B63',lineHeight:1.6,whiteSpace:'pre-wrap',wordBreak:'break-word'}}>{c.text}</div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* =========== MODAL SHELL =========== */
 function Modal({ onClose, width, children, z }) {
   return (
@@ -1190,15 +1430,19 @@ function AssigneeChip({ initials, onRemove }) {
 }
 
 function CardModal() {
-  const { selDemand, setModal, moveStage, delDemand, archiveDemand, setNotifyPending, setAssignees, updateDemand } = useApp();
+  const { selDemand, setModal, moveStage, delDemand, archiveDemand, setNotifyPending, setAssignees, updateDemand, attach, comments } = useApp();
   const [picker, setPicker] = useState(false);
   const [confirmDel, setConfirmDel] = useState(false);
+  const [tab, setTab] = useState('anexos');
   const openId = selDemand ? selDemand.id : null;
 
   /* Reabrir outro card não pode herdar o estado do anterior */
-  useEffect(() => { setPicker(false); setConfirmDel(false); }, [openId]);
+  useEffect(() => { setPicker(false); setConfirmDel(false); setTab('anexos'); }, [openId]);
 
   if (!selDemand) return null;
+
+  const nAttach   = (attach[openId] || []).length;
+  const nComments = (comments[openId] || []).length;
 
   const d = selDemand;
   const stages = PIPELINES[d.area]||[];
@@ -1314,6 +1558,23 @@ function CardModal() {
             })}
           </div>
           <p style={{fontSize:12.5,color:NB.mut2,lineHeight:1.55}}>Ao mover, o caminho da automação é enviado automaticamente para o Slack. Etapas de aprovação são sempre encaminhadas para @Mariana Araújo.</p>
+        </div>
+
+        {/* Anexos e comentários */}
+        <div style={{marginTop:26,borderTop:'1px solid '+NB.bdSoft,paddingTop:18}}>
+          <div style={{display:'flex',gap:6,marginBottom:18}}>
+            {[{id:'anexos',label:'Anexos',Icon:IClip,n:nAttach},{id:'comentarios',label:'Comentários',Icon:IChatBox,n:nComments}].map(({id,label,Icon,n})=>{
+              const on = tab===id;
+              return (
+                <button key={id} onClick={()=>setTab(id)}
+                  style={{display:'flex',alignItems:'center',gap:8,padding:'9px 15px',borderRadius:9,border:'1px solid '+(on?NB.azul:NB.bd),background:on?'#EAF3FD':'#fff',fontSize:13,fontWeight:500,color:on?NB.azul:NB.mut}}>
+                  <Icon s={15}/> {label}
+                  {n>0 && <span style={{background:on?NB.azul:'#EEF2F8',color:on?'#fff':NB.mut,fontSize:11,fontWeight:600,borderRadius:20,padding:'1px 7px'}}>{n}</span>}
+                </button>
+              );
+            })}
+          </div>
+          {tab==='anexos' ? <AttachPanel demand={d}/> : <CommentPanel demand={d}/>}
         </div>
       </div>
 
