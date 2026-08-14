@@ -611,14 +611,14 @@ function LoginScreen() {
 function PipeTab({ label, Icon, count, active, onClick }) {
   return (
     <button onClick={onClick}
-      style={{display:'flex',alignItems:'center',gap:8,padding:'8px 13px',borderRadius:9,border:'none',
+      style={{display:'flex',alignItems:'center',gap:9,padding:'11px 16px',borderRadius:10,border:'none',
         background:active?'rgba(255,255,255,0.13)':'transparent',whiteSpace:'nowrap',flexShrink:0,transition:'background 0.12s'}}
       onMouseEnter={e=>{ if(!active) e.currentTarget.style.background='rgba(255,255,255,0.06)'; }}
       onMouseLeave={e=>{ if(!active) e.currentTarget.style.background='transparent'; }}>
-      <span style={{color:NB.azulClaro,display:'flex',flexShrink:0}}><Icon s={16}/></span>
-      <span style={{color:active?'#fff':'#C6D3E8',fontSize:14,fontWeight:active?500:400}}>{label}</span>
+      <span style={{color:NB.azulClaro,display:'flex',flexShrink:0}}><Icon s={18}/></span>
+      <span style={{color:active?'#fff':'#C6D3E8',fontSize:15,fontWeight:active?500:400}}>{label}</span>
       {count !== undefined && (
-        <span style={{color:active?'#fff':'rgba(198,211,232,0.55)',fontSize:12,fontWeight:500}}>{count}</span>
+        <span style={{color:active?'#fff':'rgba(198,211,232,0.55)',fontSize:13,fontWeight:500}}>{count}</span>
       )}
     </button>
   );
@@ -632,17 +632,17 @@ function TopNav() {
 
   return (
     <header style={{background:'linear-gradient(180deg,'+NB.navy1+','+NB.navy2+')',flexShrink:0}}>
-      <div style={{display:'flex',alignItems:'center',gap:18,padding:'11px 24px',minWidth:0}}>
+      <div style={{display:'flex',alignItems:'center',gap:20,padding:'15px 28px',minWidth:0}}>
 
         <div style={{display:'flex',alignItems:'center',gap:11,flexShrink:0}}>
-          <NiboMark size={38} radius={11}/>
+          <NiboMark size={44} radius={13}/>
           <div style={{lineHeight:1.15}}>
-            <div style={{color:'#fff',fontWeight:600,fontSize:16,letterSpacing:'-0.01em'}}>Demandas</div>
-            <div style={{color:'rgba(198,211,232,0.7)',fontSize:11.5}}>Nibo Marketing</div>
+            <div style={{color:'#fff',fontWeight:600,fontSize:18,letterSpacing:'-0.01em'}}>Demandas</div>
+            <div style={{color:'rgba(198,211,232,0.7)',fontSize:12.5}}>Nibo Marketing</div>
           </div>
         </div>
 
-        <div style={{width:1,height:30,background:'rgba(255,255,255,0.12)',flexShrink:0}}/>
+        <div style={{width:1,height:36,background:'rgba(255,255,255,0.12)',flexShrink:0}}/>
 
         <nav style={{display:'flex',gap:3,flex:1,minWidth:0,overflowX:'auto'}} className="nb-scrollnone">
           {areas.map(a=>(
@@ -654,22 +654,22 @@ function TopNav() {
         </nav>
 
         <div style={{display:'flex',alignItems:'center',gap:9,flexShrink:0}}>
-          <div style={{display:'flex',alignItems:'center',gap:7,padding:'6px 12px',background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:9}}>
+          <div style={{display:'flex',alignItems:'center',gap:8,padding:'9px 15px',background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:10}}>
             <span style={{color:NB.azulClaro,display:'flex'}}><IClock s={14}/></span>
-            <span style={{color:'#fff',fontSize:14,fontWeight:600}}>{active.length}</span>
-            <span style={{color:'rgba(198,211,232,0.65)',fontSize:11.5}}>ativas</span>
+            <span style={{color:'#fff',fontSize:16,fontWeight:600}}>{active.length}</span>
+            <span style={{color:'rgba(198,211,232,0.65)',fontSize:12.5}}>ativas</span>
           </div>
-          <div style={{display:'flex',alignItems:'center',gap:7,padding:'6px 12px',background:vencidas?'rgba(255,122,133,0.14)':'rgba(255,255,255,0.06)',border:'1px solid '+(vencidas?'rgba(255,122,133,0.35)':'rgba(255,255,255,0.1)'),borderRadius:9}}>
+          <div style={{display:'flex',alignItems:'center',gap:8,padding:'9px 15px',background:vencidas?'rgba(255,122,133,0.14)':'rgba(255,255,255,0.06)',border:'1px solid '+(vencidas?'rgba(255,122,133,0.35)':'rgba(255,255,255,0.1)'),borderRadius:10}}>
             <span style={{color:vencidas?'#FF7A85':'rgba(198,211,232,0.5)',display:'flex'}}><IAlert s={14}/></span>
-            <span style={{color:vencidas?'#FF9AA3':'#fff',fontSize:14,fontWeight:600}}>{vencidas}</span>
-            <span style={{color:'rgba(198,211,232,0.65)',fontSize:11.5}}>vencidas</span>
+            <span style={{color:vencidas?'#FF9AA3':'#fff',fontSize:16,fontWeight:600}}>{vencidas}</span>
+            <span style={{color:'rgba(198,211,232,0.65)',fontSize:12.5}}>vencidas</span>
           </div>
 
           <button onClick={()=>setNewOpen(true)}
-            style={{display:'flex',alignItems:'center',gap:8,padding:'10px 16px',background:NB.azul,border:'none',borderRadius:10,color:'#fff',fontSize:14,fontWeight:500,whiteSpace:'nowrap',boxShadow:'0 3px 12px rgba(0,114,206,0.35)'}}
+            style={{display:'flex',alignItems:'center',gap:9,padding:'13px 20px',background:NB.azul,border:'none',borderRadius:11,color:'#fff',fontSize:15,fontWeight:500,whiteSpace:'nowrap',boxShadow:'0 3px 12px rgba(0,114,206,0.35)'}}
             onMouseEnter={e=>{e.currentTarget.style.background='#0082E8';}}
             onMouseLeave={e=>{e.currentTarget.style.background=NB.azul;}}>
-            <IPlus s={16}/> Nova demanda
+            <IPlus s={17}/> Nova demanda
           </button>
 
           <div style={{position:'relative'}}>
@@ -678,7 +678,7 @@ function TopNav() {
               style={{display:'flex',alignItems:'center',gap:8,padding:'5px 9px 5px 5px',background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.11)',borderRadius:24}}
               onMouseEnter={e=>{e.currentTarget.style.background='rgba(255,255,255,0.12)';}}
               onMouseLeave={e=>{e.currentTarget.style.background='rgba(255,255,255,0.06)';}}>
-              <Avatar member={user} size={30} ring={false}/>
+              <Avatar member={user} size={34} ring={false}/>
               <span style={{color:'rgba(198,211,232,0.8)',display:'flex',transform:menu?'rotate(180deg)':'none',transition:'transform 0.15s'}}><IChev s={14}/></span>
             </button>
             {menu && (
@@ -723,18 +723,18 @@ function SubNav() {
   const togglePri = p => setPriFilter(v => v.includes(p) ? v.filter(x=>x!==p) : [...v,p]);
 
   return (
-    <div style={{background:'#fff',borderBottom:'1px solid '+NB.bd,display:'flex',alignItems:'center',gap:14,padding:'0 24px',flexShrink:0}}>
+    <div style={{background:'#fff',borderBottom:'1px solid '+NB.bd,display:'flex',alignItems:'center',gap:16,padding:'0 28px',flexShrink:0}}>
       <div style={{display:'flex',gap:2,flex:1,minWidth:0,overflowX:'auto'}} className="nb-scrollnone">
         {mods.map(({id,label,Icon,n})=>{
           const on = view===id;
           return (
             <button key={id} onClick={()=>{ if((id==='social'||id==='variacoes')) setArea(id==='social'?'Social':'Design'); setView(id); }}
-              style={{display:'flex',alignItems:'center',gap:8,padding:'13px 13px',background:'none',border:'none',
+              style={{display:'flex',alignItems:'center',gap:9,padding:'17px 15px',background:'none',border:'none',
                 borderBottom:'2px solid '+(on?NB.azul:'transparent'),
-                color:on?NB.azul:NB.mut,fontSize:13.5,fontWeight:500,whiteSpace:'nowrap',marginBottom:-1,flexShrink:0}}
+                color:on?NB.azul:NB.mut,fontSize:14.5,fontWeight:500,whiteSpace:'nowrap',marginBottom:-1,flexShrink:0}}
               onMouseEnter={e=>{ if(!on) e.currentTarget.style.color=NB.txt; }}
               onMouseLeave={e=>{ if(!on) e.currentTarget.style.color=NB.mut; }}>
-              <Icon s={16}/> {label}
+              <Icon s={17}/> {label}
               {n>0 && <span style={{background:on?'#EAF3FD':'#EEF2F8',color:on?NB.azul:NB.mut,fontSize:11,fontWeight:600,borderRadius:20,padding:'1px 7px'}}>{n}</span>}
             </button>
           );
@@ -742,18 +742,18 @@ function SubNav() {
       </div>
 
       {view==='kanban' && (
-        <div style={{display:'flex',alignItems:'center',gap:9,flexShrink:0,padding:'8px 0'}}>
-          <div style={{position:'relative',width:220}}>
+        <div style={{display:'flex',alignItems:'center',gap:10,flexShrink:0,padding:'10px 0'}}>
+          <div style={{position:'relative',width:270}}>
             <span style={{position:'absolute',left:12,top:'50%',transform:'translateY(-50%)',color:NB.mut2,pointerEvents:'none',display:'flex'}}><ISearch s={15}/></span>
             <input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Buscar demanda..."
-              style={{width:'100%',background:'#fff',border:'1px solid '+NB.bd,borderRadius:9,padding:'8px 12px 8px 36px',fontSize:13,color:NB.txt,outline:'none'}}
+              style={{width:'100%',background:'#fff',border:'1px solid '+NB.bd,borderRadius:9,padding:'10px 14px 10px 38px',fontSize:13.5,color:NB.txt,outline:'none'}}
               onFocus={e=>{e.target.style.borderColor=NB.azul;}} onBlur={e=>{e.target.style.borderColor=NB.bd;}}/>
           </div>
 
           <div style={{position:'relative'}}>
             {fOpen && <div onClick={()=>setFOpen(false)} style={{position:'fixed',inset:0,zIndex:29}}/>}
             <button onClick={()=>setFOpen(o=>!o)}
-              style={{display:'flex',alignItems:'center',gap:7,padding:'8px 13px',background:priFilter.length?'#EAF3FD':'#fff',border:'1px solid '+(priFilter.length?NB.azul:NB.bd),borderRadius:9,fontSize:13,fontWeight:500,color:priFilter.length?NB.azul:NB.mut,whiteSpace:'nowrap'}}>
+              style={{display:'flex',alignItems:'center',gap:8,padding:'10px 15px',background:priFilter.length?'#EAF3FD':'#fff',border:'1px solid '+(priFilter.length?NB.azul:NB.bd),borderRadius:9,fontSize:13,fontWeight:500,color:priFilter.length?NB.azul:NB.mut,whiteSpace:'nowrap'}}>
               <IFunnel/> Filtros{priFilter.length?' ('+priFilter.length+')':''}
             </button>
             {fOpen && (
@@ -778,13 +778,13 @@ function SubNav() {
 
           <div style={{display:'flex',background:'#fff',border:'1px solid '+NB.bd,borderRadius:9,padding:2,gap:2}}>
             <button onClick={()=>setLayout('list')} title="Ver em lista"
-              style={{padding:'6px 9px',background:layout==='list'?NB.bdSoft:'transparent',border:'none',borderRadius:7,color:layout==='list'?NB.txt:NB.mut2,display:'flex'}}><IList s={16}/></button>
+              style={{padding:'8px 11px',background:layout==='list'?NB.bdSoft:'transparent',border:'none',borderRadius:7,color:layout==='list'?NB.txt:NB.mut2,display:'flex'}}><IList s={16}/></button>
             <button onClick={()=>setLayout('board')} title="Ver em quadro"
-              style={{padding:'6px 9px',background:layout==='board'?NB.bdSoft:'transparent',border:'none',borderRadius:7,color:layout==='board'?NB.txt:NB.mut2,display:'flex'}}><IBoard s={16}/></button>
+              style={{padding:'8px 11px',background:layout==='board'?NB.bdSoft:'transparent',border:'none',borderRadius:7,color:layout==='board'?NB.txt:NB.mut2,display:'flex'}}><IBoard s={16}/></button>
           </div>
 
           <button onClick={reset} title="Restaurar dados de exemplo"
-            style={{padding:'8px 10px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:9,color:NB.mut,display:'flex'}}><IRefresh s={15}/></button>
+            style={{padding:'10px 12px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:9,color:NB.mut,display:'flex'}}><IRefresh s={15}/></button>
         </div>
       )}
     </div>
