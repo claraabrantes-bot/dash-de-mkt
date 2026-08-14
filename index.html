@@ -269,6 +269,28 @@ function Provider({ children }) {
     }));
   }, []);
 
+  const archiveDemand = useCallback((id) => {
+    setDemands(p => p.map(d => {
+      if (d.id !== id || d.archivedAt) return d;
+      setSlack(sp => [{ id:'s'+Date.now(), code:d.code, area:d.area, time:t(new Date()),
+        stagePath:'Demanda arquivada', action:'"'+d.title+'" saiu do quadro e foi para Arquivadas',
+        next:'Pode ser restaurada a qualquer momento', type:'move' }, ...sp]);
+      return { ...d, archivedAt:new Date().toISOString() };
+    }));
+    setModal(null);
+  }, []);
+
+  const restoreDemand = useCallback((id) => {
+    setDemands(p => p.map(d => {
+      if (d.id !== id || !d.archivedAt) return d;
+      setSlack(sp => [{ id:'s'+Date.now(), code:d.code, area:d.area, time:t(new Date()),
+        stagePath:'Demanda restaurada', action:'"'+d.title+'" voltou para o quadro',
+        next:'Disponível novamente em '+d.area, type:'new' }, ...sp]);
+      const { archivedAt, ...rest } = d;
+      return rest;
+    }));
+  }, []);
+
   const delDemand = useCallback((id) => {
     setDemands(p=>p.filter(d=>d.id!==id));
     setModal(null);
@@ -276,7 +298,11 @@ function Provider({ children }) {
 
   const reset = useCallback(() => { setDemands(INIT_DEMANDS); setSlack(INIT_SLACK); cntRef.current=INIT_DEMANDS.length; }, []);
 
-  const filtered = demands.filter(d => {
+  const active   = demands.filter(d => !d.archivedAt);
+  const archived = demands.filter(d => d.archivedAt)
+                          .sort((a,b) => (a.archivedAt < b.archivedAt ? 1 : -1));
+
+  const filtered = active.filter(d => {
     if (area !== 'Todas' && d.area !== area) return false;
     if (priFilter.length && !priFilter.includes(d.priority)) return false;
     if (query.trim()) { const q=query.toLowerCase(); return d.title.toLowerCase().includes(q)||d.code.toLowerCase().includes(q); }
@@ -285,7 +311,7 @@ function Provider({ children }) {
 
   const selDemand = modal ? demands.find(d=>d.id===modal)||null : null;
 
-  return <Ctx.Provider value={{ demands, filtered, slack, user, authReady, authError, setAuthError, view, setView, layout, setLayout, area, setArea, query, setQuery, priFilter, setPriFilter, selDemand, setModal, newOpen, setNewOpen, notifyPending, setNotifyPending, profileOpen, setProfileOpen, dragging, setDragging, photos, profiles, logout, savePhoto, removePhoto, saveProfile, addDemand, moveStage, setAssignees, delDemand, reset }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ demands, active, archived, filtered, slack, user, authReady, authError, setAuthError, view, setView, layout, setLayout, area, setArea, query, setQuery, priFilter, setPriFilter, selDemand, setModal, newOpen, setNewOpen, notifyPending, setNotifyPending, profileOpen, setProfileOpen, dragging, setDragging, photos, profiles, logout, savePhoto, removePhoto, saveProfile, addDemand, moveStage, setAssignees, archiveDemand, restoreDemand, delDemand, reset }}>{children}</Ctx.Provider>;
 }
 
 const useApp = () => useContext(Ctx);
@@ -332,6 +358,8 @@ const ICamera = ({s=16})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}>
 const ILogout = ({s=16})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>;
 const ICheck  = ({s=15})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw} strokeWidth="2.6"><polyline points="20 6 9 17 4 12"/></svg>;
 const IZap    = ({s=14})=><svg width={s} height={s} viewBox="0 0 24 24" fill="currentColor"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>;
+const IArchive = ({s=18})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}><rect x="2.5" y="3.5" width="19" height="5" rx="1.5"/><path d="M4.5 8.5V19a1.5 1.5 0 0 0 1.5 1.5h12a1.5 1.5 0 0 0 1.5-1.5V8.5"/><line x1="9.8" y1="12.5" x2="14.2" y2="12.5"/></svg>;
+const IUndo    = ({s=15})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}><polyline points="9 14 4 9 9 4"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg>;
 const IGoogle = ({size=20})=><svg width={size} height={size} viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>;
 
 const AREA_ICON = { Todas:ILayers, Social:IChat, Design:IBrush, 'Mídia Paga':ITarget, Produto:IBox, RevOps:ITrend };
@@ -477,9 +505,9 @@ function NavItem({ label, Icon, iconColor, count, active, onClick }) {
 }
 
 function Sidebar() {
-  const { view, setView, area, setArea, user, demands, slack, setNewOpen, setProfileOpen, logout } = useApp();
+  const { view, setView, area, setArea, user, active, archived, slack, setNewOpen, setProfileOpen, logout } = useApp();
   const areas = ['Todas','Social','Design','Mídia Paga','Produto','RevOps'];
-  const vencidas = demands.filter(d => { const s=getSla(d.deadline); return s && s.type!=='ok'; }).length;
+  const vencidas = active.filter(d => { const s=getSla(d.deadline); return s && s.type!=='ok'; }).length;
   const [menu, setMenu] = useState(false);
 
   const secLbl = { color:'rgba(198,211,232,0.5)', fontSize:11, fontWeight:500, letterSpacing:'0.12em', textTransform:'uppercase', marginBottom:9, paddingLeft:14 };
@@ -513,7 +541,7 @@ function Sidebar() {
           <div style={{flex:1,padding:'12px 14px'}}>
             <div style={{display:'flex',alignItems:'center',gap:7,marginBottom:2}}>
               <span style={{color:NB.azulClaro,display:'flex'}}><IClock/></span>
-              <span style={{fontSize:21,fontWeight:600,color:'#fff',lineHeight:1}}>{demands.length}</span>
+              <span style={{fontSize:21,fontWeight:600,color:'#fff',lineHeight:1}}>{active.length}</span>
             </div>
             <div style={{fontSize:11.5,color:'rgba(198,211,232,0.65)'}}>Ativas</div>
           </div>
@@ -534,7 +562,7 @@ function Sidebar() {
           {areas.map(a => (
             <NavItem key={a} label={a} Icon={AREA_ICON[a]}
               iconColor={a==='Todas' ? '#8FB4E8' : AREA_CLR[a]}
-              count={a==='Todas' ? demands.length : demands.filter(d=>d.area===a).length}
+              count={a==='Todas' ? active.length : active.filter(d=>d.area===a).length}
               active={area===a && view==='kanban'}
               onClick={()=>{ setArea(a); setView('kanban'); }}/>
           ))}
@@ -544,6 +572,7 @@ function Sidebar() {
           <div style={secLbl}>Módulos</div>
           <NavItem label="Kanban" Icon={IKanban} iconColor="#8FB4E8" active={view==='kanban'} onClick={()=>setView('kanban')}/>
           <NavItem label="Automações Slack" Icon={ISlack} iconColor="#8FB4E8" count={slack.length} active={view==='slack'} onClick={()=>setView('slack')}/>
+          <NavItem label="Arquivadas" Icon={IArchive} iconColor="#8FB4E8" count={archived.length} active={view==='arquivadas'} onClick={()=>setView('arquivadas')}/>
         </div>
       </div>
 
@@ -599,12 +628,16 @@ function TopBar() {
   const { query, setQuery, area, view, reset, layout, setLayout, priFilter, setPriFilter } = useApp();
   const [fOpen, setFOpen] = useState(false);
 
-  const title = view==='slack' ? 'Automações Slack' : area==='Todas' ? 'Todos os Pipelines' : 'Pipeline — '+area;
+  const title = view==='slack' ? 'Automações Slack'
+    : view==='arquivadas' ? 'Arquivadas'
+    : area==='Todas' ? 'Todos os Pipelines' : 'Pipeline — '+area;
   const sub = view==='slack'
     ? 'Histórico das automações disparadas ao mover os cards.'
-    : area==='Todas'
-      ? 'Visualize e gerencie todas as demandas do marketing.'
-      : 'Acompanhe e mova as demandas de '+area+'.';
+    : view==='arquivadas'
+      ? 'Demandas fora do quadro. Restaure quando precisar ou exclua de vez.'
+      : area==='Todas'
+        ? 'Visualize e gerencie todas as demandas do marketing.'
+        : 'Acompanhe e mova as demandas de '+area+'.';
 
   const togglePri = p => setPriFilter(v => v.includes(p) ? v.filter(x=>x!==p) : [...v,p]);
 
@@ -965,6 +998,84 @@ function SlackFeed() {
   );
 }
 
+/* =========== ARQUIVADAS =========== */
+function ArchivedRow({ demand }) {
+  const { restoreDemand, delDemand, setModal } = useApp();
+  const [confirm, setConfirm] = useState(false);
+  const stage = Object.values(PIPELINES).flat().find(s=>s.id===demand.stageId);
+  const Icon = AREA_ICON[demand.area];
+  const when = demand.archivedAt ? new Date(demand.archivedAt).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric'}) : '';
+
+  return (
+    <div style={{background:'#fff',borderRadius:13,border:'1px solid '+NB.bd,padding:'15px 18px',display:'flex',alignItems:'center',gap:16,flexWrap:'wrap',boxShadow:'0 1px 3px rgba(11,42,92,0.04)'}}>
+      <div style={{flex:'1 1 260px',minWidth:0}}>
+        <div style={{display:'flex',alignItems:'center',gap:9,marginBottom:6,flexWrap:'wrap'}}>
+          <span style={{background:NB.col,border:'1px solid '+NB.bd,color:NB.mut,fontSize:11,fontWeight:500,padding:'2px 8px',borderRadius:6,fontFamily:'monospace'}}>{demand.code}</span>
+          <span style={{display:'inline-flex',alignItems:'center',gap:5,fontSize:12.5,fontWeight:500,color:AREA_CLR[demand.area]}}><Icon s={14}/> {demand.area}</span>
+          <span style={{fontSize:12.5,color:NB.mut2}}>· parou em {stage?stage.name:'—'}</span>
+        </div>
+        <button onClick={()=>setModal(demand.id)}
+          style={{background:'none',border:'none',padding:0,textAlign:'left',fontSize:14.5,fontWeight:500,color:NB.txt,lineHeight:1.4}}>
+          {demand.title}
+        </button>
+        <div style={{fontSize:12,color:NB.mut2,marginTop:5}}>Arquivada em {when}</div>
+      </div>
+
+      <div style={{display:'flex',alignItems:'center',gap:9,flexShrink:0,flexWrap:'wrap'}}>
+        <div style={{display:'flex',marginRight:4}}>
+          {demand.assignees.slice(0,3).map((init,i)=><CardAvatar key={init+i} initials={init} offset={i}/>)}
+        </div>
+        {confirm ? (
+          <React.Fragment>
+            <span style={{fontSize:12.5,color:'#B4232A',fontWeight:500}}>Excluir de vez?</span>
+            <button onClick={()=>delDemand(demand.id)}
+              style={{padding:'8px 14px',background:'#B4232A',border:'none',borderRadius:8,fontSize:12.5,fontWeight:500,color:'#fff'}}>Sim</button>
+            <button onClick={()=>setConfirm(false)}
+              style={{padding:'8px 14px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:8,fontSize:12.5,fontWeight:500,color:NB.mut}}>Não</button>
+          </React.Fragment>
+        ) : (
+          <React.Fragment>
+            <button onClick={()=>restoreDemand(demand.id)}
+              style={{display:'flex',alignItems:'center',gap:7,padding:'9px 15px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:9,fontSize:13,fontWeight:500,color:NB.azul}}
+              onMouseEnter={e=>{e.currentTarget.style.background='#EAF3FD'; e.currentTarget.style.borderColor=NB.azul;}}
+              onMouseLeave={e=>{e.currentTarget.style.background='#fff'; e.currentTarget.style.borderColor=NB.bd;}}>
+              <IUndo/> Restaurar
+            </button>
+            <button onClick={()=>setConfirm(true)}
+              style={{padding:'9px 15px',background:'#fff',border:'1px solid #FBD5D5',borderRadius:9,fontSize:13,fontWeight:500,color:'#B4232A'}}>
+              Excluir
+            </button>
+          </React.Fragment>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ArchivedView() {
+  const { archived } = useApp();
+  return (
+    <div style={{padding:'22px 30px 30px',overflowY:'auto',overflowX:'hidden',height:'100%'}}>
+      {archived.length===0 ? (
+        <div style={{background:'#fff',borderRadius:16,border:'1px solid '+NB.bd,padding:'70px 24px',textAlign:'center'}}>
+          <div style={{color:NB.mut2,display:'flex',justifyContent:'center',marginBottom:14}}><IArchive s={34}/></div>
+          <div style={{fontSize:16,fontWeight:500,color:NB.txt,marginBottom:6}}>Nenhuma demanda arquivada</div>
+          <p style={{fontSize:13.5,color:NB.mut,lineHeight:1.6,maxWidth:400,margin:'0 auto'}}>
+            Para arquivar, abra uma demanda no quadro e clique em Arquivar. Ela sai das colunas mas continua guardada aqui.
+          </p>
+        </div>
+      ) : (
+        <div style={{display:'flex',flexDirection:'column',gap:11}}>
+          <p style={{fontSize:13,color:NB.mut,marginBottom:2}}>
+            {archived.length} {archived.length===1?'demanda arquivada':'demandas arquivadas'}. Elas não aparecem no quadro nem contam nos totais.
+          </p>
+          {archived.map(d => <ArchivedRow key={d.id} demand={d}/>)}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* =========== MODAL SHELL =========== */
 function Modal({ onClose, width, children, z }) {
   return (
@@ -1002,7 +1113,7 @@ function AssigneeChip({ initials, onRemove }) {
 }
 
 function CardModal() {
-  const { selDemand, setModal, moveStage, delDemand, setNotifyPending, setAssignees } = useApp();
+  const { selDemand, setModal, moveStage, delDemand, archiveDemand, setNotifyPending, setAssignees } = useApp();
   const [picker, setPicker] = useState(false);
   const [confirmDel, setConfirmDel] = useState(false);
   const openId = selDemand ? selDemand.id : null;
@@ -1132,10 +1243,18 @@ function CardModal() {
             </button>
           </div>
         ) : (
-          <button onClick={()=>setConfirmDel(true)}
-            style={{padding:'10px 16px',background:'#fff',border:'1px solid #FBD5D5',borderRadius:9,fontSize:13,fontWeight:500,color:'#B4232A'}}>
-            Excluir demanda
-          </button>
+          <div style={{display:'flex',gap:9,flexWrap:'wrap'}}>
+            <button onClick={()=>archiveDemand(d.id)} title="Sai do quadro mas continua guardada"
+              style={{display:'flex',alignItems:'center',gap:7,padding:'10px 16px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:9,fontSize:13,fontWeight:500,color:NB.mut}}
+              onMouseEnter={e=>{e.currentTarget.style.color=NB.txt; e.currentTarget.style.borderColor='#D3DCEA';}}
+              onMouseLeave={e=>{e.currentTarget.style.color=NB.mut; e.currentTarget.style.borderColor=NB.bd;}}>
+              <IArchive s={15}/> Arquivar
+            </button>
+            <button onClick={()=>setConfirmDel(true)}
+              style={{padding:'10px 16px',background:'#fff',border:'1px solid #FBD5D5',borderRadius:9,fontSize:13,fontWeight:500,color:'#B4232A'}}>
+              Excluir
+            </button>
+          </div>
         )}
         <button onClick={()=>setModal(null)}
           style={{padding:'10px 22px',background:NB.azul,border:'none',borderRadius:9,fontSize:13,fontWeight:500,color:'#fff'}}>
@@ -1409,8 +1528,9 @@ function AppContent() {
       <div style={{flex:1,display:'flex',flexDirection:'column',minWidth:0,overflow:'hidden'}}>
         <TopBar/>
         <main style={{flex:1,overflow:'hidden'}}>
-          {view==='kanban' && <KanbanBoard/>}
-          {view==='slack'  && <SlackFeed/>}
+          {view==='kanban'     && <KanbanBoard/>}
+          {view==='slack'      && <SlackFeed/>}
+          {view==='arquivadas' && <ArchivedView/>}
         </main>
       </div>
       <CardModal/>
