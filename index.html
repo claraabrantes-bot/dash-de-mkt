@@ -269,6 +269,20 @@ function Provider({ children }) {
     }));
   }, []);
 
+  const updateDemand = useCallback((id, patch) => {
+    setDemands(p => p.map(d => {
+      if (d.id !== id) return d;
+      /* Mudança de prazo mexe no planejamento do time — vale registro */
+      if (patch.deadline && patch.deadline !== d.deadline) {
+        setSlack(sp => [{ id:'s'+Date.now(), code:d.code, area:d.area, time:t(new Date()),
+          stagePath:'Prazo alterado',
+          action:'Prazo de "'+d.title+'" mudou de '+fmtDate(d.deadline)+' para '+fmtDate(patch.deadline),
+          next:'Responsáveis notificados no Slack', type:'approval' }, ...sp]);
+      }
+      return { ...d, ...patch };
+    }));
+  }, []);
+
   const archiveDemand = useCallback((id) => {
     setDemands(p => p.map(d => {
       if (d.id !== id || d.archivedAt) return d;
@@ -311,7 +325,7 @@ function Provider({ children }) {
 
   const selDemand = modal ? demands.find(d=>d.id===modal)||null : null;
 
-  return <Ctx.Provider value={{ demands, active, archived, filtered, slack, user, authReady, authError, setAuthError, view, setView, layout, setLayout, area, setArea, query, setQuery, priFilter, setPriFilter, selDemand, setModal, newOpen, setNewOpen, notifyPending, setNotifyPending, profileOpen, setProfileOpen, dragging, setDragging, photos, profiles, logout, savePhoto, removePhoto, saveProfile, addDemand, moveStage, setAssignees, archiveDemand, restoreDemand, delDemand, reset }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ demands, active, archived, filtered, slack, user, authReady, authError, setAuthError, view, setView, layout, setLayout, area, setArea, query, setQuery, priFilter, setPriFilter, selDemand, setModal, newOpen, setNewOpen, notifyPending, setNotifyPending, profileOpen, setProfileOpen, dragging, setDragging, photos, profiles, logout, savePhoto, removePhoto, saveProfile, addDemand, moveStage, setAssignees, updateDemand, archiveDemand, restoreDemand, delDemand, reset }}>{children}</Ctx.Provider>;
 }
 
 const useApp = () => useContext(Ctx);
@@ -998,6 +1012,53 @@ function SlackFeed() {
   );
 }
 
+/* Campo que vira input ao clicar. Enter salva, Esc cancela, sair do campo salva. */
+function EditableText({ value, onSave, multiline, placeholder, required, textStyle, rows }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value || '');
+  const ref = useRef(null);
+
+  useEffect(() => { if (editing) setDraft(value || ''); }, [editing, value]);
+  useEffect(() => {
+    if (editing && ref.current) { ref.current.focus(); if (ref.current.select) ref.current.select(); }
+  }, [editing]);
+
+  const commit = () => {
+    const v = (draft || '').trim();
+    setEditing(false);
+    if (required && !v) return;          // título não pode ficar vazio
+    if (v !== (value || '')) onSave(v);
+  };
+
+  const keys = e => {
+    if (e.key === 'Escape') { e.preventDefault(); setEditing(false); }
+    if (e.key === 'Enter' && !multiline) { e.preventDefault(); commit(); }
+    if (e.key === 'Enter' && multiline && (e.metaKey || e.ctrlKey)) { e.preventDefault(); commit(); }
+  };
+
+  if (editing) {
+    const common = {
+      ref, value:draft, onChange:e=>setDraft(e.target.value), onBlur:commit, onKeyDown:keys,
+      style:{ ...inp, ...textStyle, borderColor:NB.azul, background:'#fff', width:'100%',
+              resize: multiline?'vertical':undefined, lineHeight: multiline?1.65:undefined }
+    };
+    return multiline ? <textarea rows={rows||3} {...common}/> : <input {...common}/>;
+  }
+
+  const empty = !value;
+  return (
+    <div onClick={()=>setEditing(true)} title="Clique para editar"
+      style={{ ...textStyle, cursor:'text', borderRadius:9, padding:'6px 9px', margin:'-6px -9px',
+               color: empty ? NB.mut2 : (textStyle && textStyle.color) || NB.txt,
+               fontStyle: empty ? 'italic' : 'normal', transition:'background 0.12s',
+               whiteSpace: multiline ? 'pre-wrap' : undefined }}
+      onMouseEnter={e=>{e.currentTarget.style.background=NB.col;}}
+      onMouseLeave={e=>{e.currentTarget.style.background='transparent';}}>
+      {value || placeholder}
+    </div>
+  );
+}
+
 /* =========== ARQUIVADAS =========== */
 function ArchivedRow({ demand }) {
   const { restoreDemand, delDemand, setModal } = useApp();
@@ -1113,7 +1174,7 @@ function AssigneeChip({ initials, onRemove }) {
 }
 
 function CardModal() {
-  const { selDemand, setModal, moveStage, delDemand, archiveDemand, setNotifyPending, setAssignees } = useApp();
+  const { selDemand, setModal, moveStage, delDemand, archiveDemand, setNotifyPending, setAssignees, updateDemand } = useApp();
   const [picker, setPicker] = useState(false);
   const [confirmDel, setConfirmDel] = useState(false);
   const openId = selDemand ? selDemand.id : null;
@@ -1145,18 +1206,21 @@ function CardModal() {
             <span style={{display:'inline-flex',alignItems:'center',gap:6,fontSize:13,fontWeight:500,color:ac}}><Icon s={15}/> {d.area}</span>
             <span style={{fontSize:11.5,fontWeight:500,padding:'3px 9px',borderRadius:6,background:ps.bg,color:ps.txt}}>{d.priority}</span>
           </div>
-          <h2 style={{fontSize:19,fontWeight:600,color:NB.txt,lineHeight:1.32,letterSpacing:'-0.01em'}}>{d.title}</h2>
+          <EditableText value={d.title} required
+            onSave={v=>updateDemand(d.id,{title:v})}
+            textStyle={{fontSize:19,fontWeight:600,color:NB.txt,lineHeight:1.32,letterSpacing:'-0.01em'}}/>
         </div>
         <button onClick={()=>setModal(null)} style={{padding:8,background:'#fff',border:'1px solid '+NB.bd,borderRadius:9,color:NB.mut,display:'flex',flexShrink:0}}><IX/></button>
       </div>
 
       <div style={{padding:'22px 26px'}}>
-        {d.description && (
-          <div style={{marginBottom:22}}>
-            <div style={lbl}>Descrição</div>
-            <p style={{fontSize:14.5,color:'#3D4B63',lineHeight:1.65}}>{d.description}</p>
-          </div>
-        )}
+        <div style={{marginBottom:22}}>
+          <div style={lbl}>Descrição</div>
+          <EditableText value={d.description} multiline rows={3}
+            placeholder="Clique para adicionar contexto, referências ou link do briefing..."
+            onSave={v=>updateDemand(d.id,{description:v})}
+            textStyle={{fontSize:14.5,color:'#3D4B63',lineHeight:1.65}}/>
+        </div>
 
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:13,marginBottom:22}}>
           <div style={{background:NB.col,borderRadius:11,padding:'13px 15px'}}>
@@ -1165,8 +1229,16 @@ function CardModal() {
           </div>
           <div style={{background:NB.col,borderRadius:11,padding:'13px 15px'}}>
             <div style={lbl}>Prazo</div>
-            <div style={{fontSize:14.5,fontWeight:500,color:sla&&sla.type==='danger'?'#B4232A':NB.txt}}>
-              {fmtDate(d.deadline)}{sla?' · '+sla.label:''}
+            <div style={{display:'flex',alignItems:'center',gap:9,flexWrap:'wrap'}}>
+              <input type="date" value={d.deadline||''}
+                onChange={e=>{ if(e.target.value) updateDemand(d.id,{deadline:e.target.value}); }}
+                style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:8,padding:'7px 10px',fontSize:13.5,color:NB.txt,outline:'none',fontWeight:500}}
+                onFocus={e=>{e.target.style.borderColor=NB.azul;}} onBlur={e=>{e.target.style.borderColor=NB.bd;}}/>
+              {sla && (
+                <span style={{fontSize:12.5,fontWeight:500,padding:'4px 9px',borderRadius:6,
+                  background: sla.type==='danger' ? '#FEECEC' : sla.type==='warn' ? '#FFF6DE' : '#EEF2F8',
+                  color:      sla.type==='danger' ? '#B4232A' : sla.type==='warn' ? '#8A6206' : NB.mut}}>{sla.label}</span>
+              )}
             </div>
           </div>
         </div>
