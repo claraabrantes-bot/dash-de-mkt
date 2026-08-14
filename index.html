@@ -308,6 +308,23 @@ function Provider({ children }) {
     setComments(p => ({ ...p, [demandId]: (p[demandId]||[]).filter(c=>c.id!==cid) }));
   }, []);
 
+  const moveArea = useCallback((demId, newArea, newStageId) => {
+    setDemands(p => p.map(d => {
+      if (d.id !== demId || d.area === newArea) return d;
+      const stages = PIPELINES[newArea] || [];
+      const target = stages.find(s => s.id === newStageId) || stages[0];
+      if (!target) return d;
+      let assignees = d.assignees;
+      if (target.isApproval && !assignees.includes('MA')) assignees = [...assignees, 'MA'];
+      setSlack(sp => [{ id:'s'+Date.now(), code:d.code, area:newArea, time:t(new Date()),
+        stagePath: d.area + ' → ' + newArea,
+        action: '"' + d.title + '" mudou de área e entrou em ' + target.name,
+        next: 'Equipe de ' + newArea + ' assume a partir daqui',
+        type: target.isApproval ? 'approval' : 'new' }, ...sp]);
+      return { ...d, area:newArea, stageId:target.id, assignees };
+    }));
+  }, []);
+
   const setAssignees = useCallback((demId, list) => {
     setDemands(p => p.map(d => {
       if (d.id !== demId) return d;
@@ -382,7 +399,7 @@ function Provider({ children }) {
 
   const selDemand = modal ? demands.find(d=>d.id===modal)||null : null;
 
-  return <Ctx.Provider value={{ demands, active, archived, filtered, slack, user, authReady, authError, setAuthError, view, setView, layout, setLayout, area, setArea, query, setQuery, priFilter, setPriFilter, selDemand, setModal, newOpen, setNewOpen, notifyPending, setNotifyPending, profileOpen, setProfileOpen, dragging, setDragging, photos, googlePhotos, profiles, attach, comments, storageWarn, MAX_FILE, addAttachment, removeAttachment, addComment, removeComment, logout, savePhoto, removePhoto, saveProfile, addDemand, moveStage, setAssignees, updateDemand, archiveDemand, restoreDemand, delDemand, reset }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ demands, active, archived, filtered, slack, user, authReady, authError, setAuthError, view, setView, layout, setLayout, area, setArea, query, setQuery, priFilter, setPriFilter, selDemand, setModal, newOpen, setNewOpen, notifyPending, setNotifyPending, profileOpen, setProfileOpen, dragging, setDragging, photos, googlePhotos, profiles, attach, comments, storageWarn, MAX_FILE, addAttachment, removeAttachment, addComment, removeComment, logout, savePhoto, removePhoto, saveProfile, addDemand, moveStage, moveArea, setAssignees, updateDemand, archiveDemand, restoreDemand, delDemand, reset }}>{children}</Ctx.Provider>;
 }
 
 const useApp = () => useContext(Ctx);
@@ -862,12 +879,12 @@ function DemandCard({ demand }) {
 
 /* =========== STAGE COLUMN =========== */
 function StageColumn({ stage, cards, compact, areaName }) {
-  const { dragging, setDragging, moveStage, setNotifyPending } = useApp();
+  const { dragging, setDragging, moveStage, moveArea, setNotifyPending } = useApp();
   const [over, setOver] = useState(false);
 
-  /* Só aceita card do mesmo pipeline e que ainda não esteja nesta etapa */
-  const canDrop = !!dragging && dragging.area === areaName && dragging.stageId !== stage.id;
-  const blocked = !!dragging && dragging.area !== areaName;
+  const otherArea = !!dragging && dragging.area !== areaName;
+  /* Aceita qualquer etapa do próprio pipeline, ou qualquer etapa de outro (troca de área) */
+  const canDrop = !!dragging && (otherArea || dragging.stageId !== stage.id);
 
   const handleDrop = e => {
     e.preventDefault();
@@ -875,6 +892,7 @@ function StageColumn({ stage, cards, compact, areaName }) {
     if (!canDrop) return;
     const d = dragging;
     setDragging(null);
+    if (d.area !== areaName) { moveArea(d.id, areaName, stage.id); return; }
     if (d.area === 'Design' && stage.isDone) {
       setNotifyPending({ demandId:d.id, stageId:stage.id, demandTitle:d.title });
     } else {
@@ -882,8 +900,9 @@ function StageColumn({ stage, cards, compact, areaName }) {
     }
   };
 
-  const border = over && canDrop ? '1.5px dashed '+NB.azul
-    : canDrop ? '1.5px dashed '+NB.azulClaro
+  const accent = otherArea ? (AREA_CLR[areaName] || NB.azul) : NB.azul;
+  const border = over && canDrop ? '1.5px dashed '+accent
+    : canDrop ? '1.5px dashed '+(otherArea ? '#C9D6EA' : NB.azulClaro)
     : '1.5px solid #D3E0F2';
 
   return (
@@ -891,16 +910,21 @@ function StageColumn({ stage, cards, compact, areaName }) {
       onDragOver={e=>{ if(canDrop){ e.preventDefault(); e.dataTransfer.dropEffect='move'; setOver(true); } }}
       onDragLeave={()=>setOver(false)}
       onDrop={handleDrop}
-      style={{background:over&&canDrop?'#E4F0FD':'#F2F6FC',borderRadius:12,border:border,padding:compact?'0 0 10px':'0 0 12px',display:'flex',flexDirection:'column',minWidth:0,minHeight:140,transition:'background 0.12s, border-color 0.12s, opacity 0.12s',opacity:blocked?0.4:1,overflow:'hidden'}}>
+      style={{background:over&&canDrop?(otherArea?accent+'12':'#E4F0FD'):'#F2F6FC',borderRadius:12,border:border,padding:compact?'0 0 10px':'0 0 12px',display:'flex',flexDirection:'column',minWidth:0,minHeight:140,transition:'background 0.12s, border-color 0.12s',overflow:'hidden'}}>
       <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8,padding:compact?'11px 12px':'12px 14px',borderBottom:'1px solid #DFE8F5',background:'#EAF1FA'}}>
-        <span style={{fontSize:13.5,fontWeight:600,color:over&&canDrop?NB.azul:NB.txt,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{stage.name}</span>
+        <span style={{fontSize:13.5,fontWeight:600,color:over&&canDrop?accent:NB.txt,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{stage.name}</span>
         <span style={{fontSize:11.5,color:NB.mut,fontWeight:600,flexShrink:0,background:'#fff',border:'1px solid #DFE8F5',borderRadius:20,padding:'1px 8px'}}>{cards.length}</span>
       </div>
       <div style={{flex:1,minHeight:0,padding:compact?'11px 11px 0':'12px 13px 0'}}>
         {cards.map(c=><DemandCard key={c.id} demand={c}/>)}
         {cards.length===0 && (
-          <div style={{border:'1.5px dashed '+(over&&canDrop?NB.azul:'#D3E0F2'),borderRadius:10,padding:'26px 10px',textAlign:'center',color:over&&canDrop?NB.azul:NB.mut2,fontSize:12.5,transition:'all 0.12s'}}>
-            {over&&canDrop ? 'Soltar aqui' : 'Nenhuma demanda'}
+          <div style={{border:'1.5px dashed '+(over&&canDrop?accent:'#D3E0F2'),borderRadius:10,padding:'26px 10px',textAlign:'center',color:over&&canDrop?accent:NB.mut2,fontSize:12.5,transition:'all 0.12s'}}>
+            {over&&canDrop ? (otherArea ? 'Passar para '+areaName : 'Soltar aqui') : 'Nenhuma demanda'}
+          </div>
+        )}
+        {cards.length>0 && over && canDrop && otherArea && (
+          <div style={{border:'1.5px dashed '+accent,borderRadius:10,padding:'14px 10px',textAlign:'center',color:accent,fontSize:12.5,fontWeight:500}}>
+            Passar para {areaName}
           </div>
         )}
       </div>
@@ -1781,14 +1805,20 @@ function AssigneeChip({ initials, onRemove }) {
 }
 
 function CardModal() {
-  const { selDemand, setModal, moveStage, delDemand, archiveDemand, setNotifyPending, setAssignees, updateDemand, attach, comments } = useApp();
+  const { selDemand, setModal, moveStage, moveArea, delDemand, archiveDemand, setNotifyPending, setAssignees, updateDemand, attach, comments } = useApp();
   const [picker, setPicker] = useState(false);
   const [confirmDel, setConfirmDel] = useState(false);
   const [tab, setTab] = useState('anexos');
+  const [areaPick, setAreaPick] = useState(false);
+  const [tgtArea, setTgtArea]   = useState(null);
+  const [tgtStage, setTgtStage] = useState(null);
   const openId = selDemand ? selDemand.id : null;
 
   /* Reabrir outro card não pode herdar o estado do anterior */
-  useEffect(() => { setPicker(false); setConfirmDel(false); setTab('anexos'); }, [openId]);
+  useEffect(() => {
+    setPicker(false); setConfirmDel(false); setTab('anexos');
+    setAreaPick(false); setTgtArea(null); setTgtStage(null);
+  }, [openId]);
 
   if (!selDemand) return null;
 
@@ -1908,7 +1938,61 @@ function CardModal() {
               );
             })}
           </div>
-          <p style={{fontSize:12.5,color:NB.mut2,lineHeight:1.55}}>Ao mover, o caminho da automação é enviado automaticamente para o Slack. Etapas de aprovação são sempre encaminhadas para @Mariana Araújo.</p>
+          <p style={{fontSize:12.5,color:NB.mut2,lineHeight:1.55,marginBottom:14}}>Ao mover, o caminho da automação é enviado automaticamente para o Slack. Etapas de aprovação são sempre encaminhadas para @Mariana Araújo.</p>
+
+          <div style={{borderTop:'1px dashed '+NB.bd,paddingTop:14}}>
+            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:10,flexWrap:'wrap'}}>
+              <span style={{fontSize:12.5,color:NB.mut}}>Essa demanda agora é de outra área?</span>
+              <button onClick={()=>{setAreaPick(v=>!v); setTgtArea(null);}}
+                style={{display:'flex',alignItems:'center',gap:7,padding:'7px 13px',background:areaPick?'#EAF3FD':'#fff',border:'1px solid '+(areaPick?NB.azul:NB.bd),borderRadius:9,fontSize:12.5,fontWeight:500,color:areaPick?NB.azul:NB.mut}}>
+                <IArrowR s={13}/> {areaPick ? 'Cancelar' : 'Passar para outra área'}
+              </button>
+            </div>
+
+            {areaPick && (
+              <div style={{marginTop:12,background:NB.col,border:'1px solid '+NB.bd,borderRadius:11,padding:'14px 15px'}}>
+                <div style={{...lbl,marginBottom:8}}>Para qual área</div>
+                <div style={{display:'flex',gap:8,flexWrap:'wrap',marginBottom:tgtArea?14:0}}>
+                  {Object.keys(PIPELINES).filter(a=>a!==d.area).map(a=>{
+                    const AIcon = AREA_ICON[a]; const on = tgtArea===a;
+                    return (
+                      <button key={a} onClick={()=>setTgtArea(on?null:a)}
+                        style={{display:'flex',alignItems:'center',gap:7,padding:'8px 13px',borderRadius:9,border:'1px solid '+(on?AREA_CLR[a]:NB.bd),background:on?AREA_CLR[a]+'14':'#fff',fontSize:13,fontWeight:500,color:on?AREA_CLR[a]:NB.mut}}>
+                        <AIcon s={15}/> {a}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {tgtArea && (
+                  <React.Fragment>
+                    <div style={{...lbl,marginBottom:8}}>Entra em qual etapa de {tgtArea}</div>
+                    <div style={{display:'flex',gap:7,flexWrap:'wrap',marginBottom:14}}>
+                      {PIPELINES[tgtArea].map(st=>{
+                        const on = tgtStage===st.id || (!tgtStage && st.id===PIPELINES[tgtArea][0].id);
+                        return (
+                          <button key={st.id} onClick={()=>setTgtStage(st.id)}
+                            style={{padding:'7px 12px',borderRadius:8,border:'1px solid '+(on?AREA_CLR[tgtArea]:NB.bd),background:on?AREA_CLR[tgtArea]:'#fff',fontSize:12.5,fontWeight:500,color:on?'#fff':NB.mut}}>
+                            {st.name}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <p style={{fontSize:12,color:NB.mut2,lineHeight:1.55,marginBottom:12}}>
+                      Os responsáveis atuais continuam no card. Ajuste na seção Responsáveis se quem toca a demanda mudou.
+                    </p>
+                    <button onClick={()=>{
+                      moveArea(d.id, tgtArea, tgtStage || PIPELINES[tgtArea][0].id);
+                      setAreaPick(false); setTgtArea(null); setTgtStage(null);
+                    }}
+                      style={{padding:'9px 18px',background:AREA_CLR[tgtArea],border:'none',borderRadius:9,fontSize:13,fontWeight:500,color:'#fff'}}>
+                      Passar para {tgtArea}
+                    </button>
+                  </React.Fragment>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Anexos e comentários */}
