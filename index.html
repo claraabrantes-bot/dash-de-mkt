@@ -68,7 +68,7 @@ const TEAM = [
 
 const ACTIVE_TEAM = TEAM.filter(m => m.email);
 
-const PIPELINES = {
+const DEFAULT_PIPELINES = {
   Social:      [{ id:'soc-1', name:'Solicitado' },{ id:'soc-2', name:'Em Redação' },{ id:'soc-3', name:'Design de Arte', isDesign:true },{ id:'soc-4', name:'Aprovação', isApproval:true },{ id:'soc-5', name:'Publicado', isDone:true }],
   Design:      [{ id:'des-1', name:'Solicitado' },{ id:'des-2', name:'Briefing' },{ id:'des-3', name:'Em Criação' },{ id:'des-4', name:'Aprovação', isApproval:true },{ id:'des-5', name:'Entregue', isDone:true }],
   'Mídia Paga':[{ id:'mid-1', name:'Solicitado' },{ id:'mid-2', name:'Configuração' },{ id:'mid-3', name:'Em Veiculação' },{ id:'mid-4', name:'Aprovação', isApproval:true },{ id:'mid-5', name:'Encerrado', isDone:true }],
@@ -178,6 +178,14 @@ function Provider({ children }) {
   });
   const [storageWarn, setStorageWarn] = useState('');
 
+  /* Etapas editáveis por área. pipesRef evita closure velha nos useCallback([]). */
+  const [pipes, setPipes] = useState(() => {
+    try { const v=localStorage.getItem('nibo_pipes_v1'); return v ? JSON.parse(v) : DEFAULT_pipesRef.current; }
+    catch { return DEFAULT_pipesRef.current; }
+  });
+  const pipesRef = useRef(pipes);
+  pipesRef.current = pipes;
+
   const [profiles, setProfiles] = useState(() => {
     try { const s=localStorage.getItem('nibo_profiles_v1'); return s ? JSON.parse(s) : {}; } catch { return {}; }
   });
@@ -195,6 +203,7 @@ function Provider({ children }) {
   const [newOpen, setNewOpen] = useState(false);
   const [notifyPending, setNotifyPending] = useState(null);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [editStages, setEditStages] = useState(null);
   const [dragging, setDragging] = useState(null);
 
   useEffect(() => {
@@ -233,6 +242,7 @@ function Provider({ children }) {
     catch { setStorageWarn('O armazenamento do navegador encheu. Remova anexos antigos ou use links em vez de arquivos.'); }
   }, [attach]);
   useEffect(() => { try { localStorage.setItem('nibo_comments_v1', JSON.stringify(comments)); } catch {} }, [comments]);
+  useEffect(() => { try { localStorage.setItem('nibo_pipes_v1', JSON.stringify(pipes)); } catch {} }, [pipes]);
   useEffect(() => { try { localStorage.setItem('nibo_gphotos_v1', JSON.stringify(googlePhotos)); } catch {} }, [googlePhotos]);
   useEffect(() => { try { localStorage.setItem('nibo_profiles_v1', JSON.stringify(profiles)); } catch {} }, [profiles]);
 
@@ -249,7 +259,7 @@ function Provider({ children }) {
 
   const addDemand = useCallback((data) => {
     const cnt = ++cntRef.current;
-    const nd = { ...data, id:'d'+Date.now(), code:'DEM-'+(108+cnt), stageId:PIPELINES[data.area][0].id, createdAt:new Date().toISOString() };
+    const nd = { ...data, id:'d'+Date.now(), code:'DEM-'+(108+cnt), stageId:pipesRef.current[data.area][0].id, createdAt:new Date().toISOString() };
     setDemands(p => [nd,...p]);
     const who = data.assignees && data.assignees.length ? mentionNames(data.assignees) : 'equipe de '+data.area;
     setSlack(p => [{ id:'s'+Date.now(), code:nd.code, area:data.area, time:t(new Date()), stagePath:'Nova demanda criada', action:'Solicitação registrada por '+data.requester+' — destinada a '+who, next:'Demanda solicitada no Slack para '+who, type:'new' }, ...p]);
@@ -259,20 +269,26 @@ function Provider({ children }) {
   const moveStage = useCallback((demId, newStageId, notifyTargets) => {
     setDemands(p => p.map(d => {
       if (d.id !== demId) return d;
-      const oldStage = Object.values(PIPELINES).flat().find(s=>s.id===d.stageId);
-      const newStage = Object.values(PIPELINES).flat().find(s=>s.id===newStageId);
+      const oldStage = Object.values(pipesRef.current).flat().find(s=>s.id===d.stageId);
+      const newStage = Object.values(pipesRef.current).flat().find(s=>s.id===newStageId);
       let assignees = d.assignees;
       if (newStage && newStage.isApproval && !assignees.includes('MA')) {
         assignees = [...assignees, 'MA'];
       }
       const auto = AUTO[d.area] && AUTO[d.area][newStageId];
-      if (auto) {
-        let action = auto.action;
-        if (notifyTargets && notifyTargets.length) {
-          action = action + ' — ' + mentionNames(notifyTargets) + ' notificados no Slack';
-        }
-        setSlack(sp => [{ id:'s'+Date.now(), code:d.code, area:d.area, time:t(new Date()), stagePath:(oldStage?oldStage.name:'?')+' → '+(newStage?newStage.name:'?'), action, next:auto.next, type:newStage&&newStage.isApproval?'approval':'move' }, ...sp]);
+      /* Etapas criadas pelo time não têm mensagem pronta — gera uma genérica
+         para nenhum movimento sumir do feed. */
+      const acao = auto ? auto.action
+        : '"' + d.title + '" avançou para ' + (newStage ? newStage.name : 'nova etapa');
+      const passo = auto ? auto.next
+        : (newStage && newStage.isApproval) ? 'Aguardando aprovação de @Mariana Araújo'
+        : (newStage && newStage.isDone)     ? 'Etapa final de ' + d.area
+        : 'Equipe de ' + d.area + ' segue com a demanda';
+      let action = acao;
+      if (notifyTargets && notifyTargets.length) {
+        action = action + ' — ' + mentionNames(notifyTargets) + ' notificados no Slack';
       }
+      setSlack(sp => [{ id:'s'+Date.now(), code:d.code, area:d.area, time:t(new Date()), stagePath:(oldStage?oldStage.name:'?')+' → '+(newStage?newStage.name:'?'), action, next:passo, type:newStage&&newStage.isApproval?'approval':'move' }, ...sp]);
       return {...d, stageId:newStageId, assignees};
     }));
   }, []);
@@ -311,7 +327,7 @@ function Provider({ children }) {
   const moveArea = useCallback((demId, newArea, newStageId) => {
     setDemands(p => p.map(d => {
       if (d.id !== demId || d.area === newArea) return d;
-      const stages = PIPELINES[newArea] || [];
+      const stages = pipesRef.current[newArea] || [];
       const target = stages.find(s => s.id === newStageId) || stages[0];
       if (!target) return d;
       let assignees = d.assignees;
@@ -399,7 +415,7 @@ function Provider({ children }) {
 
   const selDemand = modal ? demands.find(d=>d.id===modal)||null : null;
 
-  return <Ctx.Provider value={{ demands, active, archived, filtered, slack, user, authReady, authError, setAuthError, view, setView, layout, setLayout, area, setArea, query, setQuery, priFilter, setPriFilter, selDemand, setModal, newOpen, setNewOpen, notifyPending, setNotifyPending, profileOpen, setProfileOpen, dragging, setDragging, photos, googlePhotos, profiles, attach, comments, storageWarn, MAX_FILE, addAttachment, removeAttachment, addComment, removeComment, logout, savePhoto, removePhoto, saveProfile, addDemand, moveStage, moveArea, setAssignees, updateDemand, archiveDemand, restoreDemand, delDemand, reset }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ demands, active, archived, filtered, slack, user, authReady, authError, setAuthError, view, setView, layout, setLayout, area, setArea, query, setQuery, priFilter, setPriFilter, selDemand, setModal, newOpen, setNewOpen, notifyPending, setNotifyPending, profileOpen, setProfileOpen, editStages, setEditStages, dragging, setDragging, photos, googlePhotos, profiles, pipes, setPipes, attach, comments, storageWarn, MAX_FILE, addAttachment, removeAttachment, addComment, removeComment, logout, savePhoto, removePhoto, saveProfile, addDemand, moveStage, moveArea, setAssignees, updateDemand, archiveDemand, restoreDemand, delDemand, reset }}>{children}</Ctx.Provider>;
 }
 
 const useApp = () => useContext(Ctx);
@@ -456,6 +472,7 @@ const IExt     = ({s=13})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}
 const IDown    = ({s=13})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>;
 const ITrash   = ({s=14})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>;
 const IStamp   = ({s=18})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}><path d="M5 21h14"/><path d="M4 17.5h16v-1a2 2 0 0 0-2-2h-3.2l.6-4.3A3.4 3.4 0 0 0 12 6.2a3.4 3.4 0 0 0-3.4 4l.6 4.3H6a2 2 0 0 0-2 2z"/></svg>;
+const IGear    = ({s=15})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6h.09A1.65 1.65 0 0 0 10 3.09V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9v.09a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>;
 const IArrowR  = ({s=14})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}><line x1="4" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/></svg>;
 const IArrowL  = ({s=14})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}><line x1="20" y1="12" x2="5" y2="12"/><polyline points="11 6 5 12 11 18"/></svg>;
 const IGoogle = ({size=20})=><svg width={size} height={size} viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>;
@@ -626,11 +643,11 @@ function PipeTab({ label, Icon, count, active, onClick }) {
 }
 
 function TopNav() {
-  const { view, setView, area, setArea, user, active, setNewOpen, setProfileOpen, logout } = useApp();
+  const { view, setView, area, setArea, user, active, pipes, setNewOpen, setProfileOpen, logout } = useApp();
   const areas = ['Todas','Social','Design','Mídia Paga','Produto','RevOps'];
   const vencidas = active.filter(d => { const s=getSla(d.deadline); return s && s.type!=='ok'; }).length;
   const emAprovacao = active.filter(d => {
-    const st = (PIPELINES[d.area]||[]).find(x => x.id === d.stageId);
+    const st = (pipes[d.area]||[]).find(x => x.id === d.stageId);
     return st && st.isApproval;
   }).length;
   const [menu, setMenu] = useState(false);
@@ -942,11 +959,11 @@ function AreaPeople({ areaName, cards, max=5 }) {
 
 /* =========== GESTÃO — fila de aprovação =========== */
 function ApprovalCard({ demand }) {
-  const { moveStage, setNotifyPending, addComment, user, setModal, attach, comments } = useApp();
+  const { moveStage, setNotifyPending, addComment, user, setModal, attach, comments, pipes } = useApp();
   const [nota, setNota] = useState('');
   const [ajuste, setAjuste] = useState(false);
 
-  const stages = PIPELINES[demand.area] || [];
+  const stages = pipes[demand.area] || [];
   const idx    = stages.findIndex(s => s.id === demand.stageId);
   const prox   = stages[idx+1];
   const antes  = stages[idx-1];
@@ -1033,13 +1050,13 @@ function ApprovalCard({ demand }) {
 }
 
 function GestaoView() {
-  const { active, user } = useApp();
+  const { active, user, pipes } = useApp();
   const emAprovacao = active.filter(d => {
-    const st = (PIPELINES[d.area]||[]).find(s => s.id === d.stageId);
+    const st = (pipes[d.area]||[]).find(s => s.id === d.stageId);
     return st && st.isApproval;
   });
   const concluidas = active.filter(d => {
-    const st = (PIPELINES[d.area]||[]).find(s => s.id === d.stageId);
+    const st = (pipes[d.area]||[]).find(s => s.id === d.stageId);
     return st && st.isDone;
   });
 
@@ -1081,7 +1098,7 @@ function GestaoView() {
           </div>
           <div style={{display:'flex',flexDirection:'column',gap:8}}>
             {concluidas.map(d=>{
-              const st = (PIPELINES[d.area]||[]).find(s=>s.id===d.stageId);
+              const st = (pipes[d.area]||[]).find(s=>s.id===d.stageId);
               const Ic = AREA_ICON[d.area];
               return (
                 <div key={d.id} style={{display:'flex',alignItems:'center',gap:12,background:'#fff',border:'1px solid '+NB.bd,borderRadius:11,padding:'12px 15px',flexWrap:'wrap'}}>
@@ -1101,10 +1118,157 @@ function GestaoView() {
   );
 }
 
+/* =========== EDITOR DE ETAPAS =========== */
+function StageEditorModal({ areaName, onClose }) {
+  const { pipes, setPipes, active, moveStage } = useApp();
+  const [rows, setRows] = useState(() => (pipes[areaName]||[]).map(s => ({...s})));
+  const [delIdx, setDelIdx] = useState(null);
+  const [err, setErr] = useState('');
+
+  const contar = id => active.filter(d => d.area===areaName && d.stageId===id).length;
+
+  const set = (i, patch) => setRows(r => r.map((s,k)=> k===i ? {...s, ...patch} : s));
+
+  const mover = (i, dir) => setRows(r => {
+    const j = i + dir;
+    if (j < 0 || j >= r.length) return r;
+    const c = [...r]; const tmp = c[i]; c[i] = c[j]; c[j] = tmp; return c;
+  });
+
+  const addStage = () => setRows(r => [...r, {
+    id: areaName.slice(0,3).toLowerCase().replace(/[^a-z]/g,'') + '-' + Date.now().toString(36),
+    name: 'Nova etapa',
+  }]);
+
+  const remover = i => {
+    const alvo = rows[i];
+    const n = contar(alvo.id);
+    const destino = rows[i-1] || rows[i+1];
+    if (rows.length <= 2) { setErr('Um pipeline precisa de pelo menos duas etapas.'); return; }
+    if (n > 0 && destino) {
+      active.filter(d => d.area===areaName && d.stageId===alvo.id)
+            .forEach(d => moveStage(d.id, destino.id));
+    }
+    setRows(r => r.filter((_,k)=>k!==i));
+    setDelIdx(null); setErr('');
+  };
+
+  const salvar = () => {
+    const limpo = rows.map(s => {
+      const o = { id:s.id, name:(s.name||'').trim() || 'Etapa' };
+      if (s.isApproval) o.isApproval = true;
+      if (s.isDone) o.isDone = true;
+      return o;
+    });
+    if (limpo.filter(s=>s.isApproval).length > 1) { setErr('Marque só uma etapa como de aprovação.'); return; }
+    setPipes(p => ({ ...p, [areaName]: limpo }));
+    onClose();
+  };
+
+  const restaurar = () => { setRows(DEFAULT_PIPELINES[areaName].map(s=>({...s}))); setErr(''); };
+  const Icon = AREA_ICON[areaName];
+
+  return (
+    <Modal onClose={onClose} width={620} z={65}>
+      <div style={{padding:'22px 26px 16px',borderBottom:'1px solid '+NB.bdSoft,display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:14}}>
+        <div>
+          <h2 style={{fontSize:19,fontWeight:600,color:NB.txt,marginBottom:5,display:'flex',alignItems:'center',gap:9}}>
+            <span style={{color:AREA_CLR[areaName],display:'flex'}}><Icon s={18}/></span> Etapas de {areaName}
+          </h2>
+          <p style={{fontSize:13,color:NB.mut}}>Renomeie, reordene, adicione ou remova. Vale só para este pipeline.</p>
+        </div>
+        <button onClick={onClose} style={{padding:8,background:'#fff',border:'1px solid '+NB.bd,borderRadius:9,color:NB.mut,display:'flex',flexShrink:0}}><IX/></button>
+      </div>
+
+      <div style={{padding:'18px 26px',display:'flex',flexDirection:'column',gap:9}}>
+        {rows.map((st,i)=>{
+          const n = contar(st.id);
+          const apagando = delIdx===i;
+          return (
+            <div key={st.id} style={{border:'1px solid '+(apagando?'#FBD5D5':NB.bd),borderRadius:11,padding:'12px 13px',background:apagando?'#FEF7F7':'#fff'}}>
+              <div style={{display:'flex',alignItems:'center',gap:10}}>
+                <div style={{display:'flex',flexDirection:'column',gap:2,flexShrink:0}}>
+                  <button onClick={()=>mover(i,-1)} disabled={i===0} title="Subir"
+                    style={{padding:'2px 5px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:6,color:i===0?'#DDE5F0':NB.mut,cursor:i===0?'not-allowed':'pointer',lineHeight:1,fontSize:10}}>▲</button>
+                  <button onClick={()=>mover(i,1)} disabled={i===rows.length-1} title="Descer"
+                    style={{padding:'2px 5px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:6,color:i===rows.length-1?'#DDE5F0':NB.mut,cursor:i===rows.length-1?'not-allowed':'pointer',lineHeight:1,fontSize:10}}>▼</button>
+                </div>
+                <input value={st.name} onChange={e=>set(i,{name:e.target.value})}
+                  style={{...inp,padding:'9px 12px',fontSize:13.5,flex:1}}
+                  onFocus={e=>{e.target.style.borderColor=NB.azul;}} onBlur={e=>{e.target.style.borderColor=NB.bd;}}/>
+                <span style={{fontSize:12,color:NB.mut2,whiteSpace:'nowrap',flexShrink:0}}>{n} {n===1?'card':'cards'}</span>
+                <button onClick={()=>{setDelIdx(apagando?null:i); setErr('');}} title="Remover etapa"
+                  style={{padding:'8px 9px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:8,color:apagando?'#B4232A':NB.mut,display:'flex',flexShrink:0}}>
+                  <ITrash/>
+                </button>
+              </div>
+
+              <div style={{display:'flex',gap:16,marginTop:10,flexWrap:'wrap',paddingLeft:34}}>
+                <label style={{display:'flex',alignItems:'center',gap:7,fontSize:12.5,color:NB.mut,cursor:'pointer'}}>
+                  <input type="checkbox" checked={!!st.isApproval}
+                    onChange={e=>set(i,{isApproval:e.target.checked, isDone:e.target.checked?false:st.isDone})}
+                    style={{width:14,height:14,accentColor:NB.azul}}/>
+                  Etapa de aprovação <span style={{color:NB.mut2}}>(vai para Gestão e puxa a Mariana)</span>
+                </label>
+                <label style={{display:'flex',alignItems:'center',gap:7,fontSize:12.5,color:NB.mut,cursor:'pointer'}}>
+                  <input type="checkbox" checked={!!st.isDone}
+                    onChange={e=>set(i,{isDone:e.target.checked, isApproval:e.target.checked?false:st.isApproval})}
+                    style={{width:14,height:14,accentColor:NB.azul}}/>
+                  Etapa final
+                </label>
+              </div>
+
+              {apagando && (
+                <div style={{marginTop:11,paddingLeft:34}}>
+                  <p style={{fontSize:12.5,color:'#B4232A',lineHeight:1.55,marginBottom:9}}>
+                    {n>0
+                      ? 'Remover "'+st.name+'"? Os '+n+' card(s) daqui vão para "'+((rows[i-1]||rows[i+1]||{}).name||'—')+'".'
+                      : 'Remover "'+st.name+'"?'}
+                  </p>
+                  <div style={{display:'flex',gap:8}}>
+                    <button onClick={()=>remover(i)}
+                      style={{padding:'7px 14px',background:'#B4232A',border:'none',borderRadius:8,fontSize:12.5,fontWeight:500,color:'#fff'}}>Remover</button>
+                    <button onClick={()=>setDelIdx(null)}
+                      style={{padding:'7px 14px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:8,fontSize:12.5,fontWeight:500,color:NB.mut}}>Cancelar</button>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+
+        <button onClick={addStage}
+          style={{display:'flex',alignItems:'center',justifyContent:'center',gap:8,padding:'12px',background:'#fff',border:'1.5px dashed '+NB.bd,borderRadius:11,fontSize:13,fontWeight:500,color:NB.mut}}
+          onMouseEnter={e=>{e.currentTarget.style.borderColor=NB.azul; e.currentTarget.style.color=NB.azul;}}
+          onMouseLeave={e=>{e.currentTarget.style.borderColor=NB.bd; e.currentTarget.style.color=NB.mut;}}>
+          <IPlus s={15}/> Adicionar etapa
+        </button>
+
+        {err && (
+          <div style={{padding:'10px 13px',background:'#FEF2F2',border:'1px solid #FECACA',borderRadius:9,fontSize:12.5,color:'#B4232A'}}>{err}</div>
+        )}
+      </div>
+
+      <div style={{padding:'16px 26px',borderTop:'1px solid '+NB.bdSoft,display:'flex',justifyContent:'space-between',alignItems:'center',gap:12,flexWrap:'wrap'}}>
+        <button onClick={restaurar}
+          style={{padding:'10px 16px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:9,fontSize:13,fontWeight:500,color:NB.mut}}>
+          Restaurar padrão
+        </button>
+        <div style={{display:'flex',gap:10}}>
+          <button onClick={onClose}
+            style={{padding:'10px 18px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:9,fontSize:13,fontWeight:500,color:NB.mut}}>Cancelar</button>
+          <button onClick={salvar}
+            style={{padding:'10px 22px',background:NB.azul,border:'none',borderRadius:9,fontSize:13,fontWeight:500,color:'#fff'}}>Salvar etapas</button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
 /* =========== AREA CARD =========== */
 function AreaBlock({ areaName, cards }) {
-  const { setArea, setView } = useApp();
-  const stages = PIPELINES[areaName];
+  const { setArea, setView, pipes, setEditStages } = useApp();
+  const stages = pipes[areaName];
   const Icon = AREA_ICON[areaName];
   const clr = AREA_CLR[areaName];
 
@@ -1125,6 +1289,12 @@ function AreaBlock({ areaName, cards }) {
               <ICal s={14}/> Planejamento
             </button>
           )}
+          <button onClick={()=>setEditStages(areaName)} title={'Editar as etapas de '+areaName}
+            style={{display:'flex',alignItems:'center',gap:7,padding:'7px 11px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:9,fontSize:13,fontWeight:500,color:NB.mut,whiteSpace:'nowrap'}}
+            onMouseEnter={e=>{e.currentTarget.style.color=NB.txt; e.currentTarget.style.borderColor='#D3DCEA';}}
+            onMouseLeave={e=>{e.currentTarget.style.color=NB.mut; e.currentTarget.style.borderColor=NB.bd;}}>
+            <IGear/>
+          </button>
           <button onClick={()=>{setArea(areaName); setView('kanban');}} title={'Ver só o pipeline de '+areaName}
             style={{display:'flex',alignItems:'center',gap:7,padding:'7px 13px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:9,fontSize:13,fontWeight:500,color:NB.mut,whiteSpace:'nowrap'}}
             onMouseEnter={e=>{e.currentTarget.style.color=NB.txt; e.currentTarget.style.borderColor='#D3DCEA';}}
@@ -1144,8 +1314,8 @@ function AreaBlock({ areaName, cards }) {
 
 /* =========== LIST VIEW =========== */
 function ListRow({ demand }) {
-  const { setModal } = useApp();
-  const stage = Object.values(PIPELINES).flat().find(s=>s.id===demand.stageId);
+  const { setModal, pipes } = useApp();
+  const stage = Object.values(pipes).flat().find(s=>s.id===demand.stageId);
   const sla = getSla(demand.deadline);
   const ps  = PRI_STL[demand.priority] || PRI_STL.Baixa;
   const cell = { padding:'13px 14px', fontSize:13.5, color:NB.txt, verticalAlign:'middle' };
@@ -1197,7 +1367,7 @@ function ListView() {
 
 /* =========== KANBAN =========== */
 function KanbanBoard() {
-  const { filtered, area, setArea, layout } = useApp();
+  const { filtered, area, setArea, layout, pipes, setEditStages } = useApp();
   const scrollRef = useRef(null);
 
   /* Sem isso a tela nova abre na rolagem antiga e parece que travou */
@@ -1212,14 +1382,14 @@ function KanbanBoard() {
   if (area==='Todas') {
     return (
       <div ref={scrollRef} style={pad}>
-        {Object.keys(PIPELINES).map(a=>(
+        {Object.keys(pipes).map(a=>(
           <AreaBlock key={a} areaName={a} cards={filtered.filter(d=>d.area===a)}/>
         ))}
       </div>
     );
   }
 
-  const stages = PIPELINES[area]||[];
+  const stages = pipes[area]||[];
   const Icon = AREA_ICON[area];
   return (
     <div ref={scrollRef} style={pad}>
@@ -1235,6 +1405,12 @@ function KanbanBoard() {
         </span>
         <span style={{fontSize:13,color:NB.mut}}>{filtered.length} {filtered.length===1?'demanda':'demandas'}</span>
         <AreaPeople areaName={area} cards={filtered}/>
+        <button onClick={()=>setEditStages(area)} title={'Editar as etapas de '+area}
+          style={{display:'inline-flex',alignItems:'center',gap:7,padding:'7px 13px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:9,fontSize:13,fontWeight:500,color:NB.mut,whiteSpace:'nowrap'}}
+          onMouseEnter={e=>{e.currentTarget.style.color=NB.txt; e.currentTarget.style.borderColor='#D3DCEA';}}
+          onMouseLeave={e=>{e.currentTarget.style.color=NB.mut; e.currentTarget.style.borderColor=NB.bd;}}>
+          <IGear/> Editar etapas
+        </button>
         {area==='Social' && (
           <a href={SOCIAL_APP_URL} target="_blank" rel="noopener noreferrer"
             style={{display:'inline-flex',alignItems:'center',gap:7,padding:'7px 13px',background:'#EAF3FD',border:'1px solid '+NB.azul,borderRadius:9,fontSize:13,fontWeight:500,color:NB.azul,textDecoration:'none',whiteSpace:'nowrap'}}
@@ -1431,9 +1607,9 @@ function SocialPlannerView() {
 
 /* =========== ARQUIVADAS =========== */
 function ArchivedRow({ demand }) {
-  const { restoreDemand, delDemand, setModal } = useApp();
+  const { restoreDemand, delDemand, setModal, pipes } = useApp();
   const [confirm, setConfirm] = useState(false);
-  const stage = Object.values(PIPELINES).flat().find(s=>s.id===demand.stageId);
+  const stage = Object.values(pipes).flat().find(s=>s.id===demand.stageId);
   const Icon = AREA_ICON[demand.area];
   const when = demand.archivedAt ? new Date(demand.archivedAt).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric'}) : '';
 
@@ -2031,7 +2207,7 @@ function AssigneeChip({ initials, onRemove }) {
 }
 
 function CardModal() {
-  const { selDemand, setModal, moveStage, moveArea, delDemand, archiveDemand, setNotifyPending, setAssignees, updateDemand, attach, comments } = useApp();
+  const { selDemand, setModal, moveStage, moveArea, delDemand, archiveDemand, setNotifyPending, setAssignees, updateDemand, attach, comments, pipes } = useApp();
   const [picker, setPicker] = useState(false);
   const [confirmDel, setConfirmDel] = useState(false);
   const [tab, setTab] = useState('anexos');
@@ -2052,7 +2228,7 @@ function CardModal() {
   const nComments = (comments[openId] || []).length;
 
   const d = selDemand;
-  const stages = PIPELINES[d.area]||[];
+  const stages = pipes[d.area]||[];
   const ps  = PRI_STL[d.priority]||PRI_STL.Baixa;
   const ac  = AREA_CLR[d.area]||NB.azul;
   const sla = getSla(d.deadline);
@@ -2179,7 +2355,7 @@ function CardModal() {
               <div style={{marginTop:12,background:NB.col,border:'1px solid '+NB.bd,borderRadius:11,padding:'14px 15px'}}>
                 <div style={{...lbl,marginBottom:8}}>Para qual área</div>
                 <div style={{display:'flex',gap:8,flexWrap:'wrap',marginBottom:tgtArea?14:0}}>
-                  {Object.keys(PIPELINES).filter(a=>a!==d.area).map(a=>{
+                  {Object.keys(pipes).filter(a=>a!==d.area).map(a=>{
                     const AIcon = AREA_ICON[a]; const on = tgtArea===a;
                     return (
                       <button key={a} onClick={()=>setTgtArea(on?null:a)}
@@ -2194,8 +2370,8 @@ function CardModal() {
                   <React.Fragment>
                     <div style={{...lbl,marginBottom:8}}>Entra em qual etapa de {tgtArea}</div>
                     <div style={{display:'flex',gap:7,flexWrap:'wrap',marginBottom:14}}>
-                      {PIPELINES[tgtArea].map(st=>{
-                        const on = tgtStage===st.id || (!tgtStage && st.id===PIPELINES[tgtArea][0].id);
+                      {pipes[tgtArea].map(st=>{
+                        const on = tgtStage===st.id || (!tgtStage && st.id===pipes[tgtArea][0].id);
                         return (
                           <button key={st.id} onClick={()=>setTgtStage(st.id)}
                             style={{padding:'7px 12px',borderRadius:8,border:'1px solid '+(on?AREA_CLR[tgtArea]:NB.bd),background:on?AREA_CLR[tgtArea]:'#fff',fontSize:12.5,fontWeight:500,color:on?'#fff':NB.mut}}>
@@ -2208,7 +2384,7 @@ function CardModal() {
                       Os responsáveis atuais continuam no card. Ajuste na seção Responsáveis se quem toca a demanda mudou.
                     </p>
                     <button onClick={()=>{
-                      moveArea(d.id, tgtArea, tgtStage || PIPELINES[tgtArea][0].id);
+                      moveArea(d.id, tgtArea, tgtStage || pipes[tgtArea][0].id);
                       setAreaPick(false); setTgtArea(null); setTgtStage(null);
                     }}
                       style={{padding:'9px 18px',background:AREA_CLR[tgtArea],border:'none',borderRadius:9,fontSize:13,fontWeight:500,color:'#fff'}}>
@@ -2440,7 +2616,7 @@ function AssigneePick({ member, checked, onToggle }) {
 }
 
 function NewModal() {
-  const { newOpen, setNewOpen, addDemand, user, area } = useApp();
+  const { newOpen, setNewOpen, addDemand, user, area, pipes } = useApp();
   const initArea = area!=='Todas' ? area : 'Social';
   const [form, setForm] = useState({ title:'', area:initArea, priority:'Média', deadline:dStr(7), description:'', requester:user.name, assignees:[] });
 
@@ -2491,7 +2667,7 @@ function NewModal() {
           <div>
             <div style={lbl}>Área</div>
             <select value={form.area} onChange={e=>set('area',e.target.value)} style={inp}>
-              {Object.keys(PIPELINES).map(a=><option key={a}>{a}</option>)}
+              {Object.keys(pipes).map(a=><option key={a}>{a}</option>)}
             </select>
           </div>
           <div>
@@ -2551,6 +2727,7 @@ function AppContent() {
       <NewModal/>
       <NotifyModal/>
       <ProfileModal/>
+      {editStages && <StageEditorModal areaName={editStages} onClose={()=>setEditStages(null)}/>}
     </div>
   );
 }
