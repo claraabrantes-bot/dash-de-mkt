@@ -434,6 +434,8 @@ const IFile    = ({s=15})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}
 const IExt     = ({s=13})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>;
 const IDown    = ({s=13})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>;
 const ITrash   = ({s=14})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>;
+const IArrowR  = ({s=14})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}><line x1="4" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/></svg>;
+const IArrowL  = ({s=14})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}><line x1="20" y1="12" x2="5" y2="12"/><polyline points="11 6 5 12 11 18"/></svg>;
 const IGoogle = ({size=20})=><svg width={size} height={size} viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>;
 
 const AREA_ICON = { Todas:ILayers, Social:IChat, Design:IBrush, 'Mídia Paga':ITarget, Produto:IBox, RevOps:ITrend };
@@ -914,11 +916,11 @@ function AreaBlock({ areaName, cards }) {
           <span style={{color:NB.bd,fontSize:15}}>|</span>
           <span style={{fontSize:13.5,color:NB.mut,whiteSpace:'nowrap'}}>{cards.length} {cards.length===1?'demanda':'demandas'}</span>
         </div>
-        <button onClick={()=>{setArea(areaName); setView('kanban');}}
+        <button onClick={()=>{setArea(areaName); setView('kanban');}} title={'Ver só o pipeline de '+areaName}
           style={{display:'flex',alignItems:'center',gap:7,padding:'7px 13px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:9,fontSize:13,fontWeight:500,color:NB.mut,whiteSpace:'nowrap',flexShrink:0}}
           onMouseEnter={e=>{e.currentTarget.style.color=NB.txt; e.currentTarget.style.borderColor='#D3DCEA';}}
           onMouseLeave={e=>{e.currentTarget.style.color=NB.mut; e.currentTarget.style.borderColor=NB.bd;}}>
-          Ver todas <IChev s={14}/>
+          Abrir pipeline <IArrowR s={14}/>
         </button>
       </div>
       <div style={{display:'grid',gridTemplateColumns:'repeat(5, minmax(0,1fr))',gap:14,alignItems:'stretch'}}>
@@ -985,15 +987,21 @@ function ListView() {
 
 /* =========== KANBAN =========== */
 function KanbanBoard() {
-  const { filtered, area, layout } = useApp();
+  const { filtered, area, setArea, layout } = useApp();
+  const scrollRef = useRef(null);
+
+  /* Sem isso a tela nova abre na rolagem antiga e parece que travou */
+  useEffect(() => { if (scrollRef.current) scrollRef.current.scrollTop = 0; }, [area, layout]);
+
+  const pad = { padding:'22px 30px 30px', overflowY:'auto', overflowX:'hidden', height:'100%' };
 
   if (layout==='list') {
-    return <div style={{padding:'22px 30px 30px',overflowY:'auto',overflowX:'hidden',height:'100%'}}><ListView/></div>;
+    return <div ref={scrollRef} style={pad}><ListView/></div>;
   }
 
   if (area==='Todas') {
     return (
-      <div style={{padding:'22px 30px 30px',overflowY:'auto',overflowX:'hidden',height:'100%'}}>
+      <div ref={scrollRef} style={pad}>
         {Object.keys(PIPELINES).map(a=>(
           <AreaBlock key={a} areaName={a} cards={filtered.filter(d=>d.area===a)}/>
         ))}
@@ -1002,8 +1010,21 @@ function KanbanBoard() {
   }
 
   const stages = PIPELINES[area]||[];
+  const Icon = AREA_ICON[area];
   return (
-    <div style={{padding:'22px 30px 30px',overflowY:'auto',overflowX:'hidden',height:'100%'}}>
+    <div ref={scrollRef} style={pad}>
+      <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:16,flexWrap:'wrap'}}>
+        <button onClick={()=>setArea('Todas')}
+          style={{display:'flex',alignItems:'center',gap:8,padding:'8px 14px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:9,fontSize:13,fontWeight:500,color:NB.mut}}
+          onMouseEnter={e=>{e.currentTarget.style.color=NB.txt; e.currentTarget.style.borderColor='#D3DCEA';}}
+          onMouseLeave={e=>{e.currentTarget.style.color=NB.mut; e.currentTarget.style.borderColor=NB.bd;}}>
+          <IArrowL/> Todos os pipelines
+        </button>
+        <span style={{display:'inline-flex',alignItems:'center',gap:8,fontSize:14,fontWeight:500,color:AREA_CLR[area]}}>
+          <Icon s={17}/> {area}
+        </span>
+        <span style={{fontSize:13,color:NB.mut}}>{filtered.length} {filtered.length===1?'demanda':'demandas'}</span>
+      </div>
       <div style={{display:'grid',gridTemplateColumns:'repeat(5, minmax(0,1fr))',gap:16,alignItems:'stretch'}}>
         {stages.map(st=>(
           <StageColumn key={st.id} stage={st} cards={filtered.filter(d=>d.stageId===st.id)} areaName={area}/>
