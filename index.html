@@ -135,12 +135,12 @@ const dStr = (n) => { const d=new Date(tod); d.setDate(d.getDate()+n); return d.
 const INIT_DEMANDS = [
   { id:'d1', code:'DEM-101', title:'Carousel BPO Financeiro na Prática', area:'Social', priority:'Alta', stageId:'soc-2', assignees:['CA','RO'], deadline:dStr(2), description:'Carousel para lançamento do curso BPO Financeiro com Barbara Maciel. Foco em contadores que já usam Nibo.', requester:'Clara Abrantes' },
   { id:'d2', code:'DEM-102', title:'Banner Radar e-CAC — Reforma Tributária', area:'Design', priority:'Urgente', stageId:'des-3', assignees:['MB'], deadline:dStr(0), description:'Banner destacando a funcionalidade do Radar e-CAC no contexto da Reforma Tributária (IBS/CBS).', requester:'Mariana Araújo' },
-  { id:'d3', code:'DEM-103', title:'Campanha Open Finance — Meta Ads', area:'Mídia Paga', priority:'Média', stageId:'mid-2', assignees:['VI'], deadline:dStr(5), description:'Campanha de conversão no Meta Ads para o Conciliador Open Finance. Público: empresários PME.', requester:'Vivian' },
+  { id:'d3', code:'DEM-103', title:'Campanha Open Finance — Meta Ads', area:'Mídia Paga', priority:'Média', stageId:'mid-2', assignees:['VI'], deadline:dStr(5), description:'Campanha de conversão no Meta Ads para o Conciliador Open Finance. Público: empresários PME.', requester:'Vivian Santos' },
   { id:'d4', code:'DEM-104', title:'Webinar Barbara Maciel — LP + e-mail sequence', area:'Social', priority:'Alta', stageId:'soc-4', assignees:['CA'], deadline:dStr(8), description:'Landing page HubSpot e sequência de 3 e-mails para webinar de 20/08 sobre onboarding de clientes.', requester:'Clara Abrantes' },
-  { id:'d5', code:'DEM-105', title:'Post LinkedIn — Split Payment IBS/CBS', area:'Social', priority:'Média', stageId:'soc-1', assignees:['RO'], deadline:dStr(10), description:'Post educativo sobre split payment na Reforma Tributária para público contador.', requester:'Roberta' },
+  { id:'d5', code:'DEM-105', title:'Post LinkedIn — Split Payment IBS/CBS', area:'Social', priority:'Média', stageId:'soc-1', assignees:['RO'], deadline:dStr(10), description:'Post educativo sobre split payment na Reforma Tributária para público contador.', requester:'Roberta Rocha' },
   { id:'d6', code:'DEM-106', title:'Automação intake de arte — Slack + n8n', area:'RevOps', priority:'Alta', stageId:'rev-3', assignees:['CL','JE'], deadline:dStr(3), description:'Formulário de intake de demandas de arte integrado ao Slack com triagem automática via n8n.', requester:'Clara Abrantes' },
-  { id:'d7', code:'DEM-107', title:'Ebook Emissão NFS-e para contadores', area:'Design', priority:'Baixa', stageId:'des-1', assignees:['MK'], deadline:dStr(15), description:'Ebook sobre o Emissor NFS-e do Nibo — guia prático para contadores configurarem emissão.', requester:'Roberta' },
-  { id:'d8', code:'DEM-108', title:'Feature Brief App Personalizado', area:'Produto', priority:'Média', stageId:'pro-2', assignees:['RO'], deadline:dStr(12), description:'Documentação de funcionalidades do App Personalizado para página de produto do site.', requester:'Roberta' },
+  { id:'d7', code:'DEM-107', title:'Ebook Emissão NFS-e para contadores', area:'Design', priority:'Baixa', stageId:'des-1', assignees:['MK'], deadline:dStr(15), description:'Ebook sobre o Emissor NFS-e do Nibo — guia prático para contadores configurarem emissão.', requester:'Roberta Rocha' },
+  { id:'d8', code:'DEM-108', title:'Feature Brief App Personalizado', area:'Produto', priority:'Média', stageId:'pro-2', assignees:['RO'], deadline:dStr(12), description:'Documentação de funcionalidades do App Personalizado para página de produto do site.', requester:'Roberta Rocha' },
 ];
 
 const t = (d) => new Date(d).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
@@ -199,6 +199,7 @@ function Provider({ children }) {
   const [area, setArea]     = useState('Todas');
   const [query, setQuery]   = useState('');
   const [priFilter, setPriFilter] = useState([]);
+  const [reqFilter, setReqFilter] = useState([]);
   const [modal, setModal]   = useState(null);
   const [newOpen, setNewOpen] = useState(false);
   const [notifyPending, setNotifyPending] = useState(null);
@@ -409,13 +410,14 @@ function Provider({ children }) {
   const filtered = active.filter(d => {
     if (area !== 'Todas' && d.area !== area) return false;
     if (priFilter.length && !priFilter.includes(d.priority)) return false;
+    if (reqFilter.length && !reqFilter.includes(d.requester)) return false;
     if (query.trim()) { const q=query.toLowerCase(); return d.title.toLowerCase().includes(q)||d.code.toLowerCase().includes(q); }
     return true;
   });
 
   const selDemand = modal ? demands.find(d=>d.id===modal)||null : null;
 
-  return <Ctx.Provider value={{ demands, active, archived, filtered, slack, user, authReady, authError, setAuthError, view, setView, layout, setLayout, area, setArea, query, setQuery, priFilter, setPriFilter, selDemand, setModal, newOpen, setNewOpen, notifyPending, setNotifyPending, profileOpen, setProfileOpen, editStages, setEditStages, dragging, setDragging, photos, googlePhotos, profiles, pipes, setPipes, attach, comments, storageWarn, MAX_FILE, addAttachment, removeAttachment, addComment, removeComment, logout, savePhoto, removePhoto, saveProfile, addDemand, moveStage, moveArea, setAssignees, updateDemand, archiveDemand, restoreDemand, delDemand, reset }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ demands, active, archived, filtered, slack, user, authReady, authError, setAuthError, view, setView, layout, setLayout, area, setArea, query, setQuery, priFilter, setPriFilter, reqFilter, setReqFilter, selDemand, setModal, newOpen, setNewOpen, notifyPending, setNotifyPending, profileOpen, setProfileOpen, editStages, setEditStages, dragging, setDragging, photos, googlePhotos, profiles, pipes, setPipes, attach, comments, storageWarn, MAX_FILE, addAttachment, removeAttachment, addComment, removeComment, logout, savePhoto, removePhoto, saveProfile, addDemand, moveStage, moveArea, setAssignees, updateDemand, archiveDemand, restoreDemand, delDemand, reset }}>{children}</Ctx.Provider>;
 }
 
 const useApp = () => useContext(Ctx);
@@ -734,7 +736,7 @@ function TopNav() {
 
 /* =========== SEGUNDA FAIXA: módulos + ferramentas =========== */
 function SubNav() {
-  const { view, setView, area, setArea, slack, archived, query, setQuery, layout, setLayout, priFilter, setPriFilter, reset } = useApp();
+  const { view, setView, area, setArea, slack, archived, active, query, setQuery, layout, setLayout, priFilter, setPriFilter, reqFilter, setReqFilter, reset } = useApp();
   const [fOpen, setFOpen] = useState(false);
 
   const mods = [
@@ -746,6 +748,9 @@ function SubNav() {
   if (area==='Design') mods.push({ id:'variacoes', label:'Variações',    Icon:IBrush });
 
   const togglePri = p => setPriFilter(v => v.includes(p) ? v.filter(x=>x!==p) : [...v,p]);
+  const toggleReq = n => setReqFilter(v => v.includes(n) ? v.filter(x=>x!==n) : [...v,n]);
+  const solicitantes = Array.from(new Set(active.map(d=>d.requester).filter(Boolean))).sort();
+  const nFiltros = priFilter.length + reqFilter.length;
 
   return (
     <div style={{background:'#fff',borderBottom:'1px solid '+NB.bd,display:'flex',alignItems:'center',gap:16,padding:'0 28px',flexShrink:0}}>
@@ -778,11 +783,11 @@ function SubNav() {
           <div style={{position:'relative'}}>
             {fOpen && <div onClick={()=>setFOpen(false)} style={{position:'fixed',inset:0,zIndex:29}}/>}
             <button onClick={()=>setFOpen(o=>!o)}
-              style={{display:'flex',alignItems:'center',gap:8,padding:'10px 15px',background:priFilter.length?'#EAF3FD':'#fff',border:'1px solid '+(priFilter.length?NB.azul:NB.bd),borderRadius:9,fontSize:13,fontWeight:500,color:priFilter.length?NB.azul:NB.mut,whiteSpace:'nowrap'}}>
-              <IFunnel/> Filtros{priFilter.length?' ('+priFilter.length+')':''}
+              style={{display:'flex',alignItems:'center',gap:8,padding:'10px 15px',background:nFiltros?'#EAF3FD':'#fff',border:'1px solid '+(nFiltros?NB.azul:NB.bd),borderRadius:9,fontSize:13,fontWeight:500,color:nFiltros?NB.azul:NB.mut,whiteSpace:'nowrap'}}>
+              <IFunnel/> Filtros{nFiltros?' ('+nFiltros+')':''}
             </button>
             {fOpen && (
-              <div style={{position:'absolute',top:42,right:0,width:210,background:'#fff',borderRadius:12,border:'1px solid '+NB.bd,boxShadow:'0 14px 40px rgba(4,18,48,0.16)',padding:'12px 14px',zIndex:30}}>
+              <div style={{position:'absolute',top:42,right:0,width:250,maxHeight:400,overflowY:'auto',background:'#fff',borderRadius:12,border:'1px solid '+NB.bd,boxShadow:'0 14px 40px rgba(4,18,48,0.16)',padding:'12px 14px',zIndex:30}}>
                 <div style={{fontSize:11,fontWeight:500,color:NB.mut2,textTransform:'uppercase',letterSpacing:'0.09em',marginBottom:9}}>Prioridade</div>
                 {PRIORITIES.map(p=>(
                   <label key={p} style={{display:'flex',alignItems:'center',gap:9,padding:'6px 0',cursor:'pointer',fontSize:13.5,color:NB.txt}}>
@@ -791,9 +796,25 @@ function SubNav() {
                     {p}
                   </label>
                 ))}
-                {priFilter.length>0 && (
-                  <button onClick={()=>setPriFilter([])}
-                    style={{marginTop:9,width:'100%',padding:'7px',background:NB.col,border:'1px solid '+NB.bd,borderRadius:8,fontSize:12.5,color:NB.mut,fontWeight:500}}>
+
+                <div style={{height:1,background:NB.bdSoft,margin:'11px 0'}}/>
+                <div style={{fontSize:11,fontWeight:500,color:NB.mut2,textTransform:'uppercase',letterSpacing:'0.09em',marginBottom:9}}>Solicitado por</div>
+                {solicitantes.length===0 ? (
+                  <p style={{fontSize:12.5,color:NB.mut2}}>Nenhuma demanda ainda.</p>
+                ) : solicitantes.map(nome=>{
+                  const mb = TEAM.find(m=>m.name===nome);
+                  return (
+                    <label key={nome} style={{display:'flex',alignItems:'center',gap:9,padding:'5px 0',cursor:'pointer',fontSize:13.5,color:NB.txt}}>
+                      <input type="checkbox" checked={reqFilter.includes(nome)} onChange={()=>toggleReq(nome)} style={{width:15,height:15,accentColor:NB.azul}}/>
+                      <Avatar member={mb} size={22} ring={false} style={{boxShadow:'0 0 0 1.5px '+((mb&&mb.color)||NB.mut2)}}/>
+                      <span style={{whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{nome}</span>
+                    </label>
+                  );
+                })}
+
+                {(priFilter.length>0 || reqFilter.length>0) && (
+                  <button onClick={()=>{setPriFilter([]); setReqFilter([]);}}
+                    style={{marginTop:11,width:'100%',padding:'7px',background:NB.col,border:'1px solid '+NB.bd,borderRadius:8,fontSize:12.5,color:NB.mut,fontWeight:500}}>
                     Limpar filtros
                   </button>
                 )}
@@ -1330,6 +1351,7 @@ function ListRow({ demand }) {
       <td style={cell}>
         <span style={{fontSize:11.5,fontWeight:500,padding:'3px 9px',borderRadius:6,background:ps.bg,color:ps.txt}}>{demand.priority}</span>
       </td>
+      <td style={{...cell,color:NB.mut}}>{demand.requester}</td>
       <td style={cell}>
         {sla && (sla.type==='ok'
           ? <span style={{color:NB.mut,fontSize:13}}>{fmtDate(demand.deadline)}</span>
@@ -1352,7 +1374,7 @@ function ListView() {
       <table style={{width:'100%',borderCollapse:'collapse'}}>
         <thead><tr style={{background:NB.col}}>
           <th style={th}>Demanda</th><th style={th}>Área</th><th style={th}>Etapa</th>
-          <th style={th}>Prioridade</th><th style={th}>Prazo</th><th style={{...th,textAlign:'right'}}>Responsáveis</th>
+          <th style={th}>Prioridade</th><th style={th}>Solicitante</th><th style={th}>Prazo</th><th style={{...th,textAlign:'right'}}>Responsáveis</th>
         </tr></thead>
         <tbody>{filtered.map(d=><ListRow key={d.id} demand={d}/>)}</tbody>
       </table>
@@ -2657,6 +2679,13 @@ function NewModal() {
           <div style={lbl}>Título</div>
           <input value={form.title} onChange={e=>set('title',e.target.value)} placeholder="O que precisa ser feito?" style={inp}
             onFocus={e=>{e.target.style.borderColor=NB.azul;}} onBlur={e=>{e.target.style.borderColor=NB.bd;}}/>
+        </div>
+
+        <div>
+          <div style={lbl}>Solicitado por</div>
+          <select value={form.requester} onChange={e=>set('requester',e.target.value)} style={inp}>
+            {ACTIVE_TEAM.map(m=><option key={m.id} value={m.name}>{m.name}</option>)}
+          </select>
         </div>
 
         <div>
