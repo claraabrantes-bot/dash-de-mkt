@@ -625,7 +625,7 @@ function NavItem({ label, Icon, iconColor, count, active, onClick }) {
 }
 
 function Sidebar() {
-  const { view, setView, area, setArea, user, active, archived, slack, setNewOpen, setProfileOpen, logout } = useApp();
+  const { view, setView, area, setArea, user, active, setNewOpen, setProfileOpen, logout } = useApp();
   const areas = ['Todas','Social','Design','Mídia Paga','Produto','RevOps'];
   const vencidas = active.filter(d => { const s=getSla(d.deadline); return s && s.type!=='ok'; }).length;
   const [menu, setMenu] = useState(false);
@@ -706,12 +706,6 @@ function Sidebar() {
           ))}
         </div>
 
-        <div style={{padding:'18px 12px 8px'}}>
-          <div style={secLbl}>Módulos</div>
-          <NavItem label="Kanban" Icon={IKanban} iconColor={NB.azulClaro} active={view==='kanban'} onClick={()=>setView('kanban')}/>
-          <NavItem label="Automações Slack" Icon={ISlack} iconColor={NB.azulClaro} count={slack.length} active={view==='slack'} onClick={()=>setView('slack')}/>
-          <NavItem label="Arquivadas" Icon={IArchive} iconColor={NB.azulClaro} count={archived.length} active={view==='arquivadas'} onClick={()=>setView('arquivadas')}/>
-        </div>
       </div>
 
       {/* User */}
@@ -838,6 +832,33 @@ function TopBar() {
 
       <IconBtn onClick={reset} title="Restaurar dados de exemplo"><IRefresh/></IconBtn>
     </header>
+  );
+}
+
+function ModuleTabs() {
+  const { view, setView, slack, archived } = useApp();
+  const tabs = [
+    { id:'kanban',     label:'Kanban',            Icon:IKanban },
+    { id:'slack',      label:'Automações Slack',  Icon:ISlack,   n:slack.length },
+    { id:'arquivadas', label:'Arquivadas',        Icon:IArchive, n:archived.length },
+  ];
+  return (
+    <div style={{background:'#fff',borderBottom:'1px solid '+NB.bd,padding:'0 30px',display:'flex',gap:4,flexShrink:0,overflowX:'auto'}} className="nb-scrollnone">
+      {tabs.map(({id,label,Icon,n})=>{
+        const on = view===id;
+        return (
+          <button key={id} onClick={()=>setView(id)}
+            style={{display:'flex',alignItems:'center',gap:8,padding:'13px 14px',background:'none',border:'none',
+              borderBottom:'2px solid '+(on?NB.azul:'transparent'),
+              color:on?NB.azul:NB.mut,fontSize:13.5,fontWeight:500,whiteSpace:'nowrap',marginBottom:-1,transition:'color 0.12s'}}
+            onMouseEnter={e=>{ if(!on) e.currentTarget.style.color=NB.txt; }}
+            onMouseLeave={e=>{ if(!on) e.currentTarget.style.color=NB.mut; }}>
+            <Icon s={16}/> {label}
+            {n>0 && <span style={{background:on?'#EAF3FD':'#EEF2F8',color:on?NB.azul:NB.mut,fontSize:11,fontWeight:600,borderRadius:20,padding:'1px 7px'}}>{n}</span>}
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
@@ -2389,6 +2410,7 @@ function AppContent() {
       <Sidebar/>
       <div style={{flex:1,display:'flex',flexDirection:'column',minWidth:0,overflow:'hidden'}}>
         <TopBar/>
+        <ModuleTabs/>
         <main style={{flex:1,overflow:'hidden'}}>
           {view==='kanban'     && <KanbanBoard/>}
           {view==='slack'      && <SlackFeed/>}
