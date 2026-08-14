@@ -4,7 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Nibo • Plataforma de Demandas</title>
-<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='15' fill='%230072CE'/%3E%3Ctext x='32' y='45' font-family='Poppins,Segoe UI,Arial,sans-serif' font-size='38' font-weight='600' fill='%23ffffff' text-anchor='middle'%3EN%3C/text%3E%3C/svg%3E">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%23002D72'/%3E%3Cg fill='%23B8CCEA'%3E%3Ccircle cx='50' cy='36.8' r='8.85'/%3E%3Ccircle cx='67.65' cy='63.2' r='8.85'/%3E%3Ccircle cx='32.35' cy='63.2' r='8.85'/%3E%3Cpath d='M48.978 45.591 A12 12 0 0 1 59.136 60.785 L68.672 54.409 A12 12 0 0 1 58.514 39.215 Z'/%3E%3C/g%3E%3C/svg%3E">
+<rect width=%22100%22 height=%22100%22 rx=%2222%22 fill=%22%23002D72%22/><g fill=%22%23B8CCEA%22><circle cx=%2250%22 cy=%2236.8%22 r=%228.85%22/><circle cx=%2267.65%22 cy=%2263.2%22 r=%228.85%22/><circle cx=%2232.35%22 cy=%2263.2%22 r=%228.85%22/><path d=%22M48.978 45.591 A12 12 0 0 1 59.136 60.785 L68.672 54.409 A12 12 0 0 1 58.514 39.215 Z%22/></g></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -380,20 +381,23 @@ const IGoogle = ({size=20})=><svg width={size} height={size} viewBox="0 0 48 48"
 const AREA_ICON = { Todas:ILayers, Social:IChat, Design:IBrush, 'Mídia Paga':ITarget, Produto:IBox, RevOps:ITrend };
 
 /* =========== MARCA =========== */
-/* Para usar o logo oficial: coloque o arquivo no repositório e troque
-   LOGO_SRC por './logo.svg'. O resto do app se ajusta sozinho. */
-const LOGO_SRC = null;
+/* Símbolo Nibo em SVG — vetorial, nítido em qualquer tamanho e recolorível. */
+function NiboSymbol({ size=24, color='#fff' }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 100 100" fill={color} aria-label="Nibo" role="img">
+      <circle cx="50" cy="36.8" r="8.85"/>
+      <circle cx="67.65" cy="63.2" r="8.85"/>
+      <circle cx="32.35" cy="63.2" r="8.85"/>
+      <path d="M48.978 45.591 A12 12 0 0 1 59.136 60.785 L68.672 54.409 A12 12 0 0 1 58.514 39.215 Z"/>
+    </svg>
+  );
+}
 
 function NiboMark({ size=42, radius=12, bg=NB.azul, color='#fff' }) {
-  if (LOGO_SRC) {
-    return (
-      <div style={{width:size,height:size,borderRadius:radius,background:bg,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,overflow:'hidden'}}>
-        <img src={LOGO_SRC} alt="Nibo" style={{width:'72%',height:'72%',objectFit:'contain'}}/>
-      </div>
-    );
-  }
   return (
-    <div style={{width:size,height:size,background:bg,borderRadius:radius,display:'flex',alignItems:'center',justifyContent:'center',fontWeight:600,color:color,fontSize:Math.round(size*0.48),flexShrink:0,letterSpacing:'-0.02em'}}>N</div>
+    <div style={{width:size,height:size,borderRadius:radius,background:bg,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+      <NiboSymbol size={Math.round(size*0.72)} color={color}/>
+    </div>
   );
 }
 
