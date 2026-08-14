@@ -455,6 +455,7 @@ const IFile    = ({s=15})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}
 const IExt     = ({s=13})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>;
 const IDown    = ({s=13})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>;
 const ITrash   = ({s=14})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>;
+const IStamp   = ({s=18})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}><path d="M5 21h14"/><path d="M4 17.5h16v-1a2 2 0 0 0-2-2h-3.2l.6-4.3A3.4 3.4 0 0 0 12 6.2a3.4 3.4 0 0 0-3.4 4l.6 4.3H6a2 2 0 0 0-2 2z"/></svg>;
 const IArrowR  = ({s=14})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}><line x1="4" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/></svg>;
 const IArrowL  = ({s=14})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}><line x1="20" y1="12" x2="5" y2="12"/><polyline points="11 6 5 12 11 18"/></svg>;
 const IGoogle = ({size=20})=><svg width={size} height={size} viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>;
@@ -628,6 +629,10 @@ function TopNav() {
   const { view, setView, area, setArea, user, active, setNewOpen, setProfileOpen, logout } = useApp();
   const areas = ['Todas','Social','Design','Mídia Paga','Produto','RevOps'];
   const vencidas = active.filter(d => { const s=getSla(d.deadline); return s && s.type!=='ok'; }).length;
+  const emAprovacao = active.filter(d => {
+    const st = (PIPELINES[d.area]||[]).find(x => x.id === d.stageId);
+    return st && st.isApproval;
+  }).length;
   const [menu, setMenu] = useState(false);
 
   return (
@@ -651,6 +656,9 @@ function TopNav() {
               active={area===a && view==='kanban'}
               onClick={()=>{ setArea(a); setView('kanban'); }}/>
           ))}
+          <div style={{width:1,alignSelf:'stretch',margin:'6px',background:'rgba(255,255,255,0.12)',flexShrink:0}}/>
+          <PipeTab label="Gestão" Icon={IStamp} count={emAprovacao}
+            active={view==='gestao'} onClick={()=>setView('gestao')}/>
         </nav>
 
         <div style={{display:'flex',alignItems:'center',gap:9,flexShrink:0}}>
@@ -926,6 +934,167 @@ function AreaPeople({ areaName, cards, max=5 }) {
         <div title={inits.slice(max).join(', ')}
           style={{width:26,height:26,borderRadius:'50%',marginLeft:-8,background:'#EEF2F8',border:'2px solid #fff',color:NB.mut,fontSize:10,fontWeight:600,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
           +{resto}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* =========== GESTÃO — fila de aprovação =========== */
+function ApprovalCard({ demand }) {
+  const { moveStage, setNotifyPending, addComment, user, setModal, attach, comments } = useApp();
+  const [nota, setNota] = useState('');
+  const [ajuste, setAjuste] = useState(false);
+
+  const stages = PIPELINES[demand.area] || [];
+  const idx    = stages.findIndex(s => s.id === demand.stageId);
+  const prox   = stages[idx+1];
+  const antes  = stages[idx-1];
+  const sla    = getSla(demand.deadline);
+  const Icon   = AREA_ICON[demand.area];
+  const podeAprovar = !!user.isApprover;
+  const nA = (attach[demand.id]||[]).length;
+  const nC = (comments[demand.id]||[]).length;
+
+  const aprovar = () => {
+    if (!prox) return;
+    if (demand.area === 'Design' && prox.isDone) {
+      setNotifyPending({ demandId:demand.id, stageId:prox.id, demandTitle:demand.title });
+    } else {
+      moveStage(demand.id, prox.id);
+    }
+  };
+
+  const pedirAjuste = () => {
+    if (!antes) return;
+    if (nota.trim()) addComment(demand, 'Ajuste solicitado: ' + nota.trim(), user.initials);
+    moveStage(demand.id, antes.id);
+    setNota(''); setAjuste(false);
+  };
+
+  return (
+    <div style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:13,padding:'16px 18px',boxShadow:'0 1px 3px rgba(11,42,92,0.04)'}}>
+      <div style={{display:'flex',alignItems:'center',gap:9,marginBottom:9,flexWrap:'wrap'}}>
+        <span style={{background:NB.col,border:'1px solid '+NB.bd,color:NB.mut,fontSize:11,fontWeight:500,padding:'2px 8px',borderRadius:6,fontFamily:'monospace'}}>{demand.code}</span>
+        <span style={{display:'inline-flex',alignItems:'center',gap:6,fontSize:12.5,fontWeight:500,color:AREA_CLR[demand.area]}}><Icon s={14}/> {demand.area}</span>
+        <span style={{fontSize:12,color:NB.mut2}}>· {stages[idx] ? stages[idx].name : '—'}</span>
+        {sla && sla.type!=='ok' && (
+          <span style={{fontSize:11.5,fontWeight:500,padding:'3px 9px',borderRadius:6,background:sla.type==='danger'?'#FEECEC':'#FFF6DE',color:sla.type==='danger'?'#B4232A':'#8A6206'}}>{sla.label}</span>
+        )}
+      </div>
+
+      <button onClick={()=>setModal(demand.id)}
+        style={{background:'none',border:'none',padding:0,textAlign:'left',fontSize:15,fontWeight:500,color:NB.txt,lineHeight:1.4,marginBottom:11}}>
+        {demand.title}
+      </button>
+
+      <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:14,flexWrap:'wrap'}}>
+        <div style={{display:'flex'}}>
+          {demand.assignees.slice(0,4).map((init,i)=><CardAvatar key={init+i} initials={init} offset={i}/>)}
+        </div>
+        <span style={{fontSize:12.5,color:NB.mut}}>Prazo {fmtDate(demand.deadline)}</span>
+        {nA>0 && <span style={{display:'flex',alignItems:'center',gap:4,fontSize:12,color:NB.mut2}}><IClip s={13}/>{nA}</span>}
+        {nC>0 && <span style={{display:'flex',alignItems:'center',gap:4,fontSize:12,color:NB.mut2}}><IChatBox s={13}/>{nC}</span>}
+      </div>
+
+      {!podeAprovar ? (
+        <div style={{fontSize:12.5,color:NB.mut2,background:NB.col,border:'1px solid '+NB.bd,borderRadius:9,padding:'10px 13px',lineHeight:1.55}}>
+          Aguardando decisão de @Mariana Araújo. Abra o card para comentar ou anexar algo que ajude na aprovação.
+        </div>
+      ) : ajuste ? (
+        <div style={{background:NB.col,border:'1px solid '+NB.bd,borderRadius:10,padding:'13px 14px'}}>
+          <div style={{...lbl,marginBottom:7}}>O que precisa mudar</div>
+          <textarea value={nota} onChange={e=>setNota(e.target.value)} rows={2} autoFocus
+            placeholder="Ex: trocar o CTA e deixar o público explícito na primeira linha"
+            style={{...inp,padding:'9px 12px',fontSize:13.5,resize:'vertical',lineHeight:1.55}}/>
+          <div style={{display:'flex',gap:8,justifyContent:'flex-end',marginTop:10}}>
+            <button onClick={()=>{setAjuste(false); setNota('');}}
+              style={{padding:'8px 14px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:8,fontSize:12.5,fontWeight:500,color:NB.mut}}>Cancelar</button>
+            <button onClick={pedirAjuste}
+              style={{padding:'8px 16px',background:'#B4232A',border:'none',borderRadius:8,fontSize:12.5,fontWeight:500,color:'#fff'}}>
+              Devolver para {antes ? antes.name : 'etapa anterior'}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div style={{display:'flex',gap:9,flexWrap:'wrap'}}>
+          <button onClick={aprovar} disabled={!prox}
+            style={{display:'flex',alignItems:'center',gap:7,padding:'10px 17px',background:prox?'#0F6E56':'#CFD8E6',border:'none',borderRadius:9,fontSize:13,fontWeight:500,color:'#fff',cursor:prox?'pointer':'not-allowed'}}>
+            <ICheck s={14}/> Aprovar {prox ? '→ '+prox.name : ''}
+          </button>
+          <button onClick={()=>setAjuste(true)} disabled={!antes}
+            style={{padding:'10px 17px',background:'#fff',border:'1px solid #FBD5D5',borderRadius:9,fontSize:13,fontWeight:500,color:'#B4232A',cursor:antes?'pointer':'not-allowed'}}>
+            Pedir ajuste
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function GestaoView() {
+  const { active, user } = useApp();
+  const emAprovacao = active.filter(d => {
+    const st = (PIPELINES[d.area]||[]).find(s => s.id === d.stageId);
+    return st && st.isApproval;
+  });
+  const concluidas = active.filter(d => {
+    const st = (PIPELINES[d.area]||[]).find(s => s.id === d.stageId);
+    return st && st.isDone;
+  });
+
+  return (
+    <div style={{padding:'22px 30px 30px',overflowY:'auto',overflowX:'hidden',height:'100%'}}>
+      <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:18,flexWrap:'wrap'}}>
+        <span style={{display:'inline-flex',alignItems:'center',gap:9,fontSize:17,fontWeight:600,color:NB.txt}}>
+          <span style={{color:NB.azul,display:'flex'}}><IStamp s={19}/></span> Aguardando aprovação
+        </span>
+        <span style={{fontSize:13.5,color:NB.mut}}>
+          {emAprovacao.length===0 ? 'nada parado' : emAprovacao.length + (emAprovacao.length===1?' demanda':' demandas')}
+        </span>
+        {!user.isApprover && (
+          <span style={{fontSize:12,color:NB.mut2,background:NB.col,border:'1px solid '+NB.bd,borderRadius:8,padding:'4px 10px'}}>
+            Você acompanha; quem decide é a Mariana
+          </span>
+        )}
+      </div>
+
+      {emAprovacao.length===0 ? (
+        <div style={{background:'#fff',borderRadius:16,border:'1px solid '+NB.bd,padding:'60px 24px',textAlign:'center',marginBottom:26}}>
+          <div style={{color:NB.mut2,display:'flex',justifyContent:'center',marginBottom:13}}><ICheck s={30}/></div>
+          <div style={{fontSize:16,fontWeight:500,color:NB.txt,marginBottom:6}}>Nenhuma demanda esperando decisão</div>
+          <p style={{fontSize:13.5,color:NB.mut,lineHeight:1.6,maxWidth:420,margin:'0 auto'}}>
+            Assim que qualquer pipeline chegar numa etapa de aprovação, a demanda aparece aqui automaticamente.
+          </p>
+        </div>
+      ) : (
+        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(340px,1fr))',gap:14,marginBottom:28}}>
+          {emAprovacao.map(d => <ApprovalCard key={d.id} demand={d}/>)}
+        </div>
+      )}
+
+      {concluidas.length>0 && (
+        <div>
+          <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:12}}>
+            <span style={{fontSize:14.5,fontWeight:600,color:NB.txt}}>Já aprovadas</span>
+            <span style={{fontSize:13,color:NB.mut}}>{concluidas.length}</span>
+          </div>
+          <div style={{display:'flex',flexDirection:'column',gap:8}}>
+            {concluidas.map(d=>{
+              const st = (PIPELINES[d.area]||[]).find(s=>s.id===d.stageId);
+              const Ic = AREA_ICON[d.area];
+              return (
+                <div key={d.id} style={{display:'flex',alignItems:'center',gap:12,background:'#fff',border:'1px solid '+NB.bd,borderRadius:11,padding:'12px 15px',flexWrap:'wrap'}}>
+                  <span style={{display:'inline-flex',alignItems:'center',gap:6,fontSize:12.5,fontWeight:500,color:AREA_CLR[d.area],flexShrink:0}}><Ic s={14}/> {d.area}</span>
+                  <span style={{flex:1,minWidth:140,fontSize:13.5,color:NB.txt}}>{d.title}</span>
+                  <span style={{fontSize:12,fontWeight:500,color:'#0F6E56',background:'#E1F5EE',borderRadius:6,padding:'3px 9px',flexShrink:0}}>{st?st.name:'—'}</span>
+                  <div style={{display:'flex',flexShrink:0}}>
+                    {d.assignees.slice(0,3).map((init,i)=><CardAvatar key={init+i} initials={init} offset={i}/>)}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
     </div>
@@ -2376,6 +2545,7 @@ function AppContent() {
         {view==='arquivadas' && <ArchivedView/>}
         {view==='social'     && <SocialPlannerView/>}
         {view==='variacoes'  && <VariationsView/>}
+        {view==='gestao'     && <GestaoView/>}
       </main>
       <CardModal/>
       <NewModal/>
