@@ -902,6 +902,36 @@ function StageColumn({ stage, cards, compact, areaName }) {
   );
 }
 
+/* Quem está nesta área: o time fixo dela + quem estiver em card dessa área agora */
+function AreaPeople({ areaName, cards, max=5 }) {
+  const { profiles } = useApp();
+  const fixos = TEAM.filter(m => m.area === areaName).map(m => m.initials);
+  const nosCards = cards.reduce((acc,d) => acc.concat(d.assignees), []);
+  const inits = [];
+  fixos.concat(nosCards).forEach(i => { if (!inits.includes(i)) inits.push(i); });
+  if (!inits.length) return null;
+
+  const show = inits.slice(0, max);
+  const resto = inits.length - show.length;
+
+  return (
+    <div style={{display:'flex',alignItems:'center',flexShrink:0}}>
+      {show.map((init,i) => {
+        const base = TEAM.find(m => m.initials === init);
+        const mb = base ? { ...base, ...(profiles[base.id]||{}) } : null;
+        return <Avatar key={init} member={mb} size={26} ring={false}
+          style={{marginLeft:i>0?-8:0, zIndex:max-i, boxShadow:'0 0 0 1.5px '+((mb&&mb.color)||NB.azul)}}/>;
+      })}
+      {resto>0 && (
+        <div title={inits.slice(max).join(', ')}
+          style={{width:26,height:26,borderRadius:'50%',marginLeft:-8,background:'#EEF2F8',border:'2px solid #fff',color:NB.mut,fontSize:10,fontWeight:600,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+          +{resto}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* =========== AREA CARD =========== */
 function AreaBlock({ areaName, cards }) {
   const { setArea, setView } = useApp();
@@ -917,6 +947,7 @@ function AreaBlock({ areaName, cards }) {
           <span style={{fontSize:17,fontWeight:600,color:NB.txt,letterSpacing:'-0.01em'}}>{areaName}</span>
           <span style={{color:NB.bd,fontSize:15}}>|</span>
           <span style={{fontSize:13.5,color:NB.mut,whiteSpace:'nowrap'}}>{cards.length} {cards.length===1?'demanda':'demandas'}</span>
+          <AreaPeople areaName={areaName} cards={cards}/>
         </div>
         <div style={{display:'flex',gap:8,flexShrink:0}}>
           {areaName==='Social' && (
@@ -1034,6 +1065,7 @@ function KanbanBoard() {
           <Icon s={17}/> {area}
         </span>
         <span style={{fontSize:13,color:NB.mut}}>{filtered.length} {filtered.length===1?'demanda':'demandas'}</span>
+        <AreaPeople areaName={area} cards={filtered}/>
         {area==='Social' && (
           <a href={SOCIAL_APP_URL} target="_blank" rel="noopener noreferrer"
             style={{display:'inline-flex',alignItems:'center',gap:7,padding:'7px 13px',background:'#EAF3FD',border:'1px solid '+NB.azul,borderRadius:9,fontSize:13,fontWeight:500,color:NB.azul,textDecoration:'none',whiteSpace:'nowrap'}}
