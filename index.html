@@ -1084,6 +1084,14 @@ function KanbanBoard() {
           <Icon s={17}/> {area}
         </span>
         <span style={{fontSize:13,color:NB.mut}}>{filtered.length} {filtered.length===1?'demanda':'demandas'}</span>
+        {area==='Social' && (
+          <a href={SOCIAL_APP_URL} target="_blank" rel="noopener noreferrer"
+            style={{display:'inline-flex',alignItems:'center',gap:7,padding:'7px 13px',background:'#EAF3FD',border:'1px solid '+NB.azul,borderRadius:9,fontSize:13,fontWeight:500,color:NB.azul,textDecoration:'none',whiteSpace:'nowrap'}}
+            onMouseEnter={e=>{e.currentTarget.style.background='#DCEBFB';}}
+            onMouseLeave={e=>{e.currentTarget.style.background='#EAF3FD';}}>
+            <ICal s={14}/> Planejamento <IExt s={12}/>
+          </a>
+        )}
       </div>
       <div style={{display:'grid',gridTemplateColumns:'repeat(5, minmax(0,1fr))',gap:16,alignItems:'stretch'}}>
         {stages.map(st=>(
