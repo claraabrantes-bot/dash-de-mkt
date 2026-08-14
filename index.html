@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Nibo • Plataforma de Demandas</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='15' fill='%230072CE'/%3E%3Ctext x='32' y='45' font-family='Poppins,Segoe UI,Arial,sans-serif' font-size='38' font-weight='600' fill='%23ffffff' text-anchor='middle'%3EN%3C/text%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -378,6 +379,24 @@ const IGoogle = ({size=20})=><svg width={size} height={size} viewBox="0 0 48 48"
 
 const AREA_ICON = { Todas:ILayers, Social:IChat, Design:IBrush, 'Mídia Paga':ITarget, Produto:IBox, RevOps:ITrend };
 
+/* =========== MARCA =========== */
+/* Para usar o logo oficial: coloque o arquivo no repositório e troque
+   LOGO_SRC por './logo.svg'. O resto do app se ajusta sozinho. */
+const LOGO_SRC = null;
+
+function NiboMark({ size=42, radius=12, bg=NB.azul, color='#fff' }) {
+  if (LOGO_SRC) {
+    return (
+      <div style={{width:size,height:size,borderRadius:radius,background:bg,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,overflow:'hidden'}}>
+        <img src={LOGO_SRC} alt="Nibo" style={{width:'72%',height:'72%',objectFit:'contain'}}/>
+      </div>
+    );
+  }
+  return (
+    <div style={{width:size,height:size,background:bg,borderRadius:radius,display:'flex',alignItems:'center',justifyContent:'center',fontWeight:600,color:color,fontSize:Math.round(size*0.48),flexShrink:0,letterSpacing:'-0.02em'}}>N</div>
+  );
+}
+
 /* =========== AVATAR =========== */
 function Avatar({ member, size=32, ring=true, style, src }) {
   const { photos } = useApp();
@@ -397,7 +416,7 @@ function Splash() {
   return (
     <div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',background:'linear-gradient(180deg,'+NB.navy1+','+NB.navy2+')'}}>
       <div style={{textAlign:'center'}}>
-        <div style={{width:54,height:54,background:NB.azul,borderRadius:15,display:'flex',alignItems:'center',justifyContent:'center',fontWeight:600,color:'#fff',fontSize:25,margin:'0 auto 16px',animation:'nb-pulse 1.4s ease-in-out infinite'}}>N</div>
+        <div style={{display:'flex',justifyContent:'center',marginBottom:16,animation:'nb-pulse 1.4s ease-in-out infinite'}}><NiboMark size={54} radius={15}/></div>
         <div style={{color:NB.gelo,fontSize:14}}>Verificando seu acesso…</div>
       </div>
     </div>
@@ -445,10 +464,10 @@ function LoginScreen() {
           <div style={{position:'absolute',width:220,height:220,borderRadius:'50%',background:NB.azulClaro,opacity:0.17,left:-85,bottom:-72}}/>
           <div style={{position:'relative'}}>
             <div style={{display:'flex',alignItems:'center',gap:13,marginBottom:40}}>
-              <div style={{width:46,height:46,background:'#fff',borderRadius:13,display:'flex',alignItems:'center',justifyContent:'center',fontWeight:700,color:NB.navy1,fontSize:22}}>N</div>
+              <NiboMark size={46} radius={13} bg="#fff" color={NB.navy1}/>
               <div>
                 <div style={{fontWeight:600,fontSize:18,lineHeight:1.15}}>Demandas</div>
-                <div style={{fontSize:13,color:NB.gelo}}>Nibo Marketing Ops</div>
+                <div style={{fontSize:13,color:NB.gelo}}>Nibo Marketing</div>
               </div>
             </div>
             <h1 style={{fontSize:33,lineHeight:1.22,fontWeight:600,marginBottom:16}}>
@@ -531,10 +550,10 @@ function Sidebar() {
       {/* Brand */}
       <div style={{padding:'22px 20px 18px'}}>
         <div style={{display:'flex',alignItems:'center',gap:13}}>
-          <div style={{width:42,height:42,background:NB.azul,borderRadius:12,display:'flex',alignItems:'center',justifyContent:'center',fontWeight:600,color:'#fff',fontSize:20,flexShrink:0}}>N</div>
+          <NiboMark size={42} radius={12}/>
           <div>
             <div style={{color:'#fff',fontWeight:600,fontSize:19,lineHeight:1.15,letterSpacing:'-0.01em'}}>Demandas</div>
-            <div style={{color:'rgba(198,211,232,0.7)',fontSize:12.5}}>Nibo Marketing Ops</div>
+            <div style={{color:'rgba(198,211,232,0.7)',fontSize:12.5}}>Nibo Marketing</div>
           </div>
         </div>
       </div>
