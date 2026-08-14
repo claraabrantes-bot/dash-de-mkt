@@ -197,6 +197,7 @@ function Provider({ children }) {
   const [view, setView]     = useState('kanban');
   const [layout, setLayout] = useState('board');
   const [area, setArea]     = useState('Todas');
+  const abriuRef = useRef(false);
   const [query, setQuery]   = useState('');
   const [priFilter, setPriFilter] = useState([]);
   const [reqFilter, setReqFilter] = useState([]);
@@ -230,10 +231,18 @@ function Provider({ children }) {
     return unsub;
   }, []);
 
+  /* Ao entrar, cai direto no próprio setor. Quem aprova cai na fila de Gestão. */
   const baseUser = fbUser ? ACTIVE_TEAM.find(m => m.email === fbUser.email) : null;
   const user = baseUser
     ? { ...baseUser, googlePhoto: fbUser.photoURL, ...(profiles[baseUser.id] || {}) }
     : null;
+
+  useEffect(() => {
+    if (abriuRef.current || !baseUser) return;
+    abriuRef.current = true;
+    if (pipesRef.current[baseUser.area]) setArea(baseUser.area);
+    else if (baseUser.isApprover) setView('gestao');
+  }, [baseUser]);
 
   useEffect(() => { try { localStorage.setItem('nibo_dem_v3', JSON.stringify(demands)); } catch {} }, [demands]);
   useEffect(() => { try { localStorage.setItem('nibo_slk_v3', JSON.stringify(slack)); } catch {} }, [slack]);
@@ -646,7 +655,7 @@ function PipeTab({ label, Icon, count, active, onClick }) {
 
 function TopNav() {
   const { view, setView, area, setArea, user, active, pipes, setNewOpen, setProfileOpen, logout } = useApp();
-  const areas = ['Todas','Social','Design','Mídia Paga','Produto','RevOps'];
+  const areas = ['Social','Design','Mídia Paga','Produto','RevOps','Todas'];
   const vencidas = active.filter(d => { const s=getSla(d.deadline); return s && s.type!=='ok'; }).length;
   const emAprovacao = active.filter(d => {
     const st = (pipes[d.area]||[]).find(x => x.id === d.stageId);
