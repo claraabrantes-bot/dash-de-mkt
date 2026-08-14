@@ -607,202 +607,157 @@ function LoginScreen() {
 }
 
 /* =========== SIDEBAR =========== */
-function NavItem({ label, Icon, iconColor, count, active, onClick }) {
+/* =========== NAVEGAÇÃO SUPERIOR =========== */
+function PipeTab({ label, Icon, count, active, onClick }) {
   return (
     <button onClick={onClick}
-      style={{width:'100%',display:'flex',alignItems:'center',justifyContent:'space-between',padding:'10px 14px',borderRadius:10,border:'none',background:active?'rgba(255,255,255,0.11)':'transparent',marginBottom:2,transition:'background 0.12s'}}
-      onMouseEnter={e=>{ if(!active) e.currentTarget.style.background='rgba(255,255,255,0.055)'; }}
+      style={{display:'flex',alignItems:'center',gap:8,padding:'8px 13px',borderRadius:9,border:'none',
+        background:active?'rgba(255,255,255,0.13)':'transparent',whiteSpace:'nowrap',flexShrink:0,transition:'background 0.12s'}}
+      onMouseEnter={e=>{ if(!active) e.currentTarget.style.background='rgba(255,255,255,0.06)'; }}
       onMouseLeave={e=>{ if(!active) e.currentTarget.style.background='transparent'; }}>
-      <span style={{display:'flex',alignItems:'center',gap:12,minWidth:0}}>
-        <span style={{color:iconColor,display:'flex',flexShrink:0}}><Icon/></span>
-        <span style={{color:active?'#fff':'#C6D3E8',fontSize:14.5,fontWeight:active?500:400,whiteSpace:'nowrap'}}>{label}</span>
-      </span>
+      <span style={{color:NB.azulClaro,display:'flex',flexShrink:0}}><Icon s={16}/></span>
+      <span style={{color:active?'#fff':'#C6D3E8',fontSize:14,fontWeight:active?500:400}}>{label}</span>
       {count !== undefined && (
-        <span style={{color:active?'#fff':'rgba(198,211,232,0.55)',fontSize:13,fontWeight:500}}>{count}</span>
+        <span style={{color:active?'#fff':'rgba(198,211,232,0.55)',fontSize:12,fontWeight:500}}>{count}</span>
       )}
     </button>
   );
 }
 
-function Sidebar() {
+function TopNav() {
   const { view, setView, area, setArea, user, active, setNewOpen, setProfileOpen, logout } = useApp();
   const areas = ['Todas','Social','Design','Mídia Paga','Produto','RevOps'];
   const vencidas = active.filter(d => { const s=getSla(d.deadline); return s && s.type!=='ok'; }).length;
   const [menu, setMenu] = useState(false);
 
-  const secLbl = { color:'rgba(198,211,232,0.5)', fontSize:11, fontWeight:500, letterSpacing:'0.12em', textTransform:'uppercase', marginBottom:9, paddingLeft:14 };
-
   return (
-    <aside style={{width:268,background:'linear-gradient(180deg,'+NB.navy1+' 0%,'+NB.navy2+' 100%)',display:'flex',flexDirection:'column',height:'100vh',flexShrink:0}}>
-      {/* Brand */}
-      <div style={{padding:'22px 20px 18px'}}>
-        <div style={{display:'flex',alignItems:'center',gap:13}}>
-          <NiboMark size={42} radius={12}/>
-          <div>
-            <div style={{color:'#fff',fontWeight:600,fontSize:19,lineHeight:1.15,letterSpacing:'-0.01em'}}>Demandas</div>
-            <div style={{color:'rgba(198,211,232,0.7)',fontSize:12.5}}>Nibo Marketing</div>
+    <header style={{background:'linear-gradient(180deg,'+NB.navy1+','+NB.navy2+')',flexShrink:0}}>
+      <div style={{display:'flex',alignItems:'center',gap:18,padding:'11px 24px',minWidth:0}}>
+
+        <div style={{display:'flex',alignItems:'center',gap:11,flexShrink:0}}>
+          <NiboMark size={38} radius={11}/>
+          <div style={{lineHeight:1.15}}>
+            <div style={{color:'#fff',fontWeight:600,fontSize:16,letterSpacing:'-0.01em'}}>Demandas</div>
+            <div style={{color:'rgba(198,211,232,0.7)',fontSize:11.5}}>Nibo Marketing</div>
           </div>
         </div>
-      </div>
 
-      {/* CTA */}
-      <div style={{padding:'0 20px 14px'}}>
-        <button onClick={()=>setNewOpen(true)}
-          style={{width:'100%',display:'flex',alignItems:'center',justifyContent:'center',gap:9,padding:'14px 18px',background:NB.azul,border:'none',borderRadius:11,color:'#fff',fontSize:15,fontWeight:500,boxShadow:'0 4px 14px rgba(0,114,206,0.35)',transition:'background 0.12s'}}
-          onMouseEnter={e=>{e.currentTarget.style.background='#0082E8';}}
-          onMouseLeave={e=>{e.currentTarget.style.background=NB.azul;}}>
-          <IPlus s={17}/> Nova demanda
-        </button>
-      </div>
+        <div style={{width:1,height:30,background:'rgba(255,255,255,0.12)',flexShrink:0}}/>
 
-      {/* Stats */}
-      <div style={{padding:'0 20px 22px'}}>
-        <div style={{display:'flex',background:'rgba(255,255,255,0.055)',border:'1px solid rgba(255,255,255,0.09)',borderRadius:11,overflow:'hidden'}}>
-          <div style={{flex:1,padding:'12px 14px'}}>
-            <div style={{display:'flex',alignItems:'center',gap:7,marginBottom:2}}>
-              <span style={{color:NB.azulClaro,display:'flex'}}><IClock/></span>
-              <span style={{fontSize:21,fontWeight:600,color:'#fff',lineHeight:1}}>{active.length}</span>
-            </div>
-            <div style={{fontSize:11.5,color:'rgba(198,211,232,0.65)'}}>Ativas</div>
-          </div>
-          <div style={{width:1,background:'rgba(255,255,255,0.09)'}}/>
-          <div style={{flex:1,padding:'12px 14px'}}>
-            <div style={{display:'flex',alignItems:'center',gap:7,marginBottom:2}}>
-              <span style={{color:vencidas?'#FF7A85':'rgba(198,211,232,0.5)',display:'flex'}}><IAlert/></span>
-              <span style={{fontSize:21,fontWeight:600,color:vencidas?'#FF9AA3':'#fff',lineHeight:1}}>{vencidas}</span>
-            </div>
-            <div style={{fontSize:11.5,color:'rgba(198,211,232,0.65)'}}>Vencidas</div>
-          </div>
-        </div>
-      </div>
-
-      <div style={{flex:1,overflowY:'auto',paddingBottom:8}} className="nb-scrollnone">
-        <div style={{padding:'0 12px 8px'}}>
-          <div style={secLbl}>Pipelines</div>
-          {areas.map(a => (
-            <React.Fragment key={a}>
-              <NavItem label={a} Icon={AREA_ICON[a]}
-                iconColor={NB.azulClaro}
-                count={a==='Todas' ? active.length : active.filter(d=>d.area===a).length}
-                active={area===a && view==='kanban'}
-                onClick={()=>{ setArea(a); setView('kanban'); }}/>
-              {a==='Social' && area==='Social' && (
-                <div style={{paddingLeft:22,marginBottom:2}}>
-                  <NavItem label="Planejamento" Icon={ICal}
-                    iconColor={NB.azulClaro}
-                    active={view==='social'}
-                    onClick={()=>{ setArea('Social'); setView('social'); }}/>
-                </div>
-              )}
-              {a==='Design' && area==='Design' && (
-                <div style={{paddingLeft:22,marginBottom:2}}>
-                  <NavItem label="Variações" Icon={IBrush}
-                    iconColor={NB.azulClaro}
-                    active={view==='variacoes'}
-                    onClick={()=>{ setArea('Design'); setView('variacoes'); }}/>
-                </div>
-              )}
-            </React.Fragment>
+        <nav style={{display:'flex',gap:3,flex:1,minWidth:0,overflowX:'auto'}} className="nb-scrollnone">
+          {areas.map(a=>(
+            <PipeTab key={a} label={a} Icon={AREA_ICON[a]}
+              count={a==='Todas' ? active.length : active.filter(d=>d.area===a).length}
+              active={area===a && view==='kanban'}
+              onClick={()=>{ setArea(a); setView('kanban'); }}/>
           ))}
-        </div>
+        </nav>
 
-      </div>
-
-      {/* User */}
-      <div style={{padding:'14px 20px 20px',position:'relative'}}>
-        {menu && (
-          <React.Fragment>
-            <div onClick={()=>setMenu(false)} style={{position:'fixed',inset:0,zIndex:29}}/>
-            <div style={{position:'absolute',bottom:82,left:20,right:20,background:'#fff',borderRadius:12,border:'1px solid '+NB.bd,boxShadow:'0 14px 40px rgba(4,18,48,0.28)',overflow:'hidden',zIndex:30}}>
-              <button onClick={()=>{setMenu(false); setProfileOpen(true);}}
-                style={{width:'100%',display:'flex',alignItems:'center',gap:10,padding:'12px 15px',background:'none',border:'none',fontSize:13.5,color:NB.txt,fontWeight:500}}
-                onMouseEnter={e=>{e.currentTarget.style.background=NB.col;}} onMouseLeave={e=>{e.currentTarget.style.background='none';}}>
-                <ICamera/> Editar meu perfil
-              </button>
-              <div style={{height:1,background:NB.bdSoft}}/>
-              <button onClick={()=>{setMenu(false); logout();}}
-                style={{width:'100%',display:'flex',alignItems:'center',gap:10,padding:'12px 15px',background:'none',border:'none',fontSize:13.5,color:'#B91C1C',fontWeight:500}}
-                onMouseEnter={e=>{e.currentTarget.style.background='#FEF2F2';}} onMouseLeave={e=>{e.currentTarget.style.background='none';}}>
-                <ILogout/> Sair da conta
-              </button>
-            </div>
-          </React.Fragment>
-        )}
-        <button onClick={()=>setMenu(m=>!m)}
-          style={{width:'100%',background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.11)',borderRadius:12,padding:'11px 13px',display:'flex',alignItems:'center',gap:11,textAlign:'left'}}
-          onMouseEnter={e=>{e.currentTarget.style.background='rgba(255,255,255,0.11)';}}
-          onMouseLeave={e=>{e.currentTarget.style.background='rgba(255,255,255,0.06)';}}>
-          <Avatar member={user} size={38} ring={false}/>
-          <div style={{minWidth:0,flex:1}}>
-            <div style={{fontSize:13.5,color:'#fff',fontWeight:500,marginBottom:1,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{user.name}</div>
-            <div style={{fontSize:11,color:'rgba(198,211,232,0.65)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{user.email}</div>
+        <div style={{display:'flex',alignItems:'center',gap:9,flexShrink:0}}>
+          <div style={{display:'flex',alignItems:'center',gap:7,padding:'6px 12px',background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:9}}>
+            <span style={{color:NB.azulClaro,display:'flex'}}><IClock s={14}/></span>
+            <span style={{color:'#fff',fontSize:14,fontWeight:600}}>{active.length}</span>
+            <span style={{color:'rgba(198,211,232,0.65)',fontSize:11.5}}>ativas</span>
           </div>
-          <span style={{color:'rgba(198,211,232,0.7)',flexShrink:0,display:'flex',transform:menu?'rotate(180deg)':'none',transition:'transform 0.15s'}}><IChev/></span>
-        </button>
+          <div style={{display:'flex',alignItems:'center',gap:7,padding:'6px 12px',background:vencidas?'rgba(255,122,133,0.14)':'rgba(255,255,255,0.06)',border:'1px solid '+(vencidas?'rgba(255,122,133,0.35)':'rgba(255,255,255,0.1)'),borderRadius:9}}>
+            <span style={{color:vencidas?'#FF7A85':'rgba(198,211,232,0.5)',display:'flex'}}><IAlert s={14}/></span>
+            <span style={{color:vencidas?'#FF9AA3':'#fff',fontSize:14,fontWeight:600}}>{vencidas}</span>
+            <span style={{color:'rgba(198,211,232,0.65)',fontSize:11.5}}>vencidas</span>
+          </div>
+
+          <button onClick={()=>setNewOpen(true)}
+            style={{display:'flex',alignItems:'center',gap:8,padding:'10px 16px',background:NB.azul,border:'none',borderRadius:10,color:'#fff',fontSize:14,fontWeight:500,whiteSpace:'nowrap',boxShadow:'0 3px 12px rgba(0,114,206,0.35)'}}
+            onMouseEnter={e=>{e.currentTarget.style.background='#0082E8';}}
+            onMouseLeave={e=>{e.currentTarget.style.background=NB.azul;}}>
+            <IPlus s={16}/> Nova demanda
+          </button>
+
+          <div style={{position:'relative'}}>
+            {menu && <div onClick={()=>setMenu(false)} style={{position:'fixed',inset:0,zIndex:29}}/>}
+            <button onClick={()=>setMenu(m=>!m)} title={user.name}
+              style={{display:'flex',alignItems:'center',gap:8,padding:'5px 9px 5px 5px',background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.11)',borderRadius:24}}
+              onMouseEnter={e=>{e.currentTarget.style.background='rgba(255,255,255,0.12)';}}
+              onMouseLeave={e=>{e.currentTarget.style.background='rgba(255,255,255,0.06)';}}>
+              <Avatar member={user} size={30} ring={false}/>
+              <span style={{color:'rgba(198,211,232,0.8)',display:'flex',transform:menu?'rotate(180deg)':'none',transition:'transform 0.15s'}}><IChev s={14}/></span>
+            </button>
+            {menu && (
+              <div style={{position:'absolute',top:48,right:0,width:236,background:'#fff',borderRadius:12,border:'1px solid '+NB.bd,boxShadow:'0 14px 40px rgba(4,18,48,0.28)',overflow:'hidden',zIndex:30}}>
+                <div style={{padding:'13px 15px',borderBottom:'1px solid '+NB.bdSoft}}>
+                  <div style={{fontSize:13.5,fontWeight:500,color:NB.txt,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{user.name}</div>
+                  <div style={{fontSize:11.5,color:NB.mut2,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{user.email}</div>
+                </div>
+                <button onClick={()=>{setMenu(false); setProfileOpen(true);}}
+                  style={{width:'100%',display:'flex',alignItems:'center',gap:10,padding:'12px 15px',background:'none',border:'none',fontSize:13.5,color:NB.txt,fontWeight:500,textAlign:'left'}}
+                  onMouseEnter={e=>{e.currentTarget.style.background=NB.col;}} onMouseLeave={e=>{e.currentTarget.style.background='none';}}>
+                  <ICamera/> Editar meu perfil
+                </button>
+                <div style={{height:1,background:NB.bdSoft}}/>
+                <button onClick={()=>{setMenu(false); logout();}}
+                  style={{width:'100%',display:'flex',alignItems:'center',gap:10,padding:'12px 15px',background:'none',border:'none',fontSize:13.5,color:'#B4232A',fontWeight:500,textAlign:'left'}}
+                  onMouseEnter={e=>{e.currentTarget.style.background='#FEF2F2';}} onMouseLeave={e=>{e.currentTarget.style.background='none';}}>
+                  <ILogout/> Sair da conta
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
-    </aside>
+    </header>
   );
 }
 
-/* =========== TOPBAR =========== */
-function IconBtn({ children, onClick, title, active }) {
-  return (
-    <button onClick={onClick} title={title}
-      style={{padding:'9px 11px',background:active?NB.txt:'#fff',border:'1px solid '+(active?NB.txt:NB.bd),borderRadius:9,color:active?'#fff':NB.mut,display:'flex',alignItems:'center',lineHeight:1,transition:'all 0.12s'}}
-      onMouseEnter={e=>{ if(!active){e.currentTarget.style.color=NB.txt; e.currentTarget.style.borderColor='#D3DCEA';} }}
-      onMouseLeave={e=>{ if(!active){e.currentTarget.style.color=NB.mut; e.currentTarget.style.borderColor=NB.bd;} }}>
-      {children}
-    </button>
-  );
-}
-
-function TopBar() {
-  const { query, setQuery, area, view, reset, layout, setLayout, priFilter, setPriFilter } = useApp();
+/* =========== SEGUNDA FAIXA: módulos + ferramentas =========== */
+function SubNav() {
+  const { view, setView, area, setArea, slack, archived, query, setQuery, layout, setLayout, priFilter, setPriFilter, reset } = useApp();
   const [fOpen, setFOpen] = useState(false);
 
-  const title = view==='slack' ? 'Automações Slack'
-    : view==='social' ? 'Planejamento Social'
-    : view==='variacoes' ? 'Variações de peça'
-    : view==='arquivadas' ? 'Arquivadas'
-    : area==='Todas' ? 'Todos os Pipelines' : 'Pipeline — '+area;
-  const sub = view==='slack'
-    ? 'Histórico das automações disparadas ao mover os cards.'
-    : view==='social'
-      ? 'Calendário, grid do Instagram e ideias — a plataforma do Social aberta aqui dentro.'
-    : view==='variacoes'
-      ? 'Suba uma peça e gere os cortes de formato, versões de fundo e o briefing do que testar.'
-    : view==='arquivadas'
-      ? 'Demandas fora do quadro. Restaure quando precisar ou exclua de vez.'
-      : area==='Todas'
-        ? 'Visualize e gerencie todas as demandas do marketing.'
-        : 'Acompanhe e mova as demandas de '+area+'.';
+  const mods = [
+    { id:'kanban',     label:'Kanban',           Icon:IKanban },
+    { id:'slack',      label:'Automações Slack', Icon:ISlack,   n:slack.length },
+    { id:'arquivadas', label:'Arquivadas',       Icon:IArchive, n:archived.length },
+  ];
+  if (area==='Social') mods.push({ id:'social',    label:'Planejamento', Icon:ICal });
+  if (area==='Design') mods.push({ id:'variacoes', label:'Variações',    Icon:IBrush });
 
   const togglePri = p => setPriFilter(v => v.includes(p) ? v.filter(x=>x!==p) : [...v,p]);
 
   return (
-    <header style={{background:'#fff',borderBottom:'1px solid '+NB.bd,padding:'18px 30px',display:'flex',alignItems:'center',gap:14,flexShrink:0,flexWrap:'wrap',rowGap:12}}>
-      <div style={{flex:'1 1 220px',minWidth:0}}>
-        <div style={{fontSize:22,fontWeight:600,color:NB.txt,letterSpacing:'-0.015em',lineHeight:1.2,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{title}</div>
-        <div style={{fontSize:13.5,color:NB.mut,marginTop:3,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{sub}</div>
+    <div style={{background:'#fff',borderBottom:'1px solid '+NB.bd,display:'flex',alignItems:'center',gap:14,padding:'0 24px',flexShrink:0}}>
+      <div style={{display:'flex',gap:2,flex:1,minWidth:0,overflowX:'auto'}} className="nb-scrollnone">
+        {mods.map(({id,label,Icon,n})=>{
+          const on = view===id;
+          return (
+            <button key={id} onClick={()=>{ if((id==='social'||id==='variacoes')) setArea(id==='social'?'Social':'Design'); setView(id); }}
+              style={{display:'flex',alignItems:'center',gap:8,padding:'13px 13px',background:'none',border:'none',
+                borderBottom:'2px solid '+(on?NB.azul:'transparent'),
+                color:on?NB.azul:NB.mut,fontSize:13.5,fontWeight:500,whiteSpace:'nowrap',marginBottom:-1,flexShrink:0}}
+              onMouseEnter={e=>{ if(!on) e.currentTarget.style.color=NB.txt; }}
+              onMouseLeave={e=>{ if(!on) e.currentTarget.style.color=NB.mut; }}>
+              <Icon s={16}/> {label}
+              {n>0 && <span style={{background:on?'#EAF3FD':'#EEF2F8',color:on?NB.azul:NB.mut,fontSize:11,fontWeight:600,borderRadius:20,padding:'1px 7px'}}>{n}</span>}
+            </button>
+          );
+        })}
       </div>
 
       {view==='kanban' && (
-        <React.Fragment>
-          <div style={{position:'relative',flex:'0 1 270px',minWidth:150}}>
-            <span style={{position:'absolute',left:14,top:'50%',transform:'translateY(-50%)',color:NB.mut2,pointerEvents:'none',display:'flex'}}><ISearch/></span>
+        <div style={{display:'flex',alignItems:'center',gap:9,flexShrink:0,padding:'8px 0'}}>
+          <div style={{position:'relative',width:220}}>
+            <span style={{position:'absolute',left:12,top:'50%',transform:'translateY(-50%)',color:NB.mut2,pointerEvents:'none',display:'flex'}}><ISearch s={15}/></span>
             <input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Buscar demanda..."
-              style={{width:'100%',background:'#fff',border:'1px solid '+NB.bd,borderRadius:10,padding:'10px 14px 10px 40px',fontSize:13.5,color:NB.txt,outline:'none'}}
+              style={{width:'100%',background:'#fff',border:'1px solid '+NB.bd,borderRadius:9,padding:'8px 12px 8px 36px',fontSize:13,color:NB.txt,outline:'none'}}
               onFocus={e=>{e.target.style.borderColor=NB.azul;}} onBlur={e=>{e.target.style.borderColor=NB.bd;}}/>
           </div>
 
           <div style={{position:'relative'}}>
             {fOpen && <div onClick={()=>setFOpen(false)} style={{position:'fixed',inset:0,zIndex:29}}/>}
             <button onClick={()=>setFOpen(o=>!o)}
-              style={{display:'flex',alignItems:'center',gap:8,padding:'10px 15px',background:priFilter.length?'#EAF3FD':'#fff',border:'1px solid '+(priFilter.length?NB.azul:NB.bd),borderRadius:10,fontSize:13.5,fontWeight:500,color:priFilter.length?NB.azul:NB.mut,whiteSpace:'nowrap'}}>
+              style={{display:'flex',alignItems:'center',gap:7,padding:'8px 13px',background:priFilter.length?'#EAF3FD':'#fff',border:'1px solid '+(priFilter.length?NB.azul:NB.bd),borderRadius:9,fontSize:13,fontWeight:500,color:priFilter.length?NB.azul:NB.mut,whiteSpace:'nowrap'}}>
               <IFunnel/> Filtros{priFilter.length?' ('+priFilter.length+')':''}
             </button>
             {fOpen && (
-              <div style={{position:'absolute',top:48,right:0,width:210,background:'#fff',borderRadius:12,border:'1px solid '+NB.bd,boxShadow:'0 14px 40px rgba(4,18,48,0.16)',padding:'12px 14px',zIndex:30}}>
+              <div style={{position:'absolute',top:42,right:0,width:210,background:'#fff',borderRadius:12,border:'1px solid '+NB.bd,boxShadow:'0 14px 40px rgba(4,18,48,0.16)',padding:'12px 14px',zIndex:30}}>
                 <div style={{fontSize:11,fontWeight:500,color:NB.mut2,textTransform:'uppercase',letterSpacing:'0.09em',marginBottom:9}}>Prioridade</div>
                 {PRIORITIES.map(p=>(
                   <label key={p} style={{display:'flex',alignItems:'center',gap:9,padding:'6px 0',cursor:'pointer',fontSize:13.5,color:NB.txt}}>
@@ -823,41 +778,15 @@ function TopBar() {
 
           <div style={{display:'flex',background:'#fff',border:'1px solid '+NB.bd,borderRadius:9,padding:2,gap:2}}>
             <button onClick={()=>setLayout('list')} title="Ver em lista"
-              style={{padding:'7px 10px',background:layout==='list'?NB.bdSoft:'transparent',border:'none',borderRadius:7,color:layout==='list'?NB.txt:NB.mut2,display:'flex',alignItems:'center'}}><IList/></button>
+              style={{padding:'6px 9px',background:layout==='list'?NB.bdSoft:'transparent',border:'none',borderRadius:7,color:layout==='list'?NB.txt:NB.mut2,display:'flex'}}><IList s={16}/></button>
             <button onClick={()=>setLayout('board')} title="Ver em quadro"
-              style={{padding:'7px 10px',background:layout==='board'?NB.bdSoft:'transparent',border:'none',borderRadius:7,color:layout==='board'?NB.txt:NB.mut2,display:'flex',alignItems:'center'}}><IBoard/></button>
+              style={{padding:'6px 9px',background:layout==='board'?NB.bdSoft:'transparent',border:'none',borderRadius:7,color:layout==='board'?NB.txt:NB.mut2,display:'flex'}}><IBoard s={16}/></button>
           </div>
-        </React.Fragment>
+
+          <button onClick={reset} title="Restaurar dados de exemplo"
+            style={{padding:'8px 10px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:9,color:NB.mut,display:'flex'}}><IRefresh s={15}/></button>
+        </div>
       )}
-
-      <IconBtn onClick={reset} title="Restaurar dados de exemplo"><IRefresh/></IconBtn>
-    </header>
-  );
-}
-
-function ModuleTabs() {
-  const { view, setView, slack, archived } = useApp();
-  const tabs = [
-    { id:'kanban',     label:'Kanban',            Icon:IKanban },
-    { id:'slack',      label:'Automações Slack',  Icon:ISlack,   n:slack.length },
-    { id:'arquivadas', label:'Arquivadas',        Icon:IArchive, n:archived.length },
-  ];
-  return (
-    <div style={{background:'#fff',borderBottom:'1px solid '+NB.bd,padding:'0 30px',display:'flex',gap:4,flexShrink:0,overflowX:'auto'}} className="nb-scrollnone">
-      {tabs.map(({id,label,Icon,n})=>{
-        const on = view===id;
-        return (
-          <button key={id} onClick={()=>setView(id)}
-            style={{display:'flex',alignItems:'center',gap:8,padding:'13px 14px',background:'none',border:'none',
-              borderBottom:'2px solid '+(on?NB.azul:'transparent'),
-              color:on?NB.azul:NB.mut,fontSize:13.5,fontWeight:500,whiteSpace:'nowrap',marginBottom:-1,transition:'color 0.12s'}}
-            onMouseEnter={e=>{ if(!on) e.currentTarget.style.color=NB.txt; }}
-            onMouseLeave={e=>{ if(!on) e.currentTarget.style.color=NB.mut; }}>
-            <Icon s={16}/> {label}
-            {n>0 && <span style={{background:on?'#EAF3FD':'#EEF2F8',color:on?NB.azul:NB.mut,fontSize:11,fontWeight:600,borderRadius:20,padding:'1px 7px'}}>{n}</span>}
-          </button>
-        );
-      })}
     </div>
   );
 }
@@ -2404,21 +2333,18 @@ function AppContent() {
   if (!authReady) return <Splash/>;
   if (!user)      return <LoginScreen/>;
   return (
-    <div style={{display:'flex',height:'100vh',width:'100%',overflow:'hidden',background:NB.bg}}
+    <div style={{display:'flex',flexDirection:'column',height:'100vh',width:'100%',overflow:'hidden',background:NB.bg}}
       onDragOver={e=>e.preventDefault()}
       onDrop={()=>setDragging(null)}>
-      <Sidebar/>
-      <div style={{flex:1,display:'flex',flexDirection:'column',minWidth:0,overflow:'hidden'}}>
-        <TopBar/>
-        <ModuleTabs/>
-        <main style={{flex:1,overflow:'hidden'}}>
-          {view==='kanban'     && <KanbanBoard/>}
-          {view==='slack'      && <SlackFeed/>}
-          {view==='arquivadas' && <ArchivedView/>}
-          {view==='social'     && <SocialPlannerView/>}
-          {view==='variacoes'  && <VariationsView/>}
-        </main>
-      </div>
+      <TopNav/>
+      <SubNav/>
+      <main style={{flex:1,overflow:'hidden',minHeight:0}}>
+        {view==='kanban'     && <KanbanBoard/>}
+        {view==='slack'      && <SlackFeed/>}
+        {view==='arquivadas' && <ArchivedView/>}
+        {view==='social'     && <SocialPlannerView/>}
+        {view==='variacoes'  && <VariationsView/>}
+      </main>
       <CardModal/>
       <NewModal/>
       <NotifyModal/>
