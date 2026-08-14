@@ -680,11 +680,21 @@ function Sidebar() {
         <div style={{padding:'0 12px 8px'}}>
           <div style={secLbl}>Pipelines</div>
           {areas.map(a => (
-            <NavItem key={a} label={a} Icon={AREA_ICON[a]}
-              iconColor={a==='Todas' ? '#8FB4E8' : AREA_CLR[a]}
-              count={a==='Todas' ? active.length : active.filter(d=>d.area===a).length}
-              active={area===a && view==='kanban'}
-              onClick={()=>{ setArea(a); setView('kanban'); }}/>
+            <React.Fragment key={a}>
+              <NavItem label={a} Icon={AREA_ICON[a]}
+                iconColor={a==='Todas' ? '#8FB4E8' : AREA_CLR[a]}
+                count={a==='Todas' ? active.length : active.filter(d=>d.area===a).length}
+                active={area===a && view==='kanban'}
+                onClick={()=>{ setArea(a); setView('kanban'); }}/>
+              {a==='Social' && area==='Social' && (
+                <div style={{paddingLeft:22,marginBottom:2}}>
+                  <NavItem label="Planejamento" Icon={ICal}
+                    iconColor={AREA_CLR.Social}
+                    active={view==='social'}
+                    onClick={()=>{ setArea('Social'); setView('social'); }}/>
+                </div>
+              )}
+            </React.Fragment>
           ))}
         </div>
 
@@ -692,7 +702,6 @@ function Sidebar() {
           <div style={secLbl}>Módulos</div>
           <NavItem label="Kanban" Icon={IKanban} iconColor="#8FB4E8" active={view==='kanban'} onClick={()=>setView('kanban')}/>
           <NavItem label="Automações Slack" Icon={ISlack} iconColor="#8FB4E8" count={slack.length} active={view==='slack'} onClick={()=>setView('slack')}/>
-          <NavItem label="Planejamento Social" Icon={IChat} iconColor={AREA_CLR.Social} active={view==='social'} onClick={()=>setView('social')}/>
           <NavItem label="Arquivadas" Icon={IArchive} iconColor="#8FB4E8" count={archived.length} active={view==='arquivadas'} onClick={()=>setView('arquivadas')}/>
         </div>
       </div>
@@ -950,7 +959,7 @@ function AreaBlock({ areaName, cards }) {
         </div>
         <div style={{display:'flex',gap:8,flexShrink:0}}>
           {areaName==='Social' && (
-            <button onClick={()=>setView('social')} title="Abrir o planejamento do Social"
+            <button onClick={()=>{setArea('Social'); setView('social');}} title="Abrir o planejamento do Social"
               style={{display:'flex',alignItems:'center',gap:7,padding:'7px 13px',background:'#EAF3FD',border:'1px solid '+NB.azul,borderRadius:9,fontSize:13,fontWeight:500,color:NB.azul,whiteSpace:'nowrap'}}>
               <ICal s={14}/> Planejamento
             </button>
