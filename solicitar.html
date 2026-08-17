@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Solicitar ao Marketing | Nibo</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%23002D72'/%3E%3Cg fill='%23B8CCEA'%3E%3Ccircle cx='50' cy='36.8' r='8.85'/%3E%3Ccircle cx='67.65' cy='63.2' r='8.85'/%3E%3Ccircle cx='32.35' cy='63.2' r='8.85'/%3E%3Cpath d='M48.978 45.591 A12 12 0 0 1 59.136 60.785 L68.672 54.409 A12 12 0 0 1 58.514 39.215 Z'/%3E%3C/g%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script>
+  firebase.initializeApp({
+    apiKey:            "AIzaSyDE6wv0kFOOJGWDjOX-mQ2s1kO0ktFdybs",
+    authDomain:        "dash-marketing-9302b.firebaseapp.com",
+    projectId:         "dash-marketing-9302b",
+    storageBucket:     "dash-marketing-9302b.firebasestorage.app",
+    messagingSenderId: "178405690302",
+    appId:             "1:178405690302:web:ba034d22ae0367f123c7ef",
+    measurementId:     "G-Y6F5EJ241Y"
+  });
+</script>
+<style>
+*, *::before, *::after { box-sizing:border-box; margin:0; padding:0; font-family:'Poppins',sans-serif; }
+body { background:#F4F7FC; color:#0B2A5C; min-height:100vh; }
+input, select, textarea, button { font-family:'Poppins',sans-serif; }
+button { cursor:pointer; }
+.campo { width:100%; background:#fff; border:1px solid #E8EDF5; border-radius:10px; padding:11px 14px; font-size:14px; color:#0B2A5C; outline:none; }
+.campo:focus { border-color:#0072CE; }
+.rot { display:block; font-size:11px; font-weight:500; color:#A9B4C6; text-transform:uppercase; letter-spacing:0.09em; margin-bottom:7px; }
+@keyframes spin { to { transform:rotate(360deg) } }
+.spin { width:18px; height:18px; border:2px solid #E8EDF5; border-top-color:#0072CE; border-radius:50%; animation:spin .7s linear infinite; display:inline-block; }
+@media (max-width:640px){ .dupla { grid-template-columns:1fr !important; } }
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+var TIPOS  = ['Arte / peça gráfica','Post para redes sociais','Landing page','E-mail / disparo','Vídeo','Apresentação','Outro'];
+var SETORES = ['RH','Comercial','Produto','Financeiro','Customer Success','Suporte','Diretoria','Outro'];
+var DOMINIO = '@nibo.com.br';
+var app = document.getElementById('app');
+var usuario = null;
+
+function marca(tam, bg, cor) {
+  return '<div style="width:'+tam+'px;height:'+tam+'px;border-radius:'+Math.round(tam*0.29)+'px;background:'+bg+';display:flex;align-items:center;justify-content:center;flex-shrink:0">'
+    + '<svg width="'+Math.round(tam*0.72)+'" height="'+Math.round(tam*0.72)+'" viewBox="0 0 100 100" fill="'+cor+'">'
+    + '<circle cx="50" cy="36.8" r="8.85"/><circle cx="67.65" cy="63.2" r="8.85"/><circle cx="32.35" cy="63.2" r="8.85"/>'
+    + '<path d="M48.978 45.591 A12 12 0 0 1 59.136 60.785 L68.672 54.409 A12 12 0 0 1 58.514 39.215 Z"/></svg></div>';
+}
+
+function moldura(conteudo, largura) {
+  return '<div style="min-height:100vh;display:flex;align-items:flex-start;justify-content:center;padding:40px 20px">'
+    + '<div style="width:100%;max-width:'+(largura||620)+'px">'
+    + '<div style="display:flex;align-items:center;gap:13px;margin-bottom:24px">'
+    +   marca(44,'#0072CE','#fff')
+    +   '<div><div style="font-size:19px;font-weight:600;letter-spacing:-0.01em">Solicitar ao Marketing</div>'
+    +   '<div style="font-size:13px;color:#7B879B">Nibo · time de Marketing</div></div>'
+    + '</div>' + conteudo + '</div></div>';
+}
+
+function telaLogin(erro) {
+  app.innerHTML = moldura(
+    '<div style="background:#fff;border:1px solid #E8EDF5;border-radius:16px;padding:36px 32px;box-shadow:0 1px 3px rgba(11,42,92,.05)">'
+    + '<h1 style="font-size:20px;font-weight:600;margin-bottom:8px">Entre para fazer seu pedido</h1>'
+    + '<p style="font-size:14px;color:#7B879B;line-height:1.6;margin-bottom:26px">Use sua conta Google do Nibo. Seu pedido vai para a fila do Marketing e a Mariana avalia a prioridade.</p>'
+    + '<button id="entrar" style="width:100%;display:flex;align-items:center;justify-content:center;gap:12px;padding:14px;background:#fff;border:1.5px solid #DADCE0;border-radius:11px;font-size:15px;font-weight:500;color:#3C4043">'
+    +   '<svg width="19" height="19" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>'
+    +   'Entrar com Google</button>'
+    + (erro ? '<div style="margin-top:16px;padding:12px 15px;background:#FEF2F2;border:1px solid #FECACA;border-radius:10px;font-size:13px;color:#991B1B;line-height:1.55">'+erro+'</div>' : '')
+    + '<p style="margin-top:24px;font-size:12.5px;color:#A9B4C6">Aberto para qualquer conta <strong style="color:#7B879B">'+DOMINIO+'</strong>.</p>'
+    + '</div>', 460);
+
+  document.getElementById('entrar').onclick = function () {
+    var p = new firebase.auth.GoogleAuthProvider();
+    p.setCustomParameters({ hd:'nibo.com.br', prompt:'select_account' });
+    firebase.auth().signInWithPopup(p)['catch'](function (e) {
+      if (e.code === 'auth/popup-closed-by-user' || e.code === 'auth/cancelled-popup-request') return;
+      telaLogin(e.code === 'auth/unauthorized-domain'
+        ? 'Este endereço não está autorizado no Firebase. Adicione o domínio em Authentication → Configurações → Domínios autorizados.'
+        : 'Não foi possível entrar. Erro: ' + e.code);
+    });
+  };
+}
+
+function opcoes(lista, sel) {
+  return lista.map(function (o) { return '<option'+(o===sel?' selected':'')+'>'+o+'</option>'; }).join('');
+}
+
+function telaForm(erro) {
+  var hoje = new Date(); hoje.setDate(hoje.getDate()+7);
+  var padrao = hoje.toISOString().split('T')[0];
+  app.innerHTML = moldura(
+    '<div style="background:#fff;border:1px solid #E8EDF5;border-radius:16px;padding:30px 32px;box-shadow:0 1px 3px rgba(11,42,92,.05)">'
+    + '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:22px;flex-wrap:wrap">'
+    +   '<div style="font-size:13px;color:#7B879B">Pedindo como <strong style="color:#0B2A5C;font-weight:500">'+usuario.nome+'</strong> · '+usuario.email+'</div>'
+    +   '<button id="sair" style="padding:6px 12px;background:#fff;border:1px solid #E8EDF5;border-radius:8px;font-size:12.5px;color:#7B879B">Trocar conta</button>'
+    + '</div>'
+    + '<label class="rot">O que você precisa</label>'
+    + '<input id="titulo" class="campo" placeholder="Ex: banner para a campanha de vagas de agosto" style="margin-bottom:18px">'
+    + '<div class="dupla" style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px">'
+    +   '<div><label class="rot">Seu setor</label><select id="setor" class="campo">'+opcoes(SETORES)+'</select></div>'
+    +   '<div><label class="rot">Tipo de material</label><select id="tipo" class="campo">'+opcoes(TIPOS)+'</select></div>'
+    + '</div>'
+    + '<label class="rot">Contexto e objetivo</label>'
+    + '<textarea id="descricao" class="campo" rows="4" placeholder="Para que serve, onde vai ser usado, qual mensagem precisa passar, se já existe algo parecido..." style="margin-bottom:18px;resize:vertical;line-height:1.6"></textarea>'
+    + '<div class="dupla" style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px">'
+    +   '<div><label class="rot">Precisa para quando</label><input id="prazo" type="date" class="campo" value="'+padrao+'"></div>'
+    +   '<div><label class="rot">Link de referência (opcional)</label><input id="ref" class="campo" placeholder="Drive, Figma, exemplo..."></div>'
+    + '</div>'
+    + (erro ? '<div style="margin-bottom:16px;padding:12px 15px;background:#FEF2F2;border:1px solid #FECACA;border-radius:10px;font-size:13px;color:#991B1B;line-height:1.55">'+erro+'</div>' : '')
+    + '<button id="enviar" style="width:100%;padding:14px;background:#0072CE;border:none;border-radius:11px;font-size:15px;font-weight:500;color:#fff;display:flex;align-items:center;justify-content:center;gap:10px">Enviar pedido</button>'
+    + '<p style="margin-top:16px;font-size:12.5px;color:#A9B4C6;line-height:1.6">O pedido entra na fila de triagem. A Mariana define prioridade e quem vai executar — você recebe retorno pelo Slack.</p>'
+    + '</div>');
+
+  document.getElementById('sair').onclick = function () { firebase.auth().signOut(); };
+  document.getElementById('enviar').onclick = enviar;
+}
+
+function enviar() {
+  var titulo = document.getElementById('titulo').value.trim();
+  var descricao = document.getElementById('descricao').value.trim();
+  if (!titulo) return telaForm('Escreva em uma linha o que você precisa.');
+  if (descricao.length < 15) return telaForm('Conte um pouco mais no contexto — sem isso o time precisa voltar para perguntar.');
+
+  var dados = {
+    titulo: titulo,
+    descricao: descricao,
+    setor: document.getElementById('setor').value,
+    tipo: document.getElementById('tipo').value,
+    prazo: document.getElementById('prazo').value,
+    referencia: document.getElementById('ref').value.trim(),
+    solicitante: usuario.nome,
+    email: usuario.email,
+    status: 'novo',
+    createdAt: new Date().toISOString(),
+    ts: Date.now()
+  };
+
+  var botao = document.getElementById('enviar');
+  botao.disabled = true;
+  botao.innerHTML = '<span class="spin"></span> Enviando...';
+
+  firebase.firestore().collection('solicitacoes').add(dados)
+    .then(function () { telaPronto(dados); })
+    ['catch'](function (e) {
+      telaForm(e.code === 'permission-denied'
+        ? 'Sem permissão para gravar. O time de Marketing precisa publicar as regras do Firestore.'
+        : 'Não foi possível enviar: ' + e.message);
+    });
+}
+
+function telaPronto(d) {
+  app.innerHTML = moldura(
+    '<div style="background:#fff;border:1px solid #E8EDF5;border-radius:16px;padding:44px 32px;text-align:center;box-shadow:0 1px 3px rgba(11,42,92,.05)">'
+    + '<div style="width:56px;height:56px;border-radius:50%;background:#E1F5EE;color:#0F6E56;display:flex;align-items:center;justify-content:center;margin:0 auto 18px">'
+    +   '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>'
+    + '<h1 style="font-size:20px;font-weight:600;margin-bottom:8px">Pedido enviado</h1>'
+    + '<p style="font-size:14px;color:#7B879B;line-height:1.65;max-width:400px;margin:0 auto 8px">'
+    +   '"<strong style="color:#0B2A5C;font-weight:500">'+d.titulo+'</strong>" entrou na fila de triagem do Marketing.</p>'
+    + '<p style="font-size:13px;color:#A9B4C6;line-height:1.6;margin-bottom:26px">A Mariana avalia a prioridade e te retorna pelo Slack.</p>'
+    + '<button id="outro" style="padding:12px 22px;background:#fff;border:1px solid #E8EDF5;border-radius:10px;font-size:14px;font-weight:500;color:#0072CE">Fazer outro pedido</button>'
+    + '</div>', 520);
+  document.getElementById('outro').onclick = function () { telaForm(); };
+}
+
+firebase.auth().onAuthStateChanged(function (u) {
+  if (!u) { usuario = null; return telaLogin(); }
+  var mail = (u.email || '').toLowerCase();
+  if (mail.slice(-DOMINIO.length) !== DOMINIO) {
+    firebase.auth().signOut();
+    return telaLogin('Acesso restrito a contas '+DOMINIO+'. Você entrou com '+mail+'.');
+  }
+  usuario = { nome: u.displayName || mail.split('@')[0], email: mail };
+  telaForm();
+});
+</script>
+</body>
+</html>
