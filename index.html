@@ -15,6 +15,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-storage-compat.js"></script>
 <script>
   firebase.initializeApp({
     apiKey:            "AIzaSyDE6wv0kFOOJGWDjOX-mQ2s1kO0ktFdybs",
@@ -180,7 +181,7 @@ function Provider({ children }) {
     try { const s=localStorage.getItem('nibo_attach_v1'); return s ? JSON.parse(s) : {}; } catch { return {}; }
   });
   const [storageWarn, setStorageWarn] = useState('');
-  const MAX_FILE = 700 * 1024;
+  const MAX_FILE = 20 * 1024 * 1024;   /* limite do Storage, nao mais do navegador */
 
   /* ---------- autenticação ---------- */
   const [fbUser, setFbUser]       = useState(null);
@@ -410,23 +411,60 @@ function Provider({ children }) {
     patch(demandId, { comments: (d.comments||[]).filter(c=>c.id!==cid) });
   }, [patch]);
 
-  /* Links vão para a nuvem; arquivos ficam neste navegador. */
+  /* Tudo vai para a nuvem: links no documento, arquivos no Storage. */
+  const anexosDe = (d) => [ ...((d && d.anexos) || []), ...((d && d.links) || []) ];
+
   const addAttachment = useCallback((demand, item) => {
     const rec = { ...item, id:'at'+Date.now()+Math.random().toString(36).slice(2,6), at:new Date().toISOString() };
-    if (rec.kind === 'link') {
-      patch(demand.id, { links: [ ...(demand.links||[]), rec ] });
-    } else {
-      setAttach(p => ({ ...p, [demand.id]: [ ...(p[demand.id]||[]), rec ] }));
-    }
+    patch(demand.id, { anexos: [ ...anexosDe(demand), rec ] });
     feed(demand, 'Anexo adicionado',
       (rec.kind==='link' ? 'Link' : 'Arquivo') + ' "' + rec.name + '" anexado por ' + rec.by,
       'Disponível no card ' + demand.code, 'move');
   }, [patch, feed]);
 
+  /* Envia o arquivo para o Storage e guarda só o endereço no documento. */
+  const uploadFile = useCallback((demand, file, onProgress) => {
+    if (!firebase.storage) return Promise.reject(new Error('Storage não está carregado.'));
+    if (file.size > MAX_FILE) return Promise.reject(new Error('"'+file.name+'" tem '+fmtBytes(file.size)+'. O limite é '+fmtBytes(MAX_FILE)+'.'));
+    const limpo = file.name.replace(/[^\w.\-]+/g,'_');
+    const caminho = 'anexos/' + demand.id + '/' + Date.now() + '-' + limpo;
+    const ref = firebase.storage().ref().child(caminho);
+    const tarefa = ref.put(file, { contentType: file.type || 'application/octet-stream' });
+    return new Promise((resolve, reject) => {
+      tarefa.on('state_changed',
+        snap => onProgress && onProgress(Math.round(snap.bytesTransferred / snap.totalBytes * 100)),
+        err => reject(new Error(err.code === 'storage/unauthorized'
+          ? 'Sem permissão no Storage. Publique as regras no console do Firebase.'
+          : 'Falha no envio: ' + err.message)),
+        () => ref.getDownloadURL().then(url => {
+          resolve({ kind:'file', name:file.name, size:file.size, mime:file.type, url, path:caminho });
+        }).catch(reject)
+      );
+    });
+  }, []);
+
+  /* Sobe para a nuvem um arquivo que ficou preso no navegador. */
+  const migrarLocal = useCallback((demand, att) => {
+    return fetch(att.data).then(r => r.blob()).then(blob => {
+      const file = new File([blob], att.name, { type: att.mime || blob.type });
+      return uploadFile(demand, file);
+    }).then(meta => {
+      patch(demand.id, { anexos: [ ...anexosDe(demand), { ...meta, id:att.id, at:att.at, by:att.by } ] });
+      setAttach(p => ({ ...p, [demand.id]: (p[demand.id]||[]).filter(a=>a.id!==att.id) }));
+    });
+  }, [uploadFile, patch]);
+
   const removeAttachment = useCallback((demandId, attId) => {
     const d = (window.__nbDem || []).find(x => x.id === demandId);
-    if (d && (d.links||[]).some(l=>l.id===attId)) {
-      patch(demandId, { links: (d.links||[]).filter(l=>l.id!==attId) });
+    const naNuvem = anexosDe(d).find(a => a.id === attId);
+    if (naNuvem) {
+      if (naNuvem.path && firebase.storage) {
+        firebase.storage().ref().child(naNuvem.path).delete().catch(()=>{});
+      }
+      patch(demandId, {
+        anexos: (d.anexos||[]).filter(a=>a.id!==attId),
+        links:  (d.links ||[]).filter(a=>a.id!==attId),
+      });
       return;
     }
     setAttach(p => ({ ...p, [demandId]: (p[demandId]||[]).filter(a=>a.id!==attId) }));
@@ -468,7 +506,7 @@ function Provider({ children }) {
   /* espelho usado pelas escritas para ler o estado mais recente sem recriar callbacks */
   window.__nbDem = demands;
 
-  return <Ctx.Provider value={{ demands, active, archived, filtered, slack, user, authReady, authError, setAuthError, dbReady, dbErro, seed, view, setView, layout, setLayout, area, setArea, query, setQuery, priFilter, setPriFilter, reqFilter, setReqFilter, selDemand, setModal, newOpen, setNewOpen, notifyPending, setNotifyPending, profileOpen, setProfileOpen, editStages, setEditStages, dragging, setDragging, photos, googlePhotos, profiles, pipes, salvarPipes, attach, comments, storageWarn, MAX_FILE, addAttachment, removeAttachment, addComment, removeComment, logout, savePhoto, removePhoto, saveProfile, addDemand, moveStage, moveArea, setAssignees, updateDemand, archiveDemand, restoreDemand, delDemand }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ demands, active, archived, filtered, slack, user, authReady, authError, setAuthError, dbReady, dbErro, seed, view, setView, layout, setLayout, area, setArea, query, setQuery, priFilter, setPriFilter, reqFilter, setReqFilter, selDemand, setModal, newOpen, setNewOpen, notifyPending, setNotifyPending, profileOpen, setProfileOpen, editStages, setEditStages, dragging, setDragging, photos, googlePhotos, profiles, pipes, salvarPipes, attach, comments, storageWarn, MAX_FILE, addAttachment, uploadFile, migrarLocal, removeAttachment, addComment, removeComment, logout, savePhoto, removePhoto, saveProfile, addDemand, moveStage, moveArea, setAssignees, updateDemand, archiveDemand, restoreDemand, delDemand }}>{children}</Ctx.Provider>;
 }
 
 const useApp = () => useContext(Ctx);
@@ -1761,14 +1799,15 @@ const fmtBytes = b => b < 1024 ? b+' B' : b < 1048576 ? (b/1024).toFixed(0)+' KB
 const fmtWhen = iso => { const d=new Date(iso); return d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})+' às '+d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}); };
 
 function AttachPanel({ demand }) {
-  const { attach, addAttachment, removeAttachment, user, MAX_FILE, storageWarn } = useApp();
-  const nuvem = (demand.links || []).map(l => ({ ...l, kind:'link', origem:'nuvem' }));
+  const { attach, addAttachment, uploadFile, migrarLocal, removeAttachment, user, MAX_FILE, storageWarn } = useApp();
+  const nuvem  = [ ...(demand.anexos||[]), ...(demand.links||[]) ].map(a => ({ ...a, origem:'nuvem' }));
   const locais = (attach[demand.id] || []).map(a => ({ ...a, origem:'local' }));
   const list = [...nuvem, ...locais];
   const fileRef = useRef(null);
-  const [mode, setMode] = useState(null);          // null | 'link'
+  const [mode, setMode] = useState(null);
   const [ln, setLn] = useState({ name:'', url:'' });
   const [err, setErr] = useState('');
+  const [subindo, setSubindo] = useState([]);   // [{nome, pct}]
 
   const saveLink = () => {
     let url = ln.url.trim();
@@ -1784,20 +1823,31 @@ function AttachPanel({ demand }) {
     e.target.value = '';
     setErr('');
     files.forEach(f => {
-      if (f.size > MAX_FILE) {
-        setErr('"'+f.name+'" tem '+fmtBytes(f.size)+'. O limite é '+fmtBytes(MAX_FILE)+' — para arquivos maiores, use um link do Drive ou Canva.');
-        return;
-      }
-      const rd = new FileReader();
-      rd.onload = () => addAttachment(demand, { kind:'file', name:f.name, size:f.size, mime:f.type, data:rd.result, by:user.name });
-      rd.onerror = () => setErr('Não foi possível ler "'+f.name+'".');
-      rd.readAsDataURL(f);
+      const chave = f.name + Math.random();
+      setSubindo(s => [...s, { chave, nome:f.name, pct:0 }]);
+      uploadFile(demand, f, pct => setSubindo(s => s.map(x => x.chave===chave ? {...x, pct} : x)))
+        .then(meta => {
+          addAttachment(demand, { ...meta, by:user.name });
+          setSubindo(s => s.filter(x => x.chave!==chave));
+        })
+        .catch(erro => {
+          setErr(erro.message);
+          setSubindo(s => s.filter(x => x.chave!==chave));
+        });
     });
+  };
+
+  const enviarLocal = att => {
+    const chave = att.name + Math.random();
+    setSubindo(s => [...s, { chave, nome:att.name, pct:0 }]);
+    migrarLocal(demand, att)
+      .then(() => setSubindo(s => s.filter(x=>x.chave!==chave)))
+      .catch(e => { setErr(e.message); setSubindo(s => s.filter(x=>x.chave!==chave)); });
   };
 
   return (
     <div>
-      <div style={{display:'flex',gap:9,marginBottom:list.length||mode?14:0,flexWrap:'wrap'}}>
+      <div style={{display:'flex',gap:9,marginBottom:list.length||mode||subindo.length?14:0,flexWrap:'wrap'}}>
         <button onClick={()=>fileRef.current && fileRef.current.click()}
           style={{display:'flex',alignItems:'center',gap:7,padding:'9px 14px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:9,fontSize:13,fontWeight:500,color:NB.mut}}>
           <IClip s={15}/> Anexar arquivo
@@ -1824,6 +1874,18 @@ function AttachPanel({ demand }) {
         </div>
       )}
 
+      {subindo.map(u=>(
+        <div key={u.chave} style={{marginBottom:9,background:NB.col,border:'1px solid '+NB.bd,borderRadius:10,padding:'11px 13px'}}>
+          <div style={{display:'flex',justifyContent:'space-between',gap:10,marginBottom:7}}>
+            <span style={{fontSize:12.5,color:NB.txt,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>Enviando {u.nome}</span>
+            <span style={{fontSize:12,color:NB.azul,fontWeight:500,flexShrink:0}}>{u.pct}%</span>
+          </div>
+          <div style={{height:5,background:'#E3EAF5',borderRadius:3,overflow:'hidden'}}>
+            <div style={{width:u.pct+'%',height:'100%',background:NB.azul,transition:'width 0.2s'}}/>
+          </div>
+        </div>
+      ))}
+
       {(err || storageWarn) && (
         <div style={{marginBottom:12,padding:'10px 13px',background:'#FFF6DE',border:'1px solid #F3D98A',borderRadius:9,fontSize:12.5,color:'#8A6206',lineHeight:1.55}}>
           {err || storageWarn}
@@ -1832,31 +1894,38 @@ function AttachPanel({ demand }) {
 
       {list.length===0 ? (
         <p style={{fontSize:13,color:NB.mut2,lineHeight:1.6}}>
-          Nenhum anexo ainda. Links ficam salvos na nuvem e todo mundo vê; arquivos até {fmtBytes(MAX_FILE)} ficam só neste navegador — para peças do Canva ou Drive, prefira o link.
+          Nenhum anexo ainda. Arquivos até {fmtBytes(MAX_FILE)} e links ficam salvos na nuvem — todo mundo do time vê.
         </p>
       ) : (
         <div style={{display:'flex',flexDirection:'column',gap:8}}>
           {list.map(a=>{
             const img = a.kind==='file' && a.mime && a.mime.startsWith('image/');
+            const src = a.url || a.data;
             return (
               <div key={a.id} style={{display:'flex',alignItems:'center',gap:12,background:'#fff',border:'1px solid '+NB.bd,borderRadius:10,padding:'10px 12px'}}>
                 {img
-                  ? <img src={a.data} alt="" style={{width:38,height:38,borderRadius:8,objectFit:'cover',flexShrink:0,border:'1px solid '+NB.bd}}/>
+                  ? <img src={src} alt="" style={{width:38,height:38,borderRadius:8,objectFit:'cover',flexShrink:0,border:'1px solid '+NB.bd}}/>
                   : <div style={{width:38,height:38,borderRadius:8,background:a.kind==='link'?'#EAF3FD':NB.col,color:a.kind==='link'?NB.azul:NB.mut,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
                       {a.kind==='link' ? <ILink s={17}/> : <IFile s={17}/>}
                     </div>}
                 <div style={{flex:1,minWidth:0}}>
                   <div style={{fontSize:13.5,fontWeight:500,color:NB.txt,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{a.name}</div>
                   <div style={{fontSize:11.5,color:NB.mut2,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>
-                    {a.kind==='file' ? fmtBytes(a.size)+' · ' : ''}{a.by} · {fmtWhen(a.at)}
+                    {a.kind==='file' && a.size ? fmtBytes(a.size)+' · ' : ''}{a.by} · {fmtWhen(a.at)}
                     {a.origem==='local' && <span style={{marginLeft:7,color:'#8A6206',background:'#FFF6DE',border:'1px solid #F3D98A',borderRadius:5,padding:'1px 6px',fontSize:10.5}}>só neste navegador</span>}
                   </div>
                 </div>
                 <div style={{display:'flex',gap:5,flexShrink:0}}>
+                  {a.origem==='local' && (
+                    <button onClick={()=>enviarLocal(a)} title="Enviar para a nuvem"
+                      style={{padding:'7px 11px',border:'1px solid '+NB.azul,borderRadius:8,color:NB.azul,background:'#EAF3FD',display:'flex',fontSize:12,fontWeight:500,whiteSpace:'nowrap'}}>
+                      Enviar
+                    </button>
+                  )}
                   {a.kind==='link'
                     ? <a href={a.url} target="_blank" rel="noopener noreferrer" title="Abrir link"
                         style={{padding:'7px 9px',border:'1px solid '+NB.bd,borderRadius:8,color:NB.mut,display:'flex',textDecoration:'none'}}><IExt/></a>
-                    : <a href={a.data} download={a.name} title="Baixar"
+                    : <a href={src} download={a.name} target="_blank" rel="noopener noreferrer" title="Baixar"
                         style={{padding:'7px 9px',border:'1px solid '+NB.bd,borderRadius:8,color:NB.mut,display:'flex',textDecoration:'none'}}><IDown/></a>}
                   <button onClick={()=>removeAttachment(demand.id,a.id)} title="Remover"
                     style={{padding:'7px 9px',border:'1px solid '+NB.bd,borderRadius:8,color:NB.mut,background:'#fff',display:'flex'}}
@@ -2019,7 +2088,7 @@ function briefing(tema, publico) {
 }
 
 function VariationsView() {
-  const { active, addAttachment, user, MAX_FILE } = useApp();
+  const { active, addAttachment, uploadFile, user, MAX_FILE } = useApp();
   const [img, setImg]     = useState(null);
   const [imgName, setName]= useState('');
   const [modo, setModo]   = useState('formatos');
@@ -2065,13 +2134,19 @@ function VariationsView() {
     document.body.appendChild(a); a.click(); a.remove();
   };
 
+  /* A variação vai para o Storage, como qualquer outro anexo. */
   const salvar = o => {
     const dem = designs.find(d => d.id === alvo);
     if (!dem) return setErr('Escolha em qual demanda salvar, no seletor acima.');
-    const bytes = Math.round(o.url.length * 0.75);
-    if (bytes > MAX_FILE) return setErr('Essa variação tem ' + fmtBytes(bytes) + ' e passa do limite de anexo. Use o botão de baixar.');
-    addAttachment(dem, { kind:'file', name:imgName+'-'+o.key+'.png', size:bytes, mime:'image/png', data:o.url, by:user.name });
-    setErr(''); setOk('Salvo nos anexos de ' + dem.code); setTimeout(()=>setOk(''), 2500);
+    const nome = imgName + '-' + o.key + '.png';
+    setErr(''); setOk('Enviando ' + o.label + '…');
+    fetch(o.url).then(r => r.blob()).then(blob => {
+      const file = new File([blob], nome, { type:'image/png' });
+      return uploadFile(dem, file);
+    }).then(meta => {
+      addAttachment(dem, { ...meta, by:user.name });
+      setOk('Salvo nos anexos de ' + dem.code); setTimeout(()=>setOk(''), 2500);
+    }).catch(e => { setOk(''); setErr(e.message); });
   };
 
   const btn = on => ({display:'flex',alignItems:'center',gap:7,padding:'9px 14px',borderRadius:9,
