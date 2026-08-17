@@ -157,6 +157,7 @@ const Ctx = createContext(null);
 function Provider({ children }) {
   /* ---------- dados compartilhados (Firestore) ---------- */
   const [demands, setDemands] = useState([]);
+  const [pedidos, setPedidos] = useState([]);
   const [slack, setSlack]     = useState([]);
   const [pipes, setPipes]     = useState(DEFAULT_PIPELINES);
   const [dbReady, setDbReady] = useState(false);
@@ -252,12 +253,16 @@ function Provider({ children }) {
       setSlack(snap.docs.map(d => ({ id:d.id, ...d.data() })));
     }, erro);
 
+    const u4 = db.collection('solicitacoes').onSnapshot(snap => {
+      setPedidos(snap.docs.map(d => ({ id:d.id, ...d.data() })));
+    }, erro);
+
     const u3 = db.collection('config').doc('pipes').onSnapshot(doc => {
       const d = doc.exists ? doc.data() : null;
       setPipes(d && d.data ? d.data : DEFAULT_PIPELINES);
     }, erro);
 
-    return () => { u1(); u2(); u3(); };
+    return () => { u1(); u2(); u3(); u4(); };
   }, [baseUser]);
 
   /* Ao entrar, cai direto no próprio setor. Quem aprova cai na fila de Gestão. */
@@ -490,6 +495,27 @@ function Provider({ children }) {
       .catch(e=>setDbErro('Não foi possível salvar as etapas: '+e.message));
   }, []);
 
+  /* Vira demanda de verdade e some da fila. */
+  const aceitarPedido = useCallback((pedido, dados) => {
+    const db = dbRef.current; if (!db) return;
+    addDemand({
+      title: dados.title, area: dados.area, priority: dados.priority,
+      deadline: dados.deadline, description: dados.description,
+      requester: pedido.solicitante, assignees: dados.assignees,
+      origem: { pedidoId: pedido.id, setor: pedido.setor, email: pedido.email },
+    });
+    db.collection('solicitacoes').doc(pedido.id)
+      .update({ status:'aceita', decididoPor: (user && user.name) || '', decididoEm: new Date().toISOString() })
+      .catch(e => setDbErro('Não foi possível atualizar o pedido: '+e.message));
+  }, [addDemand, user]);
+
+  const recusarPedido = useCallback((pedido, motivo) => {
+    const db = dbRef.current; if (!db) return;
+    db.collection('solicitacoes').doc(pedido.id)
+      .update({ status:'recusada', motivo: motivo||'', decididoPor: (user && user.name) || '', decididoEm: new Date().toISOString() })
+      .catch(e => setDbErro('Não foi possível atualizar o pedido: '+e.message));
+  }, [user]);
+
   const seed = useCallback(() => {
     const db = dbRef.current; if (!db) return;
     const lote = db.batch();
@@ -520,7 +546,7 @@ function Provider({ children }) {
   /* espelho usado pelas escritas para ler o estado mais recente sem recriar callbacks */
   window.__nbDem = demands;
 
-  return <Ctx.Provider value={{ demands, active, archived, filtered, slack, user, authReady, authError, setAuthError, dbReady, dbErro, seed, view, setView, layout, setLayout, area, setArea, query, setQuery, priFilter, setPriFilter, reqFilter, setReqFilter, selDemand, setModal, newOpen, setNewOpen, notifyPending, setNotifyPending, profileOpen, setProfileOpen, editStages, setEditStages, dragging, setDragging, photos, googlePhotos, profiles, pipes, salvarPipes, attach, comments, storageWarn, MAX_FILE, addAttachment, uploadFile, migrarLocal, carregarAnexo, removeAttachment, addComment, removeComment, logout, savePhoto, removePhoto, saveProfile, addDemand, moveStage, moveArea, setAssignees, updateDemand, archiveDemand, restoreDemand, delDemand }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ demands, active, archived, filtered, slack, user, authReady, authError, setAuthError, dbReady, dbErro, seed, pedidos, aceitarPedido, recusarPedido, view, setView, layout, setLayout, area, setArea, query, setQuery, priFilter, setPriFilter, reqFilter, setReqFilter, selDemand, setModal, newOpen, setNewOpen, notifyPending, setNotifyPending, profileOpen, setProfileOpen, editStages, setEditStages, dragging, setDragging, photos, googlePhotos, profiles, pipes, salvarPipes, attach, comments, storageWarn, MAX_FILE, addAttachment, uploadFile, migrarLocal, carregarAnexo, removeAttachment, addComment, removeComment, logout, savePhoto, removePhoto, saveProfile, addDemand, moveStage, moveArea, setAssignees, updateDemand, archiveDemand, restoreDemand, delDemand }}>{children}</Ctx.Provider>;
 }
 
 const useApp = () => useContext(Ctx);
@@ -578,6 +604,7 @@ const IDown    = ({s=13})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}
 const ITrash   = ({s=14})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>;
 const IStamp   = ({s=18})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}><path d="M5 21h14"/><path d="M4 17.5h16v-1a2 2 0 0 0-2-2h-3.2l.6-4.3A3.4 3.4 0 0 0 12 6.2a3.4 3.4 0 0 0-3.4 4l.6 4.3H6a2 2 0 0 0-2 2z"/></svg>;
 const IGear    = ({s=15})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6h.09A1.65 1.65 0 0 0 10 3.09V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9v.09a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>;
+const IInbox   = ({s=18})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}><polyline points="21 8 21 21 3 21 3 8"/><path d="M3 8l2.2-5h13.6L21 8"/><path d="M3 13h5l1.5 2.5h5L16 13h5"/></svg>;
 const IArrowR  = ({s=14})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}><line x1="4" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/></svg>;
 const IArrowL  = ({s=14})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}><line x1="20" y1="12" x2="5" y2="12"/><polyline points="11 6 5 12 11 18"/></svg>;
 const IGoogle = ({size=20})=><svg width={size} height={size} viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>;
@@ -748,13 +775,13 @@ function PipeTab({ label, Icon, count, active, onClick }) {
 }
 
 function TopNav() {
-  const { view, setView, area, setArea, user, active, pipes, setNewOpen, setProfileOpen, logout } = useApp();
+  const { view, setView, area, setArea, user, active, pipes, pedidos, setNewOpen, setProfileOpen, logout } = useApp();
   const areas = ['Social','Design','Mídia Paga','Produto','RevOps','Todas'];
   const vencidas = active.filter(d => { const s=getSla(d.deadline); return s && s.type!=='ok'; }).length;
   const emAprovacao = active.filter(d => {
     const st = (pipes[d.area]||[]).find(x => x.id === d.stageId);
     return st && st.isApproval;
-  }).length;
+  }).length + pedidos.filter(p => p.status === 'novo').length;
   const [menu, setMenu] = useState(false);
 
   return (
@@ -1081,6 +1108,121 @@ function AreaPeople({ areaName, cards, max=5 }) {
   );
 }
 
+/* =========== TRIAGEM DE PEDIDOS EXTERNOS =========== */
+function PedidoCard({ pedido }) {
+  const { aceitarPedido, recusarPedido, user, pipes } = useApp();
+  const [modo, setModo] = useState(null);      // aceitar | recusar
+  const [motivo, setMotivo] = useState('');
+  const [form, setForm] = useState({
+    title: pedido.titulo, area: 'Design', priority: 'Média',
+    deadline: pedido.prazo || dStr(7), description: '', assignees: [],
+  });
+
+  useEffect(() => {
+    if (modo === 'aceitar') setForm(f => ({
+      ...f, title: pedido.titulo, deadline: pedido.prazo || dStr(7),
+      description: pedido.descricao + (pedido.referencia ? '\n\nReferência: ' + pedido.referencia : '')
+        + '\n\nPedido de ' + pedido.solicitante + ' (' + pedido.setor + ')',
+    }));
+  }, [modo]);
+
+  const podeDecidir = !!user.isApprover;
+  const set = (k,v) => setForm(f => ({...f, [k]:v}));
+  const toggle = i => setForm(f => ({ ...f, assignees: f.assignees.includes(i) ? f.assignees.filter(x=>x!==i) : [...f.assignees, i] }));
+  const valido = form.title.trim() && form.assignees.length > 0;
+
+  return (
+    <div style={{background:'#fff',border:'1px solid #F3D98A',borderLeft:'4px solid #E0A100',borderRadius:13,padding:'16px 18px',boxShadow:'0 1px 3px rgba(11,42,92,0.04)'}}>
+      <div style={{display:'flex',alignItems:'center',gap:9,marginBottom:9,flexWrap:'wrap'}}>
+        <span style={{background:'#FFF6DE',border:'1px solid #F3D98A',color:'#8A6206',fontSize:11,fontWeight:600,padding:'2px 9px',borderRadius:6}}>{pedido.setor}</span>
+        <span style={{fontSize:12.5,color:NB.mut}}>{pedido.tipo}</span>
+        <span style={{fontSize:12,color:NB.mut2}}>· {pedido.solicitante}</span>
+        {pedido.prazo && <span style={{fontSize:12,color:NB.mut2}}>· precisa em {fmtDate(pedido.prazo)}</span>}
+      </div>
+
+      <div style={{fontSize:15,fontWeight:500,color:NB.txt,lineHeight:1.4,marginBottom:9}}>{pedido.titulo}</div>
+      <p style={{fontSize:13.5,color:'#3D4B63',lineHeight:1.6,marginBottom:pedido.referencia?8:14,whiteSpace:'pre-wrap'}}>{pedido.descricao}</p>
+      {pedido.referencia && (
+        <a href={pedido.referencia} target="_blank" rel="noopener noreferrer"
+          style={{display:'inline-flex',alignItems:'center',gap:6,fontSize:12.5,color:NB.azul,textDecoration:'none',marginBottom:14}}>
+          <ILink s={13}/> referência
+        </a>
+      )}
+
+      {!podeDecidir ? (
+        <div style={{fontSize:12.5,color:NB.mut2,background:NB.col,border:'1px solid '+NB.bd,borderRadius:9,padding:'10px 13px',lineHeight:1.55}}>
+          Aguardando a triagem de @Mariana Araújo.
+        </div>
+      ) : modo === 'recusar' ? (
+        <div style={{background:NB.col,border:'1px solid '+NB.bd,borderRadius:10,padding:'13px 14px'}}>
+          <div style={{...lbl,marginBottom:7}}>Motivo (a pessoa recebe esse retorno)</div>
+          <textarea value={motivo} onChange={e=>setMotivo(e.target.value)} rows={2} autoFocus
+            placeholder="Ex: já existe uma peça pronta pra isso, vou te mandar o link"
+            style={{...inp,padding:'9px 12px',fontSize:13.5,resize:'vertical'}}/>
+          <div style={{display:'flex',gap:8,justifyContent:'flex-end',marginTop:10}}>
+            <button onClick={()=>{setModo(null); setMotivo('');}}
+              style={{padding:'8px 14px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:8,fontSize:12.5,fontWeight:500,color:NB.mut}}>Cancelar</button>
+            <button onClick={()=>recusarPedido(pedido, motivo)}
+              style={{padding:'8px 16px',background:'#B4232A',border:'none',borderRadius:8,fontSize:12.5,fontWeight:500,color:'#fff'}}>Recusar pedido</button>
+          </div>
+        </div>
+      ) : modo === 'aceitar' ? (
+        <div style={{background:NB.col,border:'1px solid '+NB.bd,borderRadius:10,padding:'14px 15px',display:'flex',flexDirection:'column',gap:13}}>
+          <div>
+            <div style={{...lbl,marginBottom:6}}>Título da demanda</div>
+            <input value={form.title} onChange={e=>set('title',e.target.value)} style={{...inp,padding:'9px 12px',fontSize:13.5}}/>
+          </div>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:11}}>
+            <div>
+              <div style={{...lbl,marginBottom:6}}>Área</div>
+              <select value={form.area} onChange={e=>set('area',e.target.value)} style={{...inp,padding:'9px 12px',fontSize:13.5}}>
+                {Object.keys(pipes).map(a=><option key={a}>{a}</option>)}
+              </select>
+            </div>
+            <div>
+              <div style={{...lbl,marginBottom:6}}>Prioridade</div>
+              <select value={form.priority} onChange={e=>set('priority',e.target.value)} style={{...inp,padding:'9px 12px',fontSize:13.5}}>
+                {PRIORITIES.map(p=><option key={p}>{p}</option>)}
+              </select>
+            </div>
+            <div>
+              <div style={{...lbl,marginBottom:6}}>Prazo</div>
+              <input type="date" value={form.deadline} onChange={e=>set('deadline',e.target.value)} style={{...inp,padding:'9px 12px',fontSize:13.5}}/>
+            </div>
+          </div>
+          <div>
+            <div style={{...lbl,marginBottom:6}}>Quem executa</div>
+            <div style={{display:'flex',flexWrap:'wrap',gap:7}}>
+              {ACTIVE_TEAM.map(m => (
+                <AssigneePick key={m.id} member={m} checked={form.assignees.includes(m.initials)} onToggle={()=>toggle(m.initials)}/>
+              ))}
+            </div>
+          </div>
+          <div style={{display:'flex',gap:8,justifyContent:'flex-end'}}>
+            <button onClick={()=>setModo(null)}
+              style={{padding:'9px 15px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:8,fontSize:12.5,fontWeight:500,color:NB.mut}}>Cancelar</button>
+            <button onClick={()=>aceitarPedido(pedido, form)} disabled={!valido}
+              style={{padding:'9px 18px',background:valido?'#0F6E56':'#CFD8E6',border:'none',borderRadius:8,fontSize:12.5,fontWeight:500,color:'#fff',cursor:valido?'pointer':'not-allowed'}}>
+              Criar demanda
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div style={{display:'flex',gap:9,flexWrap:'wrap'}}>
+          <button onClick={()=>setModo('aceitar')}
+            style={{display:'flex',alignItems:'center',gap:7,padding:'10px 17px',background:'#0F6E56',border:'none',borderRadius:9,fontSize:13,fontWeight:500,color:'#fff'}}>
+            <ICheck s={14}/> Aceitar e distribuir
+          </button>
+          <button onClick={()=>setModo('recusar')}
+            style={{padding:'10px 17px',background:'#fff',border:'1px solid #FBD5D5',borderRadius:9,fontSize:13,fontWeight:500,color:'#B4232A'}}>
+            Recusar
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* =========== GESTÃO — fila de aprovação =========== */
 function ApprovalCard({ demand }) {
   const { moveStage, setNotifyPending, addComment, user, setModal, attach, comments, pipes } = useApp();
@@ -1174,7 +1316,10 @@ function ApprovalCard({ demand }) {
 }
 
 function GestaoView() {
-  const { active, user, pipes } = useApp();
+  const { active, user, pipes, pedidos } = useApp();
+  const novos = pedidos.filter(p => p.status === 'novo');
+  const [copiado, setCopiado] = useState(false);
+  const linkForm = window.location.origin + '/solicitar.html';
   const emAprovacao = active.filter(d => {
     const st = (pipes[d.area]||[]).find(s => s.id === d.stageId);
     return st && st.isApproval;
@@ -1186,6 +1331,31 @@ function GestaoView() {
 
   return (
     <div style={{padding:'22px 30px 30px',overflowY:'auto',overflowX:'hidden',height:'100%'}}>
+
+      {/* Pedidos de outros setores */}
+      <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:14,flexWrap:'wrap'}}>
+        <span style={{display:'inline-flex',alignItems:'center',gap:9,fontSize:17,fontWeight:600,color:NB.txt}}>
+          <span style={{color:'#E0A100',display:'flex'}}><IInbox s={19}/></span> Pedidos de outros setores
+        </span>
+        <span style={{fontSize:13.5,color:NB.mut}}>
+          {novos.length===0 ? 'nada na fila' : novos.length + (novos.length===1?' aguardando triagem':' aguardando triagem')}
+        </span>
+        <button onClick={()=>{ navigator.clipboard && navigator.clipboard.writeText(linkForm); setCopiado(true); setTimeout(()=>setCopiado(false),2000); }}
+          style={{marginLeft:'auto',display:'flex',alignItems:'center',gap:7,padding:'8px 14px',background:copiado?'#E1F5EE':'#fff',border:'1px solid '+(copiado?'#0F6E56':NB.bd),borderRadius:9,fontSize:12.5,fontWeight:500,color:copiado?'#0F6E56':NB.mut,whiteSpace:'nowrap'}}>
+          <ILink s={13}/> {copiado ? 'Link copiado' : 'Copiar link do formulário'}
+        </button>
+      </div>
+
+      {novos.length===0 ? (
+        <div style={{background:'#fff',borderRadius:14,border:'1px solid '+NB.bd,padding:'26px 22px',marginBottom:30,fontSize:13.5,color:NB.mut,lineHeight:1.6}}>
+          Nenhum pedido externo na fila. Compartilhe o link do formulário com RH, Comercial e demais áreas — o que chegar aparece aqui para você distribuir.
+        </div>
+      ) : (
+        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(400px,1fr))',gap:14,marginBottom:30}}>
+          {novos.map(p => <PedidoCard key={p.id} pedido={p}/>)}
+        </div>
+      )}
+
       <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:18,flexWrap:'wrap'}}>
         <span style={{display:'inline-flex',alignItems:'center',gap:9,fontSize:17,fontWeight:600,color:NB.txt}}>
           <span style={{color:NB.azul,display:'flex'}}><IStamp s={19}/></span> Aguardando aprovação
