@@ -15,7 +15,6 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-storage-compat.js"></script>
 <script>
   firebase.initializeApp({
     apiKey:            "AIzaSyDE6wv0kFOOJGWDjOX-mQ2s1kO0ktFdybs",
@@ -181,7 +180,7 @@ function Provider({ children }) {
     try { const s=localStorage.getItem('nibo_attach_v1'); return s ? JSON.parse(s) : {}; } catch { return {}; }
   });
   const [storageWarn, setStorageWarn] = useState('');
-  const MAX_FILE = 20 * 1024 * 1024;   /* limite do Storage, nao mais do navegador */
+  const MAX_FILE = 700 * 1024;   /* um documento do Firestore aceita 1 MB */
 
   /* ---------- autenticação ---------- */
   const [fbUser, setFbUser]       = useState(null);
@@ -414,6 +413,14 @@ function Provider({ children }) {
   /* Tudo vai para a nuvem: links no documento, arquivos no Storage. */
   const anexosDe = (d) => [ ...((d && d.anexos) || []), ...((d && d.links) || []) ];
 
+  /* Busca o conteúdo de um anexo só quando o card é aberto. */
+  const carregarAnexo = useCallback((anexoId) => {
+    const db = dbRef.current;
+    if (!db) return Promise.reject(new Error('Sem conexão.'));
+    return db.collection('anexos').doc(anexoId).get()
+      .then(doc => doc.exists ? doc.data() : null);
+  }, []);
+
   const addAttachment = useCallback((demand, item) => {
     const rec = { ...item, id:'at'+Date.now()+Math.random().toString(36).slice(2,6), at:new Date().toISOString() };
     patch(demand.id, { anexos: [ ...anexosDe(demand), rec ] });
@@ -422,24 +429,31 @@ function Provider({ children }) {
       'Disponível no card ' + demand.code, 'move');
   }, [patch, feed]);
 
-  /* Envia o arquivo para o Storage e guarda só o endereço no documento. */
+  /* Cada arquivo vira um documento próprio na coleção anexos, para que
+     um anexo grande nunca comprometa o documento da demanda. */
   const uploadFile = useCallback((demand, file, onProgress) => {
-    if (!firebase.storage) return Promise.reject(new Error('Storage não está carregado.'));
-    if (file.size > MAX_FILE) return Promise.reject(new Error('"'+file.name+'" tem '+fmtBytes(file.size)+'. O limite é '+fmtBytes(MAX_FILE)+'.'));
-    const limpo = file.name.replace(/[^\w.\-]+/g,'_');
-    const caminho = 'anexos/' + demand.id + '/' + Date.now() + '-' + limpo;
-    const ref = firebase.storage().ref().child(caminho);
-    const tarefa = ref.put(file, { contentType: file.type || 'application/octet-stream' });
+    const db = dbRef.current;
+    if (!db) return Promise.reject(new Error('Sem conexão com o banco.'));
+    if (file.size > MAX_FILE) return Promise.reject(new Error(
+      '"'+file.name+'" tem '+fmtBytes(file.size)+' e o limite é '+fmtBytes(MAX_FILE)+'. Suba no Drive ou Canva e anexe o link.'));
     return new Promise((resolve, reject) => {
-      tarefa.on('state_changed',
-        snap => onProgress && onProgress(Math.round(snap.bytesTransferred / snap.totalBytes * 100)),
-        err => reject(new Error(err.code === 'storage/unauthorized'
-          ? 'Sem permissão no Storage. Publique as regras no console do Firebase.'
-          : 'Falha no envio: ' + err.message)),
-        () => ref.getDownloadURL().then(url => {
-          resolve({ kind:'file', name:file.name, size:file.size, mime:file.type, url, path:caminho });
-        }).catch(reject)
-      );
+      const rd = new FileReader();
+      rd.onprogress = e => { if (e.lengthComputable && onProgress) onProgress(Math.round(e.loaded/e.total*70)); };
+      rd.onerror = () => reject(new Error('Não consegui ler "'+file.name+'".'));
+      rd.onload = () => {
+        onProgress && onProgress(80);
+        db.collection('anexos').add({
+          demandaId: demand.id, name: file.name, size: file.size,
+          mime: file.type || 'application/octet-stream', data: rd.result, at: new Date().toISOString(),
+        }).then(ref => {
+          onProgress && onProgress(100);
+          resolve({ kind:'file', name:file.name, size:file.size, mime:file.type, anexoId: ref.id });
+        }).catch(e => reject(new Error(
+          e.code === 'permission-denied'
+            ? 'Sem permissão para gravar anexos. Republique as regras do Firestore.'
+            : 'Não foi possível salvar o arquivo: ' + e.message)));
+      };
+      rd.readAsDataURL(file);
     });
   }, []);
 
@@ -458,8 +472,8 @@ function Provider({ children }) {
     const d = (window.__nbDem || []).find(x => x.id === demandId);
     const naNuvem = anexosDe(d).find(a => a.id === attId);
     if (naNuvem) {
-      if (naNuvem.path && firebase.storage) {
-        firebase.storage().ref().child(naNuvem.path).delete().catch(()=>{});
+      if (naNuvem.anexoId && dbRef.current) {
+        dbRef.current.collection('anexos').doc(naNuvem.anexoId).delete().catch(()=>{});
       }
       patch(demandId, {
         anexos: (d.anexos||[]).filter(a=>a.id!==attId),
@@ -506,7 +520,7 @@ function Provider({ children }) {
   /* espelho usado pelas escritas para ler o estado mais recente sem recriar callbacks */
   window.__nbDem = demands;
 
-  return <Ctx.Provider value={{ demands, active, archived, filtered, slack, user, authReady, authError, setAuthError, dbReady, dbErro, seed, view, setView, layout, setLayout, area, setArea, query, setQuery, priFilter, setPriFilter, reqFilter, setReqFilter, selDemand, setModal, newOpen, setNewOpen, notifyPending, setNotifyPending, profileOpen, setProfileOpen, editStages, setEditStages, dragging, setDragging, photos, googlePhotos, profiles, pipes, salvarPipes, attach, comments, storageWarn, MAX_FILE, addAttachment, uploadFile, migrarLocal, removeAttachment, addComment, removeComment, logout, savePhoto, removePhoto, saveProfile, addDemand, moveStage, moveArea, setAssignees, updateDemand, archiveDemand, restoreDemand, delDemand }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ demands, active, archived, filtered, slack, user, authReady, authError, setAuthError, dbReady, dbErro, seed, view, setView, layout, setLayout, area, setArea, query, setQuery, priFilter, setPriFilter, reqFilter, setReqFilter, selDemand, setModal, newOpen, setNewOpen, notifyPending, setNotifyPending, profileOpen, setProfileOpen, editStages, setEditStages, dragging, setDragging, photos, googlePhotos, profiles, pipes, salvarPipes, attach, comments, storageWarn, MAX_FILE, addAttachment, uploadFile, migrarLocal, carregarAnexo, removeAttachment, addComment, removeComment, logout, savePhoto, removePhoto, saveProfile, addDemand, moveStage, moveArea, setAssignees, updateDemand, archiveDemand, restoreDemand, delDemand }}>{children}</Ctx.Provider>;
 }
 
 const useApp = () => useContext(Ctx);
@@ -1799,7 +1813,7 @@ const fmtBytes = b => b < 1024 ? b+' B' : b < 1048576 ? (b/1024).toFixed(0)+' KB
 const fmtWhen = iso => { const d=new Date(iso); return d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})+' às '+d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}); };
 
 function AttachPanel({ demand }) {
-  const { attach, addAttachment, uploadFile, migrarLocal, removeAttachment, user, MAX_FILE, storageWarn } = useApp();
+  const { attach, addAttachment, uploadFile, migrarLocal, carregarAnexo, removeAttachment, user, MAX_FILE, storageWarn } = useApp();
   const nuvem  = [ ...(demand.anexos||[]), ...(demand.links||[]) ].map(a => ({ ...a, origem:'nuvem' }));
   const locais = (attach[demand.id] || []).map(a => ({ ...a, origem:'local' }));
   const list = [...nuvem, ...locais];
@@ -1808,6 +1822,18 @@ function AttachPanel({ demand }) {
   const [ln, setLn] = useState({ name:'', url:'' });
   const [err, setErr] = useState('');
   const [subindo, setSubindo] = useState([]);   // [{nome, pct}]
+  const [conteudo, setConteudo] = useState({}); // anexoId -> dataURL, buscado sob demanda
+
+  /* Só busca o arquivo em si quando o card está aberto, para não pesar o quadro. */
+  useEffect(() => {
+    let vivo = true;
+    nuvem.filter(a => a.anexoId && !conteudo[a.anexoId]).forEach(a => {
+      carregarAnexo(a.anexoId)
+        .then(d => { if (vivo && d) setConteudo(c => ({ ...c, [a.anexoId]: d.data })); })
+        .catch(()=>{});
+    });
+    return () => { vivo = false; };
+  }, [demand.id, nuvem.length]);
 
   const saveLink = () => {
     let url = ln.url.trim();
@@ -1894,13 +1920,13 @@ function AttachPanel({ demand }) {
 
       {list.length===0 ? (
         <p style={{fontSize:13,color:NB.mut2,lineHeight:1.6}}>
-          Nenhum anexo ainda. Arquivos até {fmtBytes(MAX_FILE)} e links ficam salvos na nuvem — todo mundo do time vê.
+          Nenhum anexo ainda. Arquivos até {fmtBytes(MAX_FILE)} e links ficam na nuvem e o time inteiro vê. Peça grande do Canva ou Drive, use o link.
         </p>
       ) : (
         <div style={{display:'flex',flexDirection:'column',gap:8}}>
           {list.map(a=>{
             const img = a.kind==='file' && a.mime && a.mime.startsWith('image/');
-            const src = a.url || a.data;
+            const src = a.data || (a.anexoId ? conteudo[a.anexoId] : null) || a.url;
             return (
               <div key={a.id} style={{display:'flex',alignItems:'center',gap:12,background:'#fff',border:'1px solid '+NB.bd,borderRadius:10,padding:'10px 12px'}}>
                 {img
@@ -1925,8 +1951,12 @@ function AttachPanel({ demand }) {
                   {a.kind==='link'
                     ? <a href={a.url} target="_blank" rel="noopener noreferrer" title="Abrir link"
                         style={{padding:'7px 9px',border:'1px solid '+NB.bd,borderRadius:8,color:NB.mut,display:'flex',textDecoration:'none'}}><IExt/></a>
-                    : <a href={src} download={a.name} target="_blank" rel="noopener noreferrer" title="Baixar"
-                        style={{padding:'7px 9px',border:'1px solid '+NB.bd,borderRadius:8,color:NB.mut,display:'flex',textDecoration:'none'}}><IDown/></a>}
+                    : src
+                      ? <a href={src} download={a.name} title="Baixar"
+                          style={{padding:'7px 9px',border:'1px solid '+NB.bd,borderRadius:8,color:NB.mut,display:'flex',textDecoration:'none'}}><IDown/></a>
+                      : <span title="Carregando arquivo" style={{padding:'7px 9px',border:'1px solid '+NB.bd,borderRadius:8,color:NB.mut2,display:'flex'}}>
+                          <span style={{width:13,height:13,border:'2px solid '+NB.bd,borderTopColor:NB.azul,borderRadius:'50%',animation:'nb-spin 0.8s linear infinite',display:'inline-block'}}/>
+                        </span>}
                   <button onClick={()=>removeAttachment(demand.id,a.id)} title="Remover"
                     style={{padding:'7px 9px',border:'1px solid '+NB.bd,borderRadius:8,color:NB.mut,background:'#fff',display:'flex'}}
                     onMouseEnter={e=>{e.currentTarget.style.color='#B4232A'; e.currentTarget.style.borderColor='#FBD5D5';}}
