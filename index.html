@@ -14,6 +14,7 @@
 
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <script>
   firebase.initializeApp({
     apiKey:            "AIzaSyDE6wv0kFOOJGWDjOX-mQ2s1kO0ktFdybs",
@@ -154,45 +155,39 @@ const INIT_SLACK = [
 const Ctx = createContext(null);
 
 function Provider({ children }) {
-  const cntRef = useRef(INIT_DEMANDS.length);
-  const [demands, setDemands] = useState(() => {
-    try { const s=localStorage.getItem('nibo_dem_v3'); return s ? JSON.parse(s) : INIT_DEMANDS; } catch { return INIT_DEMANDS; }
-  });
-  const [slack, setSlack] = useState(() => {
-    try { const s=localStorage.getItem('nibo_slk_v3'); return s ? JSON.parse(s) : INIT_SLACK; } catch { return INIT_SLACK; }
-  });
+  /* ---------- dados compartilhados (Firestore) ---------- */
+  const [demands, setDemands] = useState([]);
+  const [slack, setSlack]     = useState([]);
+  const [pipes, setPipes]     = useState(DEFAULT_PIPELINES);
+  const [dbReady, setDbReady] = useState(false);
+  const [dbErro, setDbErro]   = useState('');
+  const dbRef    = useRef(null);
+  const pipesRef = useRef(pipes);
+  pipesRef.current = pipes;
+
+  /* ---------- dados só deste navegador ---------- */
   const [photos, setPhotos] = useState(() => {
     try { const s=localStorage.getItem('nibo_photos_v1'); return s ? JSON.parse(s) : {}; } catch { return {}; }
   });
   const [googlePhotos, setGooglePhotos] = useState(() => {
     try { const s=localStorage.getItem('nibo_gphotos_v1'); return s ? JSON.parse(s) : {}; } catch { return {}; }
   });
-  /* Anexos e comentários moram em chaves próprias: se a cota estourar,
-     o salvamento das demandas continua funcionando. */
-  const [attach, setAttach] = useState(() => {
-    try { const s=localStorage.getItem('nibo_attach_v1'); return s ? JSON.parse(s) : {}; } catch { return {}; }
-  });
-  const [comments, setComments] = useState(() => {
-    try { const s=localStorage.getItem('nibo_comments_v1'); return s ? JSON.parse(s) : {}; } catch { return {}; }
-  });
-  const [storageWarn, setStorageWarn] = useState('');
-
-  /* Etapas editáveis por área. pipesRef evita closure velha nos useCallback([]). */
-  const [pipes, setPipes] = useState(() => {
-    try { const v=localStorage.getItem('nibo_pipes_v1'); return v ? JSON.parse(v) : DEFAULT_PIPELINES; }
-    catch { return DEFAULT_PIPELINES; }
-  });
-  const pipesRef = useRef(pipes);
-  pipesRef.current = pipes;
-
   const [profiles, setProfiles] = useState(() => {
     try { const s=localStorage.getItem('nibo_profiles_v1'); return s ? JSON.parse(s) : {}; } catch { return {}; }
   });
+  /* arquivos ficam locais: são grandes demais para um documento do Firestore */
+  const [attach, setAttach] = useState(() => {
+    try { const s=localStorage.getItem('nibo_attach_v1'); return s ? JSON.parse(s) : {}; } catch { return {}; }
+  });
+  const [storageWarn, setStorageWarn] = useState('');
+  const MAX_FILE = 700 * 1024;
 
+  /* ---------- autenticação ---------- */
   const [fbUser, setFbUser]       = useState(null);
   const [authReady, setAuthReady] = useState(false);
   const [authError, setAuthError] = useState('');
 
+  /* ---------- interface ---------- */
   const [view, setView]     = useState('kanban');
   const [layout, setLayout] = useState('board');
   const [area, setArea]     = useState('Todas');
@@ -230,12 +225,42 @@ function Provider({ children }) {
     return unsub;
   }, []);
 
-  /* Ao entrar, cai direto no próprio setor. Quem aprova cai na fila de Gestão. */
   const baseUser = fbUser ? ACTIVE_TEAM.find(m => m.email === fbUser.email) : null;
   const user = baseUser
     ? { ...baseUser, googlePhoto: fbUser.photoURL, ...(profiles[baseUser.id] || {}) }
     : null;
 
+  /* Escutas do Firestore só depois do login — as regras exigem usuária autenticada. */
+  useEffect(() => {
+    if (!baseUser) { dbRef.current = null; setDbReady(false); return; }
+    let db;
+    try { db = firebase.firestore(); dbRef.current = db; }
+    catch (e) { setDbErro('Não foi possível abrir o banco: ' + e.message); return; }
+
+    const erro = e => setDbErro(
+      e && e.code === 'permission-denied'
+        ? 'Sem permissão de acesso ao banco. Publique as regras do Firestore no console do Firebase.'
+        : 'Falha de conexão com o banco: ' + (e && e.message ? e.message : 'desconhecida')
+    );
+
+    const u1 = db.collection('demandas').onSnapshot(snap => {
+      setDemands(snap.docs.map(d => ({ id:d.id, ...d.data() })));
+      setDbReady(true); setDbErro('');
+    }, erro);
+
+    const u2 = db.collection('feed').orderBy('ts','desc').limit(150).onSnapshot(snap => {
+      setSlack(snap.docs.map(d => ({ id:d.id, ...d.data() })));
+    }, erro);
+
+    const u3 = db.collection('config').doc('pipes').onSnapshot(doc => {
+      const d = doc.exists ? doc.data() : null;
+      setPipes(d && d.data ? d.data : DEFAULT_PIPELINES);
+    }, erro);
+
+    return () => { u1(); u2(); u3(); };
+  }, [baseUser]);
+
+  /* Ao entrar, cai direto no próprio setor. Quem aprova cai na fila de Gestão. */
   useEffect(() => {
     if (abriuRef.current || !baseUser) return;
     abriuRef.current = true;
@@ -243,20 +268,16 @@ function Provider({ children }) {
     else if (baseUser.isApprover) setView('gestao');
   }, [baseUser]);
 
-  useEffect(() => { try { localStorage.setItem('nibo_dem_v3', JSON.stringify(demands)); } catch {} }, [demands]);
-  useEffect(() => { try { localStorage.setItem('nibo_slk_v3', JSON.stringify(slack)); } catch {} }, [slack]);
   useEffect(() => { try { localStorage.setItem('nibo_photos_v1', JSON.stringify(photos)); } catch {} }, [photos]);
-  useEffect(() => {
-    try { localStorage.setItem('nibo_attach_v1', JSON.stringify(attach)); setStorageWarn(''); }
-    catch { setStorageWarn('O armazenamento do navegador encheu. Remova anexos antigos ou use links em vez de arquivos.'); }
-  }, [attach]);
-  useEffect(() => { try { localStorage.setItem('nibo_comments_v1', JSON.stringify(comments)); } catch {} }, [comments]);
-  useEffect(() => { try { localStorage.setItem('nibo_pipes_v1', JSON.stringify(pipes)); } catch {} }, [pipes]);
   useEffect(() => { try { localStorage.setItem('nibo_gphotos_v1', JSON.stringify(googlePhotos)); } catch {} }, [googlePhotos]);
   useEffect(() => { try { localStorage.setItem('nibo_profiles_v1', JSON.stringify(profiles)); } catch {} }, [profiles]);
+  useEffect(() => {
+    try { localStorage.setItem('nibo_attach_v1', JSON.stringify(attach)); setStorageWarn(''); }
+    catch { setStorageWarn('O armazenamento do navegador encheu. Remova arquivos antigos ou use links, que ficam salvos na nuvem.'); }
+  }, [attach]);
 
   const logout = useCallback(() => {
-    setProfileOpen(false); setModal(null); setNewOpen(false); setNotifyPending(null);
+    setProfileOpen(false); setModal(null); setNewOpen(false); setNotifyPending(null); setEditStages(null);
     firebase.auth().signOut();
   }, []);
 
@@ -266,150 +287,169 @@ function Provider({ children }) {
 
   const mentionNames = (inits) => inits.map(i => { const m=TEAM.find(t=>t.initials===i); return '@'+(m?m.name:i); }).join(' ');
 
-  const addDemand = useCallback((data) => {
-    const cnt = ++cntRef.current;
-    const nd = { ...data, id:'d'+Date.now(), code:'DEM-'+(108+cnt), stageId:pipesRef.current[data.area][0].id, createdAt:new Date().toISOString() };
-    setDemands(p => [nd,...p]);
-    const who = data.assignees && data.assignees.length ? mentionNames(data.assignees) : 'equipe de '+data.area;
-    setSlack(p => [{ id:'s'+Date.now(), code:nd.code, area:data.area, time:t(new Date()), stagePath:'Nova demanda criada', action:'Solicitação registrada por '+data.requester+' — destinada a '+who, next:'Demanda solicitada no Slack para '+who, type:'new' }, ...p]);
-    return nd;
+  /* ---------- escritas ---------- */
+  const feed = useCallback((d, stagePath, action, next, type) => {
+    const db = dbRef.current; if (!db) return;
+    db.collection('feed').add({
+      code:d.code, area:d.area, time:t(new Date()), stagePath, action, next, type,
+      ts: Date.now(),
+    }).catch(()=>{});
   }, []);
+
+  const patch = useCallback((id, campos) => {
+    const db = dbRef.current; if (!db) return Promise.resolve();
+    return db.collection('demandas').doc(id).update(campos).catch(e=>setDbErro('Não foi possível salvar: '+e.message));
+  }, []);
+
+  const addDemand = useCallback((data) => {
+    const db = dbRef.current; if (!db) return;
+    const nums = (window.__nbDem || []).map(d => parseInt(String(d.code).replace(/\D/g,''),10)).filter(n=>!isNaN(n));
+    const code = 'DEM-' + ((nums.length ? Math.max(...nums) : 100) + 1);
+    const nd = { ...data, code, stageId: pipesRef.current[data.area][0].id, createdAt: new Date().toISOString(), comments: [], links: [] };
+    db.collection('demandas').add(nd).then(ref => {
+      const who = data.assignees && data.assignees.length ? mentionNames(data.assignees) : 'equipe de '+data.area;
+      feed({ code, area:data.area }, 'Nova demanda criada',
+        'Solicitação registrada por '+data.requester+' — destinada a '+who,
+        'Demanda solicitada no Slack para '+who, 'new');
+    }).catch(e => setDbErro('Não foi possível criar a demanda: '+e.message));
+  }, [feed]);
 
   const moveStage = useCallback((demId, newStageId, notifyTargets) => {
-    setDemands(p => p.map(d => {
-      if (d.id !== demId) return d;
-      const oldStage = Object.values(pipesRef.current).flat().find(s=>s.id===d.stageId);
-      const newStage = Object.values(pipesRef.current).flat().find(s=>s.id===newStageId);
-      let assignees = d.assignees;
-      if (newStage && newStage.isApproval && !assignees.includes('MA')) {
-        assignees = [...assignees, 'MA'];
-      }
-      const auto = AUTO[d.area] && AUTO[d.area][newStageId];
-      /* Etapas criadas pelo time não têm mensagem pronta — gera uma genérica
-         para nenhum movimento sumir do feed. */
-      const acao = auto ? auto.action
-        : '"' + d.title + '" avançou para ' + (newStage ? newStage.name : 'nova etapa');
-      const passo = auto ? auto.next
-        : (newStage && newStage.isApproval) ? 'Aguardando aprovação de @Mariana Araújo'
-        : (newStage && newStage.isDone)     ? 'Etapa final de ' + d.area
-        : 'Equipe de ' + d.area + ' segue com a demanda';
-      let action = acao;
-      if (notifyTargets && notifyTargets.length) {
-        action = action + ' — ' + mentionNames(notifyTargets) + ' notificados no Slack';
-      }
-      setSlack(sp => [{ id:'s'+Date.now(), code:d.code, area:d.area, time:t(new Date()), stagePath:(oldStage?oldStage.name:'?')+' → '+(newStage?newStage.name:'?'), action, next:passo, type:newStage&&newStage.isApproval?'approval':'move' }, ...sp]);
-      return {...d, stageId:newStageId, assignees};
-    }));
-  }, []);
+    const d = (window.__nbDem || []).find(x => x.id === demId); if (!d) return;
+    const stages   = pipesRef.current[d.area] || [];
+    const oldStage = stages.find(s=>s.id===d.stageId);
+    const newStage = stages.find(s=>s.id===newStageId);
+    let assignees = d.assignees || [];
+    if (newStage && newStage.isApproval && !assignees.includes('MA')) assignees = [...assignees, 'MA'];
+    patch(demId, { stageId:newStageId, assignees });
 
-  const MAX_FILE = 700 * 1024;
+    const auto = AUTO[d.area] && AUTO[d.area][newStageId];
+    let action = auto ? auto.action : '"'+d.title+'" avançou para '+(newStage?newStage.name:'nova etapa');
+    const passo = auto ? auto.next
+      : (newStage && newStage.isApproval) ? 'Aguardando aprovação de @Mariana Araújo'
+      : (newStage && newStage.isDone)     ? 'Etapa final de '+d.area
+      : 'Equipe de '+d.area+' segue com a demanda';
+    if (notifyTargets && notifyTargets.length) action += ' — ' + mentionNames(notifyTargets) + ' notificados no Slack';
+    feed(d, (oldStage?oldStage.name:'?')+' → '+(newStage?newStage.name:'?'), action, passo,
+         newStage && newStage.isApproval ? 'approval' : 'move');
+  }, [patch, feed]);
 
-  const feed = (d, stagePath, action, next, type) => setSlack(sp => [{
-    id:'s'+Date.now()+Math.random().toString(36).slice(2,6), code:d.code, area:d.area,
-    time:t(new Date()), stagePath, action, next, type }, ...sp]);
+  const moveArea = useCallback((demId, newArea, newStageId) => {
+    const d = (window.__nbDem || []).find(x => x.id === demId);
+    if (!d || d.area === newArea) return;
+    const stages = pipesRef.current[newArea] || [];
+    const target = stages.find(s => s.id === newStageId) || stages[0];
+    if (!target) return;
+    let assignees = d.assignees || [];
+    if (target.isApproval && !assignees.includes('MA')) assignees = [...assignees, 'MA'];
+    patch(demId, { area:newArea, stageId:target.id, assignees });
+    feed({ code:d.code, area:newArea }, d.area + ' → ' + newArea,
+      '"' + d.title + '" mudou de área e entrou em ' + target.name,
+      'Equipe de ' + newArea + ' assume a partir daqui',
+      target.isApproval ? 'approval' : 'new');
+  }, [patch, feed]);
 
-  const addAttachment = useCallback((demand, item) => {
-    const rec = { ...item, id:'at'+Date.now()+Math.random().toString(36).slice(2,6), at:new Date().toISOString() };
-    setAttach(p => ({ ...p, [demand.id]: [ ...(p[demand.id]||[]), rec ] }));
-    feed(demand, 'Anexo adicionado',
-      (rec.kind==='link' ? 'Link' : 'Arquivo') + ' "' + rec.name + '" anexado por ' + rec.by,
-      'Disponível no card ' + demand.code, 'move');
-  }, []);
+  const setAssignees = useCallback((demId, list) => {
+    const d = (window.__nbDem || []).find(x => x.id === demId); if (!d) return;
+    const antes = d.assignees || [];
+    const added   = list.filter(i => !antes.includes(i));
+    const removed = antes.filter(i => !list.includes(i));
+    patch(demId, { assignees:list });
+    if (added.length || removed.length) {
+      const partes = [];
+      if (added.length)   partes.push(mentionNames(added)+' '+(added.length>1?'entraram':'entrou')+' na demanda');
+      if (removed.length) partes.push(mentionNames(removed)+' '+(removed.length>1?'saíram':'saiu'));
+      feed(d, 'Responsáveis atualizados', partes.join(' · '),
+        added.length ? mentionNames(added)+' notificados no Slack' : 'Equipe atualizada', 'new');
+    }
+  }, [patch, feed]);
 
-  const removeAttachment = useCallback((demandId, attId) => {
-    setAttach(p => ({ ...p, [demandId]: (p[demandId]||[]).filter(a=>a.id!==attId) }));
+  const updateDemand = useCallback((id, campos) => {
+    const d = (window.__nbDem || []).find(x => x.id === id);
+    if (d && campos.deadline && campos.deadline !== d.deadline) {
+      feed(d, 'Prazo alterado',
+        'Prazo de "'+d.title+'" mudou de '+fmtDate(d.deadline)+' para '+fmtDate(campos.deadline),
+        'Responsáveis notificados no Slack', 'approval');
+    }
+    patch(id, campos);
+  }, [patch, feed]);
+
+  const archiveDemand = useCallback((id) => {
+    const d = (window.__nbDem || []).find(x => x.id === id); if (!d || d.archivedAt) return;
+    patch(id, { archivedAt: new Date().toISOString() });
+    feed(d, 'Demanda arquivada', '"'+d.title+'" saiu do quadro e foi para Arquivadas',
+      'Pode ser restaurada a qualquer momento', 'move');
+    setModal(null);
+  }, [patch, feed]);
+
+  const restoreDemand = useCallback((id) => {
+    const d = (window.__nbDem || []).find(x => x.id === id); if (!d || !d.archivedAt) return;
+    patch(id, { archivedAt: null });
+    feed(d, 'Demanda restaurada', '"'+d.title+'" voltou para o quadro',
+      'Disponível novamente em '+d.area, 'new');
+  }, [patch, feed]);
+
+  const delDemand = useCallback((id) => {
+    const db = dbRef.current; if (!db) return;
+    db.collection('demandas').doc(id).delete().catch(e=>setDbErro('Não foi possível excluir: '+e.message));
+    setModal(null);
   }, []);
 
   const addComment = useCallback((demand, text, by) => {
     const rec = { id:'c'+Date.now(), text, by, at:new Date().toISOString() };
-    setComments(p => ({ ...p, [demand.id]: [ ...(p[demand.id]||[]), rec ] }));
-    const who = demand.assignees.map(i=>{ const m=TEAM.find(x=>x.initials===i); return '@'+(m?m.name:i); }).join(' ');
+    const atuais = (demand.comments || []);
+    patch(demand.id, { comments: [...atuais, rec] });
+    const who = (demand.assignees||[]).map(i=>{ const m=TEAM.find(x=>x.initials===i); return '@'+(m?m.name:i); }).join(' ');
     feed(demand, 'Novo comentário',
       (TEAM.find(m=>m.initials===by)||{name:by}).name + ' comentou: "' + (text.length>90?text.slice(0,90)+'…':text) + '"',
       who + ' notificados no Slack', 'new');
-  }, []);
+  }, [patch, feed]);
 
   const removeComment = useCallback((demandId, cid) => {
-    setComments(p => ({ ...p, [demandId]: (p[demandId]||[]).filter(c=>c.id!==cid) }));
+    const d = (window.__nbDem || []).find(x => x.id === demandId); if (!d) return;
+    patch(demandId, { comments: (d.comments||[]).filter(c=>c.id!==cid) });
+  }, [patch]);
+
+  /* Links vão para a nuvem; arquivos ficam neste navegador. */
+  const addAttachment = useCallback((demand, item) => {
+    const rec = { ...item, id:'at'+Date.now()+Math.random().toString(36).slice(2,6), at:new Date().toISOString() };
+    if (rec.kind === 'link') {
+      patch(demand.id, { links: [ ...(demand.links||[]), rec ] });
+    } else {
+      setAttach(p => ({ ...p, [demand.id]: [ ...(p[demand.id]||[]), rec ] }));
+    }
+    feed(demand, 'Anexo adicionado',
+      (rec.kind==='link' ? 'Link' : 'Arquivo') + ' "' + rec.name + '" anexado por ' + rec.by,
+      'Disponível no card ' + demand.code, 'move');
+  }, [patch, feed]);
+
+  const removeAttachment = useCallback((demandId, attId) => {
+    const d = (window.__nbDem || []).find(x => x.id === demandId);
+    if (d && (d.links||[]).some(l=>l.id===attId)) {
+      patch(demandId, { links: (d.links||[]).filter(l=>l.id!==attId) });
+      return;
+    }
+    setAttach(p => ({ ...p, [demandId]: (p[demandId]||[]).filter(a=>a.id!==attId) }));
+  }, [patch]);
+
+  const salvarPipes = useCallback((novo) => {
+    const db = dbRef.current; if (!db) return;
+    db.collection('config').doc('pipes').set({ data: novo, at: Date.now() })
+      .catch(e=>setDbErro('Não foi possível salvar as etapas: '+e.message));
   }, []);
 
-  const moveArea = useCallback((demId, newArea, newStageId) => {
-    setDemands(p => p.map(d => {
-      if (d.id !== demId || d.area === newArea) return d;
-      const stages = pipesRef.current[newArea] || [];
-      const target = stages.find(s => s.id === newStageId) || stages[0];
-      if (!target) return d;
-      let assignees = d.assignees;
-      if (target.isApproval && !assignees.includes('MA')) assignees = [...assignees, 'MA'];
-      setSlack(sp => [{ id:'s'+Date.now(), code:d.code, area:newArea, time:t(new Date()),
-        stagePath: d.area + ' → ' + newArea,
-        action: '"' + d.title + '" mudou de área e entrou em ' + target.name,
-        next: 'Equipe de ' + newArea + ' assume a partir daqui',
-        type: target.isApproval ? 'approval' : 'new' }, ...sp]);
-      return { ...d, area:newArea, stageId:target.id, assignees };
-    }));
+  const seed = useCallback(() => {
+    const db = dbRef.current; if (!db) return;
+    const lote = db.batch();
+    INIT_DEMANDS.forEach(d => {
+      const { id, ...resto } = d;
+      lote.set(db.collection('demandas').doc(), { ...resto, comments:[], links:[], createdAt:new Date().toISOString() });
+    });
+    lote.commit().catch(e=>setDbErro('Não foi possível carregar os exemplos: '+e.message));
   }, []);
 
-  const setAssignees = useCallback((demId, list) => {
-    setDemands(p => p.map(d => {
-      if (d.id !== demId) return d;
-      const added   = list.filter(i => !d.assignees.includes(i));
-      const removed = d.assignees.filter(i => !list.includes(i));
-      if (added.length || removed.length) {
-        const parts = [];
-        if (added.length)   parts.push(mentionNames(added)+' '+(added.length>1?'entraram':'entrou')+' na demanda');
-        if (removed.length) parts.push(mentionNames(removed)+' '+(removed.length>1?'saíram':'saiu'));
-        setSlack(sp => [{ id:'s'+Date.now(), code:d.code, area:d.area, time:t(new Date()),
-          stagePath:'Responsáveis atualizados', action:parts.join(' · '),
-          next: added.length ? mentionNames(added)+' notificados no Slack' : 'Equipe atualizada',
-          type:'new' }, ...sp]);
-      }
-      return {...d, assignees:list};
-    }));
-  }, []);
-
-  const updateDemand = useCallback((id, patch) => {
-    setDemands(p => p.map(d => {
-      if (d.id !== id) return d;
-      /* Mudança de prazo mexe no planejamento do time — vale registro */
-      if (patch.deadline && patch.deadline !== d.deadline) {
-        setSlack(sp => [{ id:'s'+Date.now(), code:d.code, area:d.area, time:t(new Date()),
-          stagePath:'Prazo alterado',
-          action:'Prazo de "'+d.title+'" mudou de '+fmtDate(d.deadline)+' para '+fmtDate(patch.deadline),
-          next:'Responsáveis notificados no Slack', type:'approval' }, ...sp]);
-      }
-      return { ...d, ...patch };
-    }));
-  }, []);
-
-  const archiveDemand = useCallback((id) => {
-    setDemands(p => p.map(d => {
-      if (d.id !== id || d.archivedAt) return d;
-      setSlack(sp => [{ id:'s'+Date.now(), code:d.code, area:d.area, time:t(new Date()),
-        stagePath:'Demanda arquivada', action:'"'+d.title+'" saiu do quadro e foi para Arquivadas',
-        next:'Pode ser restaurada a qualquer momento', type:'move' }, ...sp]);
-      return { ...d, archivedAt:new Date().toISOString() };
-    }));
-    setModal(null);
-  }, []);
-
-  const restoreDemand = useCallback((id) => {
-    setDemands(p => p.map(d => {
-      if (d.id !== id || !d.archivedAt) return d;
-      setSlack(sp => [{ id:'s'+Date.now(), code:d.code, area:d.area, time:t(new Date()),
-        stagePath:'Demanda restaurada', action:'"'+d.title+'" voltou para o quadro',
-        next:'Disponível novamente em '+d.area, type:'new' }, ...sp]);
-      const { archivedAt, ...rest } = d;
-      return rest;
-    }));
-  }, []);
-
-  const delDemand = useCallback((id) => {
-    setDemands(p=>p.filter(d=>d.id!==id));
-    setModal(null);
-  }, []);
-
-  const reset = useCallback(() => { setDemands(INIT_DEMANDS); setSlack(INIT_SLACK); cntRef.current=INIT_DEMANDS.length; }, []);
+  const comments = {};
+  demands.forEach(d => { comments[d.id] = d.comments || []; });
 
   const active   = demands.filter(d => !d.archivedAt);
   const archived = demands.filter(d => d.archivedAt)
@@ -419,13 +459,16 @@ function Provider({ children }) {
     if (area !== 'Todas' && d.area !== area) return false;
     if (priFilter.length && !priFilter.includes(d.priority)) return false;
     if (reqFilter.length && !reqFilter.includes(d.requester)) return false;
-    if (query.trim()) { const q=query.toLowerCase(); return d.title.toLowerCase().includes(q)||d.code.toLowerCase().includes(q); }
+    if (query.trim()) { const q=query.toLowerCase(); return (d.title||'').toLowerCase().includes(q)||(d.code||'').toLowerCase().includes(q); }
     return true;
   });
 
   const selDemand = modal ? demands.find(d=>d.id===modal)||null : null;
 
-  return <Ctx.Provider value={{ demands, active, archived, filtered, slack, user, authReady, authError, setAuthError, view, setView, layout, setLayout, area, setArea, query, setQuery, priFilter, setPriFilter, reqFilter, setReqFilter, selDemand, setModal, newOpen, setNewOpen, notifyPending, setNotifyPending, profileOpen, setProfileOpen, editStages, setEditStages, dragging, setDragging, photos, googlePhotos, profiles, pipes, setPipes, attach, comments, storageWarn, MAX_FILE, addAttachment, removeAttachment, addComment, removeComment, logout, savePhoto, removePhoto, saveProfile, addDemand, moveStage, moveArea, setAssignees, updateDemand, archiveDemand, restoreDemand, delDemand, reset }}>{children}</Ctx.Provider>;
+  /* espelho usado pelas escritas para ler o estado mais recente sem recriar callbacks */
+  window.__nbDem = demands;
+
+  return <Ctx.Provider value={{ demands, active, archived, filtered, slack, user, authReady, authError, setAuthError, dbReady, dbErro, seed, view, setView, layout, setLayout, area, setArea, query, setQuery, priFilter, setPriFilter, reqFilter, setReqFilter, selDemand, setModal, newOpen, setNewOpen, notifyPending, setNotifyPending, profileOpen, setProfileOpen, editStages, setEditStages, dragging, setDragging, photos, googlePhotos, profiles, pipes, salvarPipes, attach, comments, storageWarn, MAX_FILE, addAttachment, removeAttachment, addComment, removeComment, logout, savePhoto, removePhoto, saveProfile, addDemand, moveStage, moveArea, setAssignees, updateDemand, archiveDemand, restoreDemand, delDemand }}>{children}</Ctx.Provider>;
 }
 
 const useApp = () => useContext(Ctx);
@@ -744,7 +787,7 @@ function TopNav() {
 
 /* =========== SEGUNDA FAIXA: módulos + ferramentas =========== */
 function SubNav() {
-  const { view, setView, area, setArea, slack, archived, active, query, setQuery, layout, setLayout, priFilter, setPriFilter, reqFilter, setReqFilter, reset } = useApp();
+  const { view, setView, area, setArea, slack, archived, active, query, setQuery, layout, setLayout, priFilter, setPriFilter, reqFilter, setReqFilter, demands, seed } = useApp();
   const [fOpen, setFOpen] = useState(false);
 
   const mods = [
@@ -837,8 +880,10 @@ function SubNav() {
               style={{padding:'8px 11px',background:layout==='board'?NB.bdSoft:'transparent',border:'none',borderRadius:7,color:layout==='board'?NB.txt:NB.mut2,display:'flex'}}><IBoard s={16}/></button>
           </div>
 
-          <button onClick={reset} title="Restaurar dados de exemplo"
-            style={{padding:'10px 12px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:9,color:NB.mut,display:'flex'}}><IRefresh s={15}/></button>
+          {demands.length===0 && (
+            <button onClick={seed} title="Preencher com demandas de exemplo"
+              style={{display:'flex',alignItems:'center',gap:7,padding:'10px 14px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:9,color:NB.mut,fontSize:12.5,fontWeight:500,whiteSpace:'nowrap'}}><IRefresh s={15}/> Carregar exemplos</button>
+          )}
         </div>
       )}
     </div>
@@ -1147,7 +1192,7 @@ function GestaoView() {
 
 /* =========== EDITOR DE ETAPAS =========== */
 function StageEditorModal({ areaName, onClose }) {
-  const { pipes, setPipes, active, moveStage } = useApp();
+  const { pipes, salvarPipes, active, moveStage } = useApp();
   const [rows, setRows] = useState(() => (pipes[areaName]||[]).map(s => ({...s})));
   const [delIdx, setDelIdx] = useState(null);
   const [err, setErr] = useState('');
@@ -1188,7 +1233,7 @@ function StageEditorModal({ areaName, onClose }) {
       return o;
     });
     if (limpo.filter(s=>s.isApproval).length > 1) { setErr('Marque só uma etapa como de aprovação.'); return; }
-    setPipes(p => ({ ...p, [areaName]: limpo }));
+    salvarPipes({ ...pipes, [areaName]: limpo });
     onClose();
   };
 
@@ -1717,7 +1762,9 @@ const fmtWhen = iso => { const d=new Date(iso); return d.toLocaleDateString('pt-
 
 function AttachPanel({ demand }) {
   const { attach, addAttachment, removeAttachment, user, MAX_FILE, storageWarn } = useApp();
-  const list = attach[demand.id] || [];
+  const nuvem = (demand.links || []).map(l => ({ ...l, kind:'link', origem:'nuvem' }));
+  const locais = (attach[demand.id] || []).map(a => ({ ...a, origem:'local' }));
+  const list = [...nuvem, ...locais];
   const fileRef = useRef(null);
   const [mode, setMode] = useState(null);          // null | 'link'
   const [ln, setLn] = useState({ name:'', url:'' });
@@ -1785,7 +1832,7 @@ function AttachPanel({ demand }) {
 
       {list.length===0 ? (
         <p style={{fontSize:13,color:NB.mut2,lineHeight:1.6}}>
-          Nenhum anexo ainda. Arquivos até {fmtBytes(MAX_FILE)} ficam salvos aqui; para peças grandes do Canva ou Drive, prefira o link.
+          Nenhum anexo ainda. Links ficam salvos na nuvem e todo mundo vê; arquivos até {fmtBytes(MAX_FILE)} ficam só neste navegador — para peças do Canva ou Drive, prefira o link.
         </p>
       ) : (
         <div style={{display:'flex',flexDirection:'column',gap:8}}>
@@ -1802,6 +1849,7 @@ function AttachPanel({ demand }) {
                   <div style={{fontSize:13.5,fontWeight:500,color:NB.txt,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{a.name}</div>
                   <div style={{fontSize:11.5,color:NB.mut2,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>
                     {a.kind==='file' ? fmtBytes(a.size)+' · ' : ''}{a.by} · {fmtWhen(a.at)}
+                    {a.origem==='local' && <span style={{marginLeft:7,color:'#8A6206',background:'#FFF6DE',border:'1px solid #F3D98A',borderRadius:5,padding:'1px 6px',fontSize:10.5}}>só neste navegador</span>}
                   </div>
                 </div>
                 <div style={{display:'flex',gap:5,flexShrink:0}}>
@@ -2749,7 +2797,7 @@ function NewModal() {
 
 /* =========== APP =========== */
 function AppContent() {
-  const { view, user, authReady, setDragging, editStages, setEditStages } = useApp();
+  const { view, user, authReady, setDragging, editStages, setEditStages, dbReady, dbErro } = useApp();
   if (!authReady) return <Splash/>;
   if (!user)      return <LoginScreen/>;
   return (
@@ -2758,13 +2806,27 @@ function AppContent() {
       onDrop={()=>setDragging(null)}>
       <TopNav/>
       <SubNav/>
+      {dbErro && (
+        <div style={{background:'#FEF2F2',borderBottom:'1px solid #FECACA',padding:'11px 28px',fontSize:13,color:'#B4232A',display:'flex',alignItems:'center',gap:9,flexShrink:0}}>
+          <IAlert s={15}/> {dbErro}
+        </div>
+      )}
       <main style={{flex:1,overflow:'hidden',minHeight:0}}>
-        {view==='kanban'     && <KanbanBoard/>}
-        {view==='slack'      && <SlackFeed/>}
-        {view==='arquivadas' && <ArchivedView/>}
-        {view==='social'     && <SocialPlannerView/>}
-        {view==='variacoes'  && <VariationsView/>}
-        {view==='gestao'     && <GestaoView/>}
+        {!dbReady && !dbErro ? (
+          <div style={{height:'100%',display:'flex',alignItems:'center',justifyContent:'center',flexDirection:'column',gap:13,color:NB.mut}}>
+            <div style={{width:32,height:32,border:'2.5px solid '+NB.bd,borderTopColor:NB.azul,borderRadius:'50%',animation:'nb-spin 0.8s linear infinite'}}/>
+            <span style={{fontSize:13.5}}>Carregando as demandas do time…</span>
+          </div>
+        ) : (
+          <React.Fragment>
+            {view==='kanban'     && <KanbanBoard/>}
+            {view==='slack'      && <SlackFeed/>}
+            {view==='arquivadas' && <ArchivedView/>}
+            {view==='social'     && <SocialPlannerView/>}
+            {view==='variacoes'  && <VariationsView/>}
+            {view==='gestao'     && <GestaoView/>}
+          </React.Fragment>
+        )}
       </main>
       <CardModal/>
       <NewModal/>
