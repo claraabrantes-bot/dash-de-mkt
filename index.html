@@ -202,6 +202,9 @@ function Provider({ children }) {
   const [profileOpen, setProfileOpen] = useState(false);
   const [editStages, setEditStages] = useState(null);
   const [dragging, setDragging] = useState(null);
+  /* "Ver como" — pré-visualiza a interface de outra pessoa (ex: a aprovadora)
+     sem trocar de conta. Toda ação continua sendo registrada com o usuário real. */
+  const [previewMember, setPreviewMember] = useState(null);
 
   useEffect(() => {
     const unsub = firebase.auth().onAuthStateChanged(u => {
@@ -282,7 +285,7 @@ function Provider({ children }) {
   }, [attach]);
 
   const logout = useCallback(() => {
-    setProfileOpen(false); setModal(null); setNewOpen(false); setNotifyPending(null); setEditStages(null);
+    setProfileOpen(false); setModal(null); setNewOpen(false); setNotifyPending(null); setEditStages(null); setPreviewMember(null);
     firebase.auth().signOut();
   }, []);
 
@@ -546,7 +549,7 @@ function Provider({ children }) {
   /* espelho usado pelas escritas para ler o estado mais recente sem recriar callbacks */
   window.__nbDem = demands;
 
-  return <Ctx.Provider value={{ demands, active, archived, filtered, slack, user, authReady, authError, setAuthError, dbReady, dbErro, seed, pedidos, aceitarPedido, recusarPedido, view, setView, layout, setLayout, area, setArea, query, setQuery, priFilter, setPriFilter, reqFilter, setReqFilter, selDemand, setModal, newOpen, setNewOpen, notifyPending, setNotifyPending, profileOpen, setProfileOpen, editStages, setEditStages, dragging, setDragging, photos, googlePhotos, profiles, pipes, salvarPipes, attach, comments, storageWarn, MAX_FILE, addAttachment, uploadFile, migrarLocal, carregarAnexo, removeAttachment, addComment, removeComment, logout, savePhoto, removePhoto, saveProfile, addDemand, moveStage, moveArea, setAssignees, updateDemand, archiveDemand, restoreDemand, delDemand }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ demands, active, archived, filtered, slack, user, authReady, authError, setAuthError, dbReady, dbErro, seed, pedidos, aceitarPedido, recusarPedido, view, setView, layout, setLayout, area, setArea, query, setQuery, priFilter, setPriFilter, reqFilter, setReqFilter, selDemand, setModal, newOpen, setNewOpen, notifyPending, setNotifyPending, profileOpen, setProfileOpen, editStages, setEditStages, dragging, setDragging, previewMember, setPreviewMember, photos, googlePhotos, profiles, pipes, salvarPipes, attach, comments, storageWarn, MAX_FILE, addAttachment, uploadFile, migrarLocal, carregarAnexo, removeAttachment, addComment, removeComment, logout, savePhoto, removePhoto, saveProfile, addDemand, moveStage, moveArea, setAssignees, updateDemand, archiveDemand, restoreDemand, delDemand }}>{children}</Ctx.Provider>;
 }
 
 const useApp = () => useContext(Ctx);
@@ -605,6 +608,8 @@ const ITrash   = ({s=14})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}
 const IStamp   = ({s=18})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}><path d="M5 21h14"/><path d="M4 17.5h16v-1a2 2 0 0 0-2-2h-3.2l.6-4.3A3.4 3.4 0 0 0 12 6.2a3.4 3.4 0 0 0-3.4 4l.6 4.3H6a2 2 0 0 0-2 2z"/></svg>;
 const IPen     = ({s=16})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z"/></svg>;
 const IRocket  = ({s=16})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="M12 15l-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></svg>;
+const IEye     = ({s=15})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}><path d="M1.5 12S5 4.5 12 4.5 22.5 12 22.5 12 19 19.5 12 19.5 1.5 12 1.5 12z"/><circle cx="12" cy="12" r="3.2"/></svg>;
+const IEyeOff  = ({s=15})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}><path d="M3 3l18 18"/><path d="M10.6 5.1A11.5 11.5 0 0 1 12 5c7 0 10.5 7 10.5 7a17.3 17.3 0 0 1-3.4 4.4M6.3 6.9C3.5 8.8 1.5 12 1.5 12S5 19 12 19a10.6 10.6 0 0 0 3.2-.5"/><path d="M9.5 9.9a3.2 3.2 0 0 0 4.5 4.5"/></svg>;
 const IGear    = ({s=15})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6h.09A1.65 1.65 0 0 0 10 3.09V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9v.09a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>;
 const IInbox   = ({s=18})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}><polyline points="21 8 21 21 3 21 3 8"/><path d="M3 8l2.2-5h13.6L21 8"/><path d="M3 13h5l1.5 2.5h5L16 13h5"/></svg>;
 const IArrowR  = ({s=14})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}><line x1="4" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/></svg>;
@@ -784,7 +789,7 @@ function NavItem({ label, Icon, iconColor, count, active, onClick, indent }) {
 
 /* =========== SIDEBAR =========== */
 function Sidebar() {
-  const { view, setView, area, setArea, user, active, slack, archived, pipes, pedidos, setNewOpen, setProfileOpen, logout } = useApp();
+  const { view, setView, area, setArea, user, active, slack, archived, pipes, pedidos, setNewOpen, setProfileOpen, logout, previewMember, setPreviewMember } = useApp();
   const areas = ['Social','Design','Mídia Paga','Produto','RevOps'];
   const vencidas = active.filter(d => { const s=getSla(d.deadline); return s && s.type!=='ok'; }).length;
   const emAprovacao = active.filter(d => {
@@ -792,6 +797,7 @@ function Sidebar() {
     return st && st.isApproval;
   }).length + pedidos.filter(p => p.status === 'novo').length;
   const [menu, setMenu] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
 
   const secLbl = { fontSize:10.5, fontWeight:600, letterSpacing:'0.1em', color:NB.mut2, textTransform:'uppercase', padding:'0 12px', marginBottom:8 };
 
@@ -869,7 +875,7 @@ function Sidebar() {
       <div style={{padding:'14px 16px 16px',borderTop:'1px solid '+NB.bdSoft,position:'relative'}}>
         {menu && (
           <React.Fragment>
-            <div onClick={()=>setMenu(false)} style={{position:'fixed',inset:0,zIndex:29}}/>
+            <div onClick={()=>{setMenu(false); setPreviewOpen(false);}} style={{position:'fixed',inset:0,zIndex:29}}/>
             <div style={{position:'absolute',bottom:'calc(100% + 6px)',left:16,right:16,background:'#fff',borderRadius:12,border:'1px solid '+NB.bd,boxShadow:'0 14px 40px rgba(4,18,48,0.16)',overflow:'hidden',zIndex:30}}>
               <div style={{padding:'12px 14px',borderBottom:'1px solid '+NB.bdSoft}}>
                 <div style={{fontSize:13,fontWeight:600,color:NB.txt,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{user.name}</div>
@@ -880,6 +886,43 @@ function Sidebar() {
                 onMouseEnter={e=>{e.currentTarget.style.background=NB.col;}} onMouseLeave={e=>{e.currentTarget.style.background='none';}}>
                 <ICamera s={15}/> Editar meu perfil
               </button>
+
+              <div style={{height:1,background:NB.bdSoft}}/>
+
+              <button onClick={()=>setPreviewOpen(o=>!o)}
+                style={{width:'100%',display:'flex',alignItems:'center',justifyContent:'space-between',gap:9,padding:'11px 14px',background:previewOpen?NB.col:'none',border:'none',fontSize:13,color:NB.txt,fontWeight:500,textAlign:'left'}}
+                onMouseEnter={e=>{e.currentTarget.style.background=NB.col;}} onMouseLeave={e=>{ if(!previewOpen) e.currentTarget.style.background='none';}}>
+                <span style={{display:'flex',alignItems:'center',gap:9}}><IEye s={15}/> Visualizar como</span>
+                <span style={{color:NB.mut2,display:'flex',transform:previewOpen?'rotate(90deg)':'none',transition:'transform 0.12s'}}><IArrowR s={12}/></span>
+              </button>
+
+              {previewOpen && (
+                <div style={{maxHeight:220,overflowY:'auto',borderTop:'1px solid '+NB.bdSoft,background:NB.col}} className="nb-scrollnone">
+                  {previewMember && (
+                    <button onClick={()=>{setPreviewMember(null); setPreviewOpen(false); setMenu(false);}}
+                      style={{width:'100%',display:'flex',alignItems:'center',gap:9,padding:'9px 14px 9px 30px',background:'none',border:'none',fontSize:12.5,color:NB.azul,fontWeight:600,textAlign:'left'}}
+                      onMouseEnter={e=>{e.currentTarget.style.background='#EAF3FD';}} onMouseLeave={e=>{e.currentTarget.style.background='none';}}>
+                      <IEyeOff s={14}/> Voltar para minha visão
+                    </button>
+                  )}
+                  {ACTIVE_TEAM.filter(m=>m.id!==user.id).map(m=>{
+                    const on = previewMember && previewMember.id===m.id;
+                    return (
+                      <button key={m.id} onClick={()=>{setPreviewMember(on?null:m); setPreviewOpen(false); setMenu(false);}}
+                        style={{width:'100%',display:'flex',alignItems:'center',gap:9,padding:'9px 14px 9px 30px',background:on?'#EAF3FD':'none',border:'none',fontSize:12.5,color:on?NB.azul:NB.txt,fontWeight:on?600:500,textAlign:'left'}}
+                        onMouseEnter={e=>{ if(!on) e.currentTarget.style.background='#fff';}} onMouseLeave={e=>{ if(!on) e.currentTarget.style.background='none';}}>
+                        <Avatar member={m} size={20} ring={false}/>
+                        <span style={{flex:1,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{m.name}</span>
+                        {m.isApprover && <span style={{fontSize:9.5,fontWeight:700,color:'#8A6206',background:'#FFF6DE',borderRadius:5,padding:'1px 6px',flexShrink:0}}>aprova</span>}
+                        {on && <ICheck s={13}/>}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              <div style={{height:1,background:NB.bdSoft}}/>
+
               <button onClick={()=>{setMenu(false); logout();}}
                 style={{width:'100%',display:'flex',alignItems:'center',gap:9,padding:'11px 14px',background:'none',border:'none',fontSize:13,color:'#B4232A',fontWeight:500,textAlign:'left'}}
                 onMouseEnter={e=>{e.currentTarget.style.background='#FEF2F2';}} onMouseLeave={e=>{e.currentTarget.style.background='none';}}>
@@ -892,10 +935,12 @@ function Sidebar() {
           style={{width:'100%',display:'flex',alignItems:'center',gap:10,padding:'8px',borderRadius:10,background:menu?NB.col:'transparent',border:'1px solid '+(menu?NB.bd:'transparent')}}
           onMouseEnter={e=>{e.currentTarget.style.background=NB.col;}}
           onMouseLeave={e=>{ if(!menu) e.currentTarget.style.background='transparent';}}>
-          <Avatar member={user} size={34} ring={false}/>
+          <Avatar member={user} size={34} ring={false} style={previewMember?{boxShadow:'0 0 0 2px '+NB.azul}:undefined}/>
           <div style={{flex:1,minWidth:0,textAlign:'left'}}>
             <div style={{fontSize:12.5,fontWeight:600,color:NB.txt,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{user.name}</div>
-            <div style={{fontSize:10.5,color:NB.mut2,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{user.email}</div>
+            {previewMember
+              ? <div style={{fontSize:10.5,color:NB.azul,fontWeight:600,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>vendo como {previewMember.name.split(' ')[0]}</div>
+              : <div style={{fontSize:10.5,color:NB.mut2,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{user.email}</div>}
           </div>
           <span style={{color:NB.mut2,display:'flex',transform:menu?'none':'rotate(180deg)',transition:'transform 0.15s'}}><IChev s={13}/></span>
         </button>
@@ -1008,7 +1053,7 @@ function CardAvatar({ initials, offset }) {
 }
 
 function DemandCard({ demand }) {
-  const { setModal, dragging, setDragging, attach, comments, pipes, user, moveStage, setNotifyPending, addComment } = useApp();
+  const { setModal, dragging, setDragging, attach, comments, pipes, user, previewMember, moveStage, setNotifyPending, addComment } = useApp();
   const sla = getSla(demand.deadline);
   const ps  = PRI_STL[demand.priority] || PRI_STL.Baixa;
   const isDragging = dragging && dragging.id === demand.id;
@@ -1020,7 +1065,7 @@ function DemandCard({ demand }) {
   const stage  = stages[idx];
   const prox   = stages[idx+1];
   const antes  = stages[idx-1];
-  const podeDecidir = !!(stage && stage.isApproval && user.isApprover);
+  const podeDecidir = !!(stage && stage.isApproval && (previewMember ? previewMember.isApprover : user.isApprover));
 
   const [ajustando, setAjustando] = useState(false);
   const [motivo, setMotivo] = useState('');
@@ -1224,7 +1269,7 @@ function AreaPeople({ areaName, cards, max=5 }) {
 
 /* =========== TRIAGEM DE PEDIDOS EXTERNOS =========== */
 function PedidoCard({ pedido }) {
-  const { aceitarPedido, recusarPedido, user, pipes } = useApp();
+  const { aceitarPedido, recusarPedido, user, previewMember, pipes } = useApp();
   const [modo, setModo] = useState(null);      // aceitar | recusar
   const [motivo, setMotivo] = useState('');
   const [form, setForm] = useState({
@@ -1240,7 +1285,7 @@ function PedidoCard({ pedido }) {
     }));
   }, [modo]);
 
-  const podeDecidir = !!user.isApprover;
+  const podeDecidir = !!(previewMember ? previewMember.isApprover : user.isApprover);
   const set = (k,v) => setForm(f => ({...f, [k]:v}));
   const toggle = i => setForm(f => ({ ...f, assignees: f.assignees.includes(i) ? f.assignees.filter(x=>x!==i) : [...f.assignees, i] }));
   const valido = form.title.trim() && form.assignees.length > 0;
@@ -1339,7 +1384,7 @@ function PedidoCard({ pedido }) {
 
 /* =========== GESTÃO — fila de aprovação =========== */
 function ApprovalCard({ demand }) {
-  const { moveStage, setNotifyPending, addComment, user, setModal, attach, comments, pipes } = useApp();
+  const { moveStage, setNotifyPending, addComment, user, previewMember, setModal, attach, comments, pipes } = useApp();
   const [nota, setNota] = useState('');
   const [ajuste, setAjuste] = useState(false);
 
@@ -1349,7 +1394,7 @@ function ApprovalCard({ demand }) {
   const antes  = stages[idx-1];
   const sla    = getSla(demand.deadline);
   const Icon   = AREA_ICON[demand.area];
-  const podeAprovar = !!user.isApprover;
+  const podeAprovar = !!(previewMember ? previewMember.isApprover : user.isApprover);
   const nA = (attach[demand.id]||[]).length;
   const nC = (comments[demand.id]||[]).length;
 
@@ -1430,7 +1475,7 @@ function ApprovalCard({ demand }) {
 }
 
 function GestaoView() {
-  const { active, user, pipes, pedidos } = useApp();
+  const { active, user, previewMember, pipes, pedidos } = useApp();
   const novos = pedidos.filter(p => p.status === 'novo');
   const [copiado, setCopiado] = useState(false);
   const linkForm = window.location.origin + '/solicitar.html';
@@ -1477,7 +1522,7 @@ function GestaoView() {
         <span style={{fontSize:13.5,color:NB.mut}}>
           {emAprovacao.length===0 ? 'nada parado' : emAprovacao.length + (emAprovacao.length===1?' demanda':' demandas')}
         </span>
-        {!user.isApprover && (
+        {!(previewMember ? previewMember.isApprover : user.isApprover) && (
           <span style={{fontSize:12,color:NB.mut2,background:NB.col,border:'1px solid '+NB.bd,borderRadius:8,padding:'4px 10px'}}>
             Você acompanha; quem decide é a Mariana
           </span>
@@ -3186,7 +3231,7 @@ function NewModal() {
 
 /* =========== APP =========== */
 function AppContent() {
-  const { view, user, authReady, setDragging, editStages, setEditStages, dbReady, dbErro } = useApp();
+  const { view, user, authReady, setDragging, editStages, setEditStages, dbReady, dbErro, previewMember, setPreviewMember } = useApp();
   if (!authReady) return <Splash/>;
   if (!user)      return <LoginScreen/>;
   return (
@@ -3196,6 +3241,16 @@ function AppContent() {
       <Sidebar/>
       <div style={{flex:1,display:'flex',flexDirection:'column',minWidth:0,overflow:'hidden'}}>
         <ContentHeader/>
+        {previewMember && (
+          <div style={{background:'#EAF3FD',borderBottom:'1px solid #BBD8F5',padding:'9px 28px',fontSize:12.5,color:'#0B4F92',display:'flex',alignItems:'center',gap:9,flexShrink:0,flexWrap:'wrap'}}>
+            <IEye s={14}/>
+            <span>Visualizando como <strong style={{fontWeight:600}}>{previewMember.name}</strong> — suas ações continuam sendo registradas como {user.name}.</span>
+            <button onClick={()=>setPreviewMember(null)}
+              style={{marginLeft:'auto',display:'flex',alignItems:'center',gap:6,padding:'4px 11px',background:'#fff',border:'1px solid #BBD8F5',borderRadius:7,fontSize:12,fontWeight:600,color:NB.azul,whiteSpace:'nowrap'}}>
+              <IEyeOff s={12}/> Sair da pré-visualização
+            </button>
+          </div>
+        )}
         {dbErro && (
           <div style={{background:'#FEF2F2',borderBottom:'1px solid #FECACA',padding:'11px 28px',fontSize:13,color:'#B4232A',display:'flex',alignItems:'center',gap:9,flexShrink:0}}>
             <IAlert s={15}/> {dbErro}
