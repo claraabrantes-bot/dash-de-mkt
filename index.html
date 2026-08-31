@@ -52,7 +52,6 @@ const NIBO_DOMAIN = '@nibo.com.br';
 
 /* Plataforma de planejamento social — embutida na seção Social.
    Trocar de endereço é mudar só esta linha. */
-const SOCIAL_APP_URL = 'https://claraabrantes-bot.github.io/planejamento-social-nibo/planejamento-social-media.html';
 
 const TEAM = [
   { id: 'u1', name: 'Mariana Araújo',    initials: 'MA', area: 'Gestão',     isApprover: true,  email: 'mariana.araujo'+NIBO_DOMAIN,    color: '#0072CE' },
@@ -158,6 +157,7 @@ function Provider({ children }) {
   /* ---------- dados compartilhados (Firestore) ---------- */
   const [demands, setDemands] = useState([]);
   const [pedidos, setPedidos] = useState([]);
+  const [posts, setPosts] = useState([]);
   const [slack, setSlack]     = useState([]);
   const [pipes, setPipes]     = useState(DEFAULT_PIPELINES);
   const [dbReady, setDbReady] = useState(false);
@@ -260,12 +260,16 @@ function Provider({ children }) {
       setPedidos(snap.docs.map(d => ({ id:d.id, ...d.data() })));
     }, erro);
 
+    const u5 = db.collection('posts').onSnapshot(snap => {
+      setPosts(snap.docs.map(d => ({ id:d.id, ...d.data() })));
+    }, erro);
+
     const u3 = db.collection('config').doc('pipes').onSnapshot(doc => {
       const d = doc.exists ? doc.data() : null;
       setPipes(d && d.data ? d.data : DEFAULT_PIPELINES);
     }, erro);
 
-    return () => { u1(); u2(); u3(); u4(); };
+    return () => { u1(); u2(); u3(); u4(); u5(); };
   }, [baseUser]);
 
   /* Ao entrar, cai direto no próprio setor. Quem aprova cai na fila de Gestão. */
@@ -519,6 +523,35 @@ function Provider({ children }) {
       .catch(e => setDbErro('Não foi possível atualizar o pedido: '+e.message));
   }, [user]);
 
+  const addPost = useCallback((dados) => {
+    const db = dbRef.current; if (!db) return;
+    db.collection('posts').add({
+      ...dados, status:'rascunho', createdAt:new Date().toISOString(), createdBy:(user&&user.name)||'',
+    }).then(() => {
+      feed({ code:'POST', area:'Social' }, 'Publicação agendada',
+        (user&&user.name)+' agendou "'+dados.legenda.slice(0,60)+(dados.legenda.length>60?'…':'')+'" para '+channelOf(dados.canal).label,
+        'Fila de Publicação → '+dados.canal, 'new');
+    }).catch(e => setDbErro('Não foi possível salvar a publicação: '+e.message));
+  }, [user]);
+
+  const updatePost = useCallback((id, patch) => {
+    const db = dbRef.current; if (!db) return;
+    const p = (window.__nbPosts || []).find(x => x.id === id);
+    db.collection('posts').doc(id).update(patch)
+      .catch(e => setDbErro('Não foi possível atualizar a publicação: '+e.message));
+    if (p && patch.status && patch.status !== p.status) {
+      const nomes = { pronto:'ficou pronta para publicar', publicado:'foi publicada', rascunho:'voltou para rascunho' };
+      feed({ code:'POST', area:'Social' }, 'Status da publicação mudou',
+        '"'+(p.legenda||'').slice(0,60)+'" '+(nomes[patch.status]||'mudou de status'),
+        channelOf(p.canal).label, patch.status==='publicado' ? 'approval' : 'move');
+    }
+  }, []);
+
+  const deletePost = useCallback((id) => {
+    const db = dbRef.current; if (!db) return;
+    db.collection('posts').doc(id).delete().catch(e=>setDbErro('Não foi possível excluir: '+e.message));
+  }, []);
+
   const seed = useCallback(() => {
     const db = dbRef.current; if (!db) return;
     const lote = db.batch();
@@ -548,8 +581,9 @@ function Provider({ children }) {
 
   /* espelho usado pelas escritas para ler o estado mais recente sem recriar callbacks */
   window.__nbDem = demands;
+  window.__nbPosts = posts;
 
-  return <Ctx.Provider value={{ demands, active, archived, filtered, slack, user, authReady, authError, setAuthError, dbReady, dbErro, seed, pedidos, aceitarPedido, recusarPedido, view, setView, layout, setLayout, area, setArea, query, setQuery, priFilter, setPriFilter, reqFilter, setReqFilter, selDemand, setModal, newOpen, setNewOpen, notifyPending, setNotifyPending, profileOpen, setProfileOpen, editStages, setEditStages, dragging, setDragging, previewMember, setPreviewMember, photos, googlePhotos, profiles, pipes, salvarPipes, attach, comments, storageWarn, MAX_FILE, addAttachment, uploadFile, migrarLocal, carregarAnexo, removeAttachment, addComment, removeComment, logout, savePhoto, removePhoto, saveProfile, addDemand, moveStage, moveArea, setAssignees, updateDemand, archiveDemand, restoreDemand, delDemand }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ demands, active, archived, filtered, slack, user, authReady, authError, setAuthError, dbReady, dbErro, seed, pedidos, aceitarPedido, recusarPedido, posts, addPost, updatePost, deletePost, view, setView, layout, setLayout, area, setArea, query, setQuery, priFilter, setPriFilter, reqFilter, setReqFilter, selDemand, setModal, newOpen, setNewOpen, notifyPending, setNotifyPending, profileOpen, setProfileOpen, editStages, setEditStages, dragging, setDragging, previewMember, setPreviewMember, photos, googlePhotos, profiles, pipes, salvarPipes, attach, comments, storageWarn, MAX_FILE, addAttachment, uploadFile, migrarLocal, carregarAnexo, removeAttachment, addComment, removeComment, logout, savePhoto, removePhoto, saveProfile, addDemand, moveStage, moveArea, setAssignees, updateDemand, archiveDemand, restoreDemand, delDemand }}>{children}</Ctx.Provider>;
 }
 
 const useApp = () => useContext(Ctx);
@@ -610,6 +644,30 @@ const IPen     = ({s=16})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}
 const IRocket  = ({s=16})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="M12 15l-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></svg>;
 const IEye     = ({s=15})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}><path d="M1.5 12S5 4.5 12 4.5 22.5 12 22.5 12 19 19.5 12 19.5 1.5 12 1.5 12z"/><circle cx="12" cy="12" r="3.2"/></svg>;
 const IEyeOff  = ({s=15})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}><path d="M3 3l18 18"/><path d="M10.6 5.1A11.5 11.5 0 0 1 12 5c7 0 10.5 7 10.5 7a17.3 17.3 0 0 1-3.4 4.4M6.3 6.9C3.5 8.8 1.5 12 1.5 12S5 19 12 19a10.6 10.6 0 0 0 3.2-.5"/><path d="M9.5 9.9a3.2 3.2 0 0 0 4.5 4.5"/></svg>;
+const IPhoto   = ({s=15})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}><rect x="2.5" y="4.5" width="19" height="15" rx="2.5"/><circle cx="8.5" cy="10" r="1.7"/><path d="M21.5 16l-5.5-5.5-4 4-2-2-6 6"/></svg>;
+const IPlay    = ({s=15})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}><circle cx="12" cy="12" r="9.5"/><polygon points="10 8.5 16 12 10 15.5" fill="currentColor" stroke="none"/></svg>;
+const IGlobe   = ({s=15})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}><circle cx="12" cy="12" r="9.5"/><ellipse cx="12" cy="12" rx="4" ry="9.5"/><line x1="2.5" y1="12" x2="21.5" y2="12"/></svg>;
+const IRing    = ({s=15})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.2"/></svg>;
+
+/* Fila de publicação — canais com ícones genéricos (nunca o logo real da
+   plataforma, que é marca registrada). O nome por extenso já identifica. */
+const CHANNELS = [
+  { id:'ig_feed',    label:'Instagram Feed',       Icon:IPhoto, color:NB.pink },
+  { id:'ig_stories', label:'Instagram Stories',    Icon:IRing,  color:NB.pink },
+  { id:'ig_reels',   label:'Instagram Reels',      Icon:IPlay,  color:NB.pink },
+  { id:'facebook',   label:'Facebook',             Icon:IGlobe, color:NB.azul },
+  { id:'meta_ads',   label:'Anúncio (Meta Ads)',   Icon:ITarget,color:NB.roxo },
+];
+const channelOf = id => CHANNELS.find(c=>c.id===id) || CHANNELS[0];
+
+function getPostUrgency(iso, status) {
+  if (status === 'publicado') return { label:'Publicado', type:'done' };
+  if (!iso) return null;
+  const diffH = (new Date(iso) - new Date()) / 3600000;
+  if (diffH < 0)  return { label:'Atrasado', type:'danger' };
+  if (diffH < 24) return { label:'Hoje',     type:'warn' };
+  return { label:'Em '+Math.ceil(diffH/24)+'d', type:'ok' };
+}
 const IGear    = ({s=15})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6h.09A1.65 1.65 0 0 0 10 3.09V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9v.09a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>;
 const IInbox   = ({s=18})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}><polyline points="21 8 21 21 3 21 3 8"/><path d="M3 8l2.2-5h13.6L21 8"/><path d="M3 13h5l1.5 2.5h5L16 13h5"/></svg>;
 const IArrowR  = ({s=14})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}><line x1="4" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/></svg>;
@@ -789,7 +847,7 @@ function NavItem({ label, Icon, iconColor, count, active, onClick, indent }) {
 
 /* =========== SIDEBAR =========== */
 function Sidebar() {
-  const { view, setView, area, setArea, user, active, slack, archived, pipes, pedidos, setNewOpen, setProfileOpen, logout, previewMember, setPreviewMember } = useApp();
+  const { view, setView, area, setArea, user, active, slack, archived, pipes, pedidos, posts, setNewOpen, setProfileOpen, logout, previewMember, setPreviewMember } = useApp();
   const areas = ['Social','Design','Mídia Paga','Produto','RevOps'];
   const vencidas = active.filter(d => { const s=getSla(d.deadline); return s && s.type!=='ok'; }).length;
   const emAprovacao = active.filter(d => {
@@ -847,8 +905,9 @@ function Sidebar() {
                 active={area===a && view==='kanban'}
                 onClick={()=>{ setArea(a); setView('kanban'); }}/>
               {a==='Social' && area==='Social' && (
-                <NavItem label="Planejamento" Icon={ICal} iconColor={AREA_CLR.Social} indent
-                  active={view==='social'} onClick={()=>{ setArea('Social'); setView('social'); }}/>
+                <NavItem label="Fila de Publicação" Icon={IPhoto} iconColor={AREA_CLR.Social} indent
+                  count={posts.filter(p=>p.status==='pronto').length||undefined}
+                  active={view==='publicacoes'} onClick={()=>{ setArea('Social'); setView('publicacoes'); }}/>
               )}
               {a==='Design' && area==='Design' && (
                 <NavItem label="Variações" Icon={IBrush} iconColor={AREA_CLR.Design} indent
@@ -957,8 +1016,8 @@ function ContentHeader() {
   const titles = {
     slack:      ['Automações Slack', 'Histórico das automações disparadas ao mover os cards.'],
     arquivadas: ['Arquivadas', 'Demandas fora do quadro. Restaure quando precisar ou exclua de vez.'],
-    social:     ['Planejamento Social', 'Calendário, grid do Instagram e ideias — a plataforma do Social aberta aqui dentro.'],
     variacoes:  ['Variações de peça', 'Suba uma peça e gere os cortes de formato, versões de fundo e o briefing do que testar.'],
+    publicacoes:['Fila de Publicação', 'Monte o post, deixe pronto e publique — por enquanto manualmente no Meta Business Suite.'],
     gestao:     ['Gestão', 'Aprovações pendentes e pedidos de outros setores em um só lugar.'],
   };
   const [title, sub] = titles[view] || [
@@ -1388,6 +1447,269 @@ function PedidoCard({ pedido }) {
   );
 }
 
+/* =========== FILA DE PUBLICAÇÃO =========== */
+function NewPostModal({ onClose, editingPost }) {
+  const { addPost, updatePost, active, user } = useApp();
+  const socialDemands = active.filter(d => d.area === 'Social');
+  const [form, setForm] = useState(() => editingPost ? {
+    legenda: editingPost.legenda || '', canal: editingPost.canal || CHANNELS[0].id,
+    data: (editingPost.scheduledAt||'').slice(0,10) || dStr(1),
+    hora: (editingPost.scheduledAt||'').slice(11,16) || '09:00',
+    assignees: editingPost.assignees || [user.initials],
+    imageData: editingPost.imageData || null, imageLink: editingPost.imageLink || '',
+    demandaId: editingPost.demandaId || '',
+  } : {
+    legenda: '', canal: CHANNELS[0].id, data: dStr(1), hora: '09:00',
+    assignees: [user.initials], imageData: null, imageLink: '', demandaId: '',
+  });
+  const [linkMode, setLinkMode] = useState(!!(editingPost && editingPost.imageLink));
+  const [err, setErr] = useState('');
+  const fileRef = useRef(null);
+
+  const set = (k,v) => setForm(f=>({...f,[k]:v}));
+  const toggleAssignee = i => setForm(f=>({ ...f, assignees: f.assignees.includes(i) ? f.assignees.filter(x=>x!==i) : [...f.assignees,i] }));
+
+  const pickImage = e => {
+    const f = e.target.files && e.target.files[0]; e.target.value = '';
+    if (!f) return;
+    if (!f.type.startsWith('image/')) return setErr('Escolha uma imagem.');
+    if (f.size > 700*1024) return setErr('Imagem grande demais (limite 700 KB). Use um link do Canva ou Drive.');
+    const rd = new FileReader();
+    rd.onload = () => { set('imageData', rd.result); setErr(''); };
+    rd.readAsDataURL(f);
+  };
+
+  const valido = form.legenda.trim().length > 0 && form.assignees.length > 0;
+
+  const salvar = () => {
+    if (!valido) return setErr('Escreva a legenda e escolha ao menos um responsável.');
+    if (form.legenda.length > 2200) return setErr('A legenda passou de 2.200 caracteres, o limite do Instagram.');
+    const dem = socialDemands.find(d=>d.id===form.demandaId);
+    const dados = {
+      legenda: form.legenda.trim(), canal: form.canal,
+      scheduledAt: form.data + 'T' + form.hora,
+      assignees: form.assignees,
+      imageData: linkMode ? null : form.imageData,
+      imageLink: linkMode ? form.imageLink.trim() : '',
+      demandaId: form.demandaId || null, demandaCodigo: dem ? dem.code : null,
+    };
+    if (editingPost) updatePost(editingPost.id, dados);
+    else addPost(dados);
+    onClose();
+  };
+
+  return (
+    <Modal onClose={onClose} width={560}>
+      <div style={{padding:'22px 26px 18px',borderBottom:'1px solid '+NB.bdSoft,display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:14}}>
+        <div>
+          <h2 style={{fontSize:19,fontWeight:600,color:NB.txt,marginBottom:4}}>{editingPost?'Editar publicação':'Nova publicação'}</h2>
+          <p style={{fontSize:12.5,color:NB.mut}}>Fica pronta na fila; publicar ainda é manual até a integração com o Meta.</p>
+        </div>
+        <button onClick={onClose} style={{padding:8,background:'#fff',border:'1px solid '+NB.bd,borderRadius:9,color:NB.mut,display:'flex',flexShrink:0}}><IX/></button>
+      </div>
+
+      <div style={{padding:'20px 26px',display:'flex',flexDirection:'column',gap:16}}>
+        <div>
+          <div style={{display:'flex',justifyContent:'space-between',marginBottom:7}}>
+            <span style={lbl}>Legenda</span>
+            <span style={{fontSize:11.5,color:form.legenda.length>2200?'#B4232A':NB.mut2}}>{form.legenda.length}/2200</span>
+          </div>
+          <textarea value={form.legenda} onChange={e=>set('legenda',e.target.value)} rows={4}
+            placeholder="Escreva a legenda do post..." style={{...inp,padding:'10px 13px',fontSize:13.5,resize:'vertical',lineHeight:1.6}}/>
+        </div>
+
+        <div>
+          <div style={{...lbl,marginBottom:8}}>Canal</div>
+          <div style={{display:'flex',gap:7,flexWrap:'wrap'}}>
+            {CHANNELS.map(c=>{
+              const on = form.canal===c.id; const Icon=c.Icon;
+              return (
+                <button key={c.id} onClick={()=>set('canal',c.id)}
+                  style={{display:'flex',alignItems:'center',gap:7,padding:'8px 13px',borderRadius:9,border:'1px solid '+(on?c.color:NB.bd),background:on?c.color+'14':'#fff',fontSize:12.5,fontWeight:500,color:on?c.color:NB.mut}}>
+                  <Icon s={14}/> {c.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:13}}>
+          <div>
+            <div style={{...lbl,marginBottom:7}}>Data</div>
+            <input type="date" value={form.data} onChange={e=>set('data',e.target.value)} style={{...inp,padding:'9px 12px',fontSize:13.5}}/>
+          </div>
+          <div>
+            <div style={{...lbl,marginBottom:7}}>Hora</div>
+            <input type="time" value={form.hora} onChange={e=>set('hora',e.target.value)} style={{...inp,padding:'9px 12px',fontSize:13.5}}/>
+          </div>
+        </div>
+
+        <div>
+          <div style={{...lbl,marginBottom:8}}>Mídia</div>
+          <div style={{display:'flex',gap:8,marginBottom:10}}>
+            <button onClick={()=>setLinkMode(false)} style={{...(linkMode?{}:{}), padding:'7px 13px',borderRadius:8,border:'1px solid '+(!linkMode?NB.azul:NB.bd),background:!linkMode?'#EAF3FD':'#fff',fontSize:12.5,fontWeight:500,color:!linkMode?NB.azul:NB.mut}}>Enviar arquivo</button>
+            <button onClick={()=>setLinkMode(true)} style={{padding:'7px 13px',borderRadius:8,border:'1px solid '+(linkMode?NB.azul:NB.bd),background:linkMode?'#EAF3FD':'#fff',fontSize:12.5,fontWeight:500,color:linkMode?NB.azul:NB.mut}}>Link do Canva/Drive</button>
+          </div>
+          {linkMode ? (
+            <input value={form.imageLink} onChange={e=>set('imageLink',e.target.value)} placeholder="https://canva.com/..." style={{...inp,padding:'9px 12px',fontSize:13.5}}/>
+          ) : (
+            <div style={{display:'flex',alignItems:'center',gap:11}}>
+              <button onClick={()=>fileRef.current&&fileRef.current.click()}
+                style={{display:'flex',alignItems:'center',gap:7,padding:'9px 14px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:9,fontSize:12.5,fontWeight:500,color:NB.mut}}>
+                <IClip s={14}/> {form.imageData?'Trocar imagem':'Escolher imagem'}
+              </button>
+              <input ref={fileRef} type="file" accept="image/*" onChange={pickImage} style={{display:'none'}}/>
+              {form.imageData && <img src={form.imageData} alt="" style={{width:36,height:36,borderRadius:7,objectFit:'cover',border:'1px solid '+NB.bd}}/>}
+            </div>
+          )}
+        </div>
+
+        <div>
+          <div style={{...lbl,marginBottom:8}}>Responsáveis</div>
+          <div style={{display:'flex',flexWrap:'wrap',gap:8}}>
+            {ACTIVE_TEAM.map(m=><AssigneePick key={m.id} member={m} checked={form.assignees.includes(m.initials)} onToggle={()=>toggleAssignee(m.initials)}/>)}
+          </div>
+        </div>
+
+        {socialDemands.length>0 && (
+          <div>
+            <div style={{...lbl,marginBottom:7}}>Vincular a uma demanda do Social (opcional)</div>
+            <select value={form.demandaId} onChange={e=>set('demandaId',e.target.value)} style={{...inp,padding:'9px 12px',fontSize:13.5}}>
+              <option value="">Nenhuma</option>
+              {socialDemands.map(d=><option key={d.id} value={d.id}>{d.code} — {d.title.slice(0,44)}</option>)}
+            </select>
+          </div>
+        )}
+
+        {err && <div style={{padding:'10px 13px',background:'#FEF2F2',border:'1px solid #FECACA',borderRadius:9,fontSize:12.5,color:'#B4232A'}}>{err}</div>}
+      </div>
+
+      <div style={{padding:'16px 26px',borderTop:'1px solid '+NB.bdSoft,display:'flex',justifyContent:'flex-end',gap:10}}>
+        <button onClick={onClose} style={{padding:'10px 18px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:9,fontSize:13,fontWeight:500,color:NB.mut}}>Cancelar</button>
+        <button onClick={salvar} disabled={!valido}
+          style={{padding:'10px 22px',background:valido?NB.azul:'#CFD8E6',border:'none',borderRadius:9,fontSize:13,fontWeight:500,color:'#fff',cursor:valido?'pointer':'not-allowed'}}>
+          {editingPost?'Salvar':'Adicionar à fila'}
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
+function PostCard({ post, onEdit }) {
+  const { updatePost, deletePost } = useApp();
+  const [confirmDel, setConfirmDel] = useState(false);
+  const ch = channelOf(post.canal);
+  const Icon = ch.Icon;
+  const urg = getPostUrgency(post.scheduledAt, post.status);
+  const img = post.imageData || null;
+
+  const copiar = () => { navigator.clipboard && navigator.clipboard.writeText(post.legenda); };
+  const avançar = () => {
+    if (post.status==='rascunho') updatePost(post.id, { status:'pronto' });
+    else if (post.status==='pronto') updatePost(post.id, { status:'publicado' });
+  };
+
+  return (
+    <div style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:11,padding:'13px 14px',marginBottom:10}}>
+      <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:9}}>
+        <span style={{display:'inline-flex',alignItems:'center',gap:6,fontSize:11.5,fontWeight:600,color:ch.color,background:ch.color+'14',borderRadius:6,padding:'3px 8px'}}>
+          <Icon s={12}/> {ch.label}
+        </span>
+        {urg && urg.type!=='done' && (
+          <span style={{fontSize:11,fontWeight:500,padding:'2px 8px',borderRadius:6,
+            background:urg.type==='danger'?'#FEECEC':urg.type==='warn'?'#FFF6DE':NB.col,
+            color:urg.type==='danger'?'#B4232A':urg.type==='warn'?'#8A6206':NB.mut}}>{urg.label}</span>
+        )}
+        {post.demandaCodigo && <span style={{fontSize:10.5,color:NB.mut2,fontFamily:'monospace'}}>{post.demandaCodigo}</span>}
+        <button onClick={()=>setConfirmDel(v=>!v)} style={{marginLeft:'auto',background:'none',border:'none',color:NB.mut2,padding:2,display:'flex'}}><ITrash s={13}/></button>
+      </div>
+
+      {img && <img src={img} alt="" style={{width:'100%',height:100,objectFit:'cover',borderRadius:8,marginBottom:9,border:'1px solid '+NB.bd}}/>}
+
+      <p onClick={onEdit} style={{fontSize:13,color:NB.txt,lineHeight:1.5,display:'-webkit-box',WebkitLineClamp:3,WebkitBoxOrient:'vertical',overflow:'hidden',marginBottom:9,cursor:'pointer'}}>
+        {post.legenda}
+      </p>
+
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:confirmDel?9:0}}>
+        <div style={{display:'flex'}}>{(post.assignees||[]).slice(0,3).map((init,i)=><CardAvatar key={init+i} initials={init} offset={i}/>)}</div>
+        <span style={{fontSize:11,color:NB.mut2}}>{fmtDate(post.scheduledAt&&post.scheduledAt.slice(0,10))} · {(post.scheduledAt||'').slice(11,16)}</span>
+      </div>
+
+      {confirmDel ? (
+        <div style={{display:'flex',gap:7,marginTop:2}}>
+          <button onClick={()=>deletePost(post.id)} style={{flex:1,padding:'7px',background:'#B4232A',border:'none',borderRadius:7,fontSize:12,fontWeight:500,color:'#fff'}}>Excluir</button>
+          <button onClick={()=>setConfirmDel(false)} style={{flex:1,padding:'7px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:7,fontSize:12,fontWeight:500,color:NB.mut}}>Cancelar</button>
+        </div>
+      ) : (
+        <div style={{display:'flex',gap:7,marginTop:11,paddingTop:11,borderTop:'1px solid '+NB.bdSoft}}>
+          {post.status!=='rascunho' && (
+            <button onClick={copiar} style={{flex:1,padding:'7px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:7,fontSize:12,fontWeight:500,color:NB.mut}}>Copiar legenda</button>
+          )}
+          {post.status!=='publicado' && (
+            <button onClick={avançar}
+              style={{flex:1,padding:'7px',background:post.status==='pronto'?'#0F6E56':NB.azul,border:'none',borderRadius:7,fontSize:12,fontWeight:500,color:'#fff'}}>
+              {post.status==='rascunho'?'Marcar como pronto':'Marcar como publicado'}
+            </button>
+          )}
+          {post.status==='publicado' && (
+            <button onClick={()=>updatePost(post.id,{status:'rascunho'})} style={{flex:1,padding:'7px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:7,fontSize:12,fontWeight:500,color:NB.mut}}>Reabrir</button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PublishQueueView() {
+  const { posts } = useApp();
+  const [novo, setNovo] = useState(false);
+  const [editando, setEditando] = useState(null);
+
+  const cols = [
+    { id:'rascunho', label:'Rascunho',  v:STAGE_CYCLE[0] },
+    { id:'pronto',   label:'Pronto',    v:STAGE_APPROVAL },
+    { id:'publicado',label:'Publicado',v:STAGE_DONE },
+  ];
+
+  return (
+    <div style={{padding:'22px 30px 30px',overflowY:'auto',overflowX:'hidden',height:'100%'}}>
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:18,flexWrap:'wrap',gap:12}}>
+        <p style={{fontSize:13,color:NB.mut,maxWidth:520,lineHeight:1.55}}>
+          Monte o post aqui, deixe pronto, e publique manualmente no Meta Business Suite por enquanto —
+          o botão de publicar direto chega quando o app do Meta for aprovado.
+        </p>
+        <button onClick={()=>setNovo(true)}
+          style={{display:'flex',alignItems:'center',gap:8,padding:'11px 18px',background:NB.azul,border:'none',borderRadius:10,color:'#fff',fontSize:13.5,fontWeight:600,whiteSpace:'nowrap'}}>
+          <IPlus s={16}/> Nova publicação
+        </button>
+      </div>
+
+      <div style={{display:'grid',gridTemplateColumns:'repeat(3, minmax(0,1fr))',gap:16,alignItems:'start'}}>
+        {cols.map(col=>{
+          const lista = posts.filter(p=>p.status===col.id).sort((a,b)=> (a.scheduledAt||'') < (b.scheduledAt||'') ? -1 : 1);
+          const v = col.v;
+          return (
+            <div key={col.id} style={{background:v.bg,border:'1.5px solid '+v.bd,borderRadius:12,overflow:'hidden'}}>
+              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'11px 14px',background:v.head,borderBottom:'1px solid '+v.bd}}>
+                <span style={{fontSize:13.5,fontWeight:600,color:NB.txt}}>{col.label}</span>
+                <span style={{fontSize:11.5,color:NB.mut,fontWeight:600,background:'#fff',border:'1px solid '+v.bd,borderRadius:20,padding:'1px 8px'}}>{lista.length}</span>
+              </div>
+              <div style={{padding:'12px 12px 4px',minHeight:120}}>
+                {lista.length===0
+                  ? <div style={{textAlign:'center',color:NB.mut2,fontSize:12.5,padding:'24px 8px'}}>Nada aqui</div>
+                  : lista.map(p=><PostCard key={p.id} post={p} onEdit={()=>setEditando(p)}/>)}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {novo && <NewPostModal onClose={()=>setNovo(false)}/>}
+      {editando && <NewPostModal editingPost={editando} onClose={()=>setEditando(null)}/>}
+    </div>
+  );
+}
+
 /* =========== GESTÃO — fila de aprovação =========== */
 function ApprovalCard({ demand }) {
   const { moveStage, setNotifyPending, addComment, user, previewMember, setModal, attach, comments, pipes } = useApp();
@@ -1742,12 +2064,6 @@ function AreaBlock({ areaName, cards }) {
           <AreaPeople areaName={areaName} cards={cards}/>
         </div>
         <div style={{display:'flex',gap:8,flexShrink:0}}>
-          {areaName==='Social' && (
-            <button onClick={()=>{setArea('Social'); setView('social');}} title="Abrir o planejamento do Social"
-              style={{display:'flex',alignItems:'center',gap:7,padding:'7px 13px',background:'#EAF3FD',border:'1px solid '+NB.azul,borderRadius:9,fontSize:13,fontWeight:500,color:NB.azul,whiteSpace:'nowrap'}}>
-              <ICal s={14}/> Planejamento
-            </button>
-          )}
           <button onClick={()=>setEditStages(areaName)} title={'Editar as etapas de '+areaName}
             style={{display:'flex',alignItems:'center',gap:7,padding:'7px 11px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:9,fontSize:13,fontWeight:500,color:NB.mut,whiteSpace:'nowrap'}}
             onMouseEnter={e=>{e.currentTarget.style.color=NB.txt; e.currentTarget.style.borderColor='#D3DCEA';}}
@@ -1871,14 +2187,6 @@ function KanbanBoard() {
           onMouseLeave={e=>{e.currentTarget.style.color=NB.mut; e.currentTarget.style.borderColor=NB.bd;}}>
           <IGear/> Editar etapas
         </button>
-        {area==='Social' && (
-          <a href={SOCIAL_APP_URL} target="_blank" rel="noopener noreferrer"
-            style={{display:'inline-flex',alignItems:'center',gap:7,padding:'7px 13px',background:'#EAF3FD',border:'1px solid '+NB.azul,borderRadius:9,fontSize:13,fontWeight:500,color:NB.azul,textDecoration:'none',whiteSpace:'nowrap'}}
-            onMouseEnter={e=>{e.currentTarget.style.background='#DCEBFB';}}
-            onMouseLeave={e=>{e.currentTarget.style.background='#EAF3FD';}}>
-            <ICal s={14}/> Planejamento <IExt s={12}/>
-          </a>
-        )}
       </div>
       <div style={{display:'grid',gridTemplateColumns:'repeat(5, minmax(0,1fr))',gap:16,alignItems:'stretch'}}>
         {stageVisuals(stages).map(({st,v})=>(
@@ -2006,61 +2314,6 @@ function EditableText({ value, onSave, multiline, placeholder, required, textSty
       onMouseEnter={e=>{e.currentTarget.style.background=NB.col;}}
       onMouseLeave={e=>{e.currentTarget.style.background='transparent';}}>
       {value || placeholder}
-    </div>
-  );
-}
-
-/* =========== PLANEJAMENTO SOCIAL (embutido) =========== */
-function SocialPlannerView() {
-  const [key, setKey]     = useState(0);
-  const [ready, setReady] = useState(false);
-  const [slow, setSlow]   = useState(false);
-
-  useEffect(() => {
-    setReady(false); setSlow(false);
-    const timer = setTimeout(() => setSlow(true), 6000);
-    return () => clearTimeout(timer);
-  }, [key]);
-
-  const open = () => window.open(SOCIAL_APP_URL, '_blank', 'noopener');
-
-  return (
-    <div style={{height:'100%',display:'flex',flexDirection:'column',padding:'16px 30px 22px',minHeight:0}}>
-      <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:12,flexWrap:'wrap'}}>
-        <span style={{display:'inline-flex',alignItems:'center',gap:8,fontSize:13.5,color:NB.mut}}>
-          <IChat s={16}/> Plataforma de planejamento do Social, aberta aqui dentro
-        </span>
-        <div style={{marginLeft:'auto',display:'flex',gap:8,flexShrink:0}}>
-          <button onClick={()=>setKey(k=>k+1)} title="Recarregar"
-            style={{display:'flex',alignItems:'center',gap:7,padding:'8px 13px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:9,fontSize:12.5,fontWeight:500,color:NB.mut}}>
-            <IRefresh s={14}/> Recarregar
-          </button>
-          <button onClick={open}
-            style={{display:'flex',alignItems:'center',gap:7,padding:'8px 13px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:9,fontSize:12.5,fontWeight:500,color:NB.azul}}>
-            <IExt s={14}/> Abrir em nova aba
-          </button>
-        </div>
-      </div>
-
-      {slow && !ready && (
-        <div style={{marginBottom:12,padding:'12px 15px',background:'#FFF6DE',border:'1px solid #F3D98A',borderRadius:10,fontSize:12.5,color:'#8A6206',lineHeight:1.6}}>
-          A plataforma está demorando ou o navegador pode estar bloqueando o login do Google dentro de uma janela embutida.
-          Se ficar preso na tela de entrar, use <strong style={{fontWeight:600}}>Abrir em nova aba</strong> — funciona igual.
-        </div>
-      )}
-
-      <div style={{flex:1,minHeight:0,borderRadius:14,border:'1px solid '+NB.bd,overflow:'hidden',background:'#fff',position:'relative'}}>
-        {!ready && (
-          <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center',flexDirection:'column',gap:12,color:NB.mut2,fontSize:13.5,background:'#fff'}}>
-            <div style={{width:34,height:34,border:'2.5px solid '+NB.bd,borderTopColor:NB.azul,borderRadius:'50%',animation:'nb-spin 0.8s linear infinite'}}/>
-            Carregando o planejamento…
-          </div>
-        )}
-        <iframe key={key} src={SOCIAL_APP_URL} title="Planejamento Social Nibo"
-          onLoad={()=>setReady(true)}
-          allow="clipboard-write; clipboard-read"
-          style={{width:'100%',height:'100%',border:'none',display:'block'}}/>
-      </div>
     </div>
   );
 }
@@ -2208,20 +2461,33 @@ function AttachPanel({ demand }) {
 
   return (
     <div>
-      <div style={{display:'flex',gap:9,marginBottom:list.length||mode||subindo.length?14:0,flexWrap:'wrap'}}>
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:list.length||mode||subindo.length?16:2}}>
         <button onClick={()=>fileRef.current && fileRef.current.click()}
-          style={{display:'flex',alignItems:'center',gap:7,padding:'9px 14px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:9,fontSize:13,fontWeight:500,color:NB.mut}}>
-          <IClip s={15}/> Anexar arquivo
+          style={{display:'flex',alignItems:'flex-start',gap:11,padding:'13px 14px',background:'#fff',border:'1.5px solid '+NB.bd,borderRadius:12,textAlign:'left',transition:'border-color 0.12s, background 0.12s'}}
+          onMouseEnter={e=>{e.currentTarget.style.borderColor=NB.azul; e.currentTarget.style.background='#F7FAFF';}}
+          onMouseLeave={e=>{e.currentTarget.style.borderColor=NB.bd; e.currentTarget.style.background='#fff';}}>
+          <span style={{width:32,height:32,borderRadius:9,background:'#EAF3FD',color:NB.azul,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><IClip s={16}/></span>
+          <span>
+            <div style={{fontSize:13,fontWeight:600,color:NB.txt,marginBottom:2}}>Enviar arquivo</div>
+            <div style={{fontSize:11.5,color:NB.mut2,lineHeight:1.4}}>Do computador, até {fmtBytes(MAX_FILE)}</div>
+          </span>
         </button>
         <input ref={fileRef} type="file" multiple onChange={pickFiles} style={{display:'none'}}/>
+
         <button onClick={()=>{setMode(m=>m==='link'?null:'link'); setErr('');}}
-          style={{display:'flex',alignItems:'center',gap:7,padding:'9px 14px',background:mode==='link'?'#EAF3FD':'#fff',border:'1px solid '+(mode==='link'?NB.azul:NB.bd),borderRadius:9,fontSize:13,fontWeight:500,color:mode==='link'?NB.azul:NB.mut}}>
-          <ILink/> Adicionar link
+          style={{display:'flex',alignItems:'flex-start',gap:11,padding:'13px 14px',background:mode==='link'?'#F5F1FE':'#fff',border:'1.5px solid '+(mode==='link'?NB.roxo:NB.bd),borderRadius:12,textAlign:'left',transition:'border-color 0.12s, background 0.12s'}}
+          onMouseEnter={e=>{ if(mode!=='link'){e.currentTarget.style.borderColor=NB.roxo; e.currentTarget.style.background='#FAF8FF';} }}
+          onMouseLeave={e=>{ if(mode!=='link'){e.currentTarget.style.borderColor=NB.bd; e.currentTarget.style.background='#fff';} }}>
+          <span style={{width:32,height:32,borderRadius:9,background:'#F1ECFE',color:NB.roxo,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><ILink s={16}/></span>
+          <span>
+            <div style={{fontSize:13,fontWeight:600,color:NB.txt,marginBottom:2}}>Colar link</div>
+            <div style={{fontSize:11.5,color:NB.mut2,lineHeight:1.4}}>Canva, Drive — sem limite de tamanho</div>
+          </span>
         </button>
       </div>
 
       {mode==='link' && (
-        <div style={{background:NB.col,border:'1px solid '+NB.bd,borderRadius:11,padding:'14px 15px',marginBottom:14,display:'flex',flexDirection:'column',gap:9}}>
+        <div style={{background:'#F5F1FE',border:'1px solid #E4D9FC',borderLeft:'3px solid '+NB.roxo,borderRadius:11,padding:'14px 15px',marginBottom:14,display:'flex',flexDirection:'column',gap:9}}>
           <input value={ln.url} autoFocus placeholder="drive.google.com/..." onChange={e=>{setLn(v=>({...v,url:e.target.value})); setErr('');}}
             onKeyDown={e=>{ if(e.key==='Enter') saveLink(); }}
             style={{...inp,padding:'9px 12px',fontSize:13.5}}/>
@@ -2230,7 +2496,7 @@ function AttachPanel({ demand }) {
             style={{...inp,padding:'9px 12px',fontSize:13.5}}/>
           <div style={{display:'flex',gap:8,justifyContent:'flex-end'}}>
             <button onClick={()=>{setMode(null);setErr('');}} style={{padding:'8px 14px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:8,fontSize:12.5,fontWeight:500,color:NB.mut}}>Cancelar</button>
-            <button onClick={saveLink} style={{padding:'8px 16px',background:NB.azul,border:'none',borderRadius:8,fontSize:12.5,fontWeight:500,color:'#fff'}}>Salvar link</button>
+            <button onClick={saveLink} style={{padding:'8px 16px',background:NB.roxo,border:'none',borderRadius:8,fontSize:12.5,fontWeight:500,color:'#fff'}}>Salvar link</button>
           </div>
         </div>
       )}
@@ -2266,7 +2532,7 @@ function AttachPanel({ demand }) {
               <div key={a.id} style={{display:'flex',alignItems:'center',gap:12,background:'#fff',border:'1px solid '+NB.bd,borderRadius:10,padding:'10px 12px'}}>
                 {img
                   ? <img src={src} alt="" style={{width:38,height:38,borderRadius:8,objectFit:'cover',flexShrink:0,border:'1px solid '+NB.bd}}/>
-                  : <div style={{width:38,height:38,borderRadius:8,background:a.kind==='link'?'#EAF3FD':NB.col,color:a.kind==='link'?NB.azul:NB.mut,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                  : <div style={{width:38,height:38,borderRadius:8,background:a.kind==='link'?'#F1ECFE':NB.col,color:a.kind==='link'?NB.roxo:NB.mut,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
                       {a.kind==='link' ? <ILink s={17}/> : <IFile s={17}/>}
                     </div>}
                 <div style={{flex:1,minWidth:0}}>
@@ -3273,8 +3539,8 @@ function AppContent() {
               {view==='kanban'     && <KanbanBoard/>}
               {view==='slack'      && <SlackFeed/>}
               {view==='arquivadas' && <ArchivedView/>}
-              {view==='social'     && <SocialPlannerView/>}
               {view==='variacoes'  && <VariationsView/>}
+              {view==='publicacoes'&& <PublishQueueView/>}
               {view==='gestao'     && <GestaoView/>}
             </React.Fragment>
           )}
