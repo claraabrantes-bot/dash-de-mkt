@@ -145,7 +145,20 @@ function enviar() {
   botao.innerHTML = '<span class="spin"></span> Enviando...';
 
   firebase.firestore().collection('solicitacoes').add(dados)
-    .then(function () { telaPronto(dados); })
+    .then(function (ref) {
+      // Notifica no feed (Automações Slack do dashboard) — falha aqui não deve travar o envio
+      firebase.firestore().collection('feed').add({
+        code: 'PED-' + ref.id.slice(0, 5).toUpperCase(),
+        area: dados.setor,
+        time: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+        stagePath: 'Novo pedido externo',
+        action: '@Mariana Araújo, novo pedido de ' + dados.setor + ': "' + dados.titulo + '" (' + dados.solicitante + ')',
+        next: 'Triagem em Gestão → Aprovações e pedidos',
+        type: 'new',
+        ts: Date.now()
+      })['catch'](function () {});
+      telaPronto(dados);
+    })
     ['catch'](function (e) {
       telaForm(e.code === 'permission-denied'
         ? 'Sem permissão para gravar. O time de Marketing precisa publicar as regras do Firestore.'
