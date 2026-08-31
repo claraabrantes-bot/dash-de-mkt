@@ -809,7 +809,7 @@ function Sidebar() {
         <div style={{display:'flex',alignItems:'center',gap:13}}>
           <NiboSymbol size={40} color={NB.navy1}/>
           <div style={{lineHeight:1.2}}>
-            <div style={{fontSize:21,fontWeight:700,color:NB.navy1,letterSpacing:'-0.02em'}}>nibo</div>
+            <div style={{fontSize:21,fontWeight:700,color:NB.navy1,letterSpacing:'-0.02em'}}>Nibo</div>
             <div style={{fontSize:10.5,fontWeight:600,color:NB.mut,letterSpacing:'0.09em'}}>MARKETING</div>
           </div>
         </div>
@@ -1296,6 +1296,12 @@ function PedidoCard({ pedido }) {
         <span style={{background:'#FFF6DE',border:'1px solid #F3D98A',color:'#8A6206',fontSize:11,fontWeight:600,padding:'2px 9px',borderRadius:6}}>{pedido.setor}</span>
         <span style={{fontSize:12.5,color:NB.mut}}>{pedido.tipo}</span>
         <span style={{fontSize:12,color:NB.mut2}}>· {pedido.solicitante}</span>
+        {pedido.email && (
+          <a href={'mailto:'+pedido.email} onClick={e=>e.stopPropagation()}
+            style={{fontSize:12,color:NB.azul,textDecoration:'none'}}>
+            {pedido.email}
+          </a>
+        )}
         {pedido.prazo && <span style={{fontSize:12,color:NB.mut2}}>· precisa em {fmtDate(pedido.prazo)}</span>}
       </div>
 
