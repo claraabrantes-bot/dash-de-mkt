@@ -983,10 +983,8 @@ function Sidebar() {
         <div style={{marginBottom:20}}>
           <NavItem label="Central de Informações" Icon={IGlobe} iconColor={NB.mut}
             active={view==='central'} onClick={()=>setView('central')}/>
-          {user.canPublishCampaigns && (
-            <NavItem label="Campanhas" Icon={ITarget} iconColor={NB.mut}
-              count={campanhas.length||undefined} active={view==='campanhas'} onClick={()=>setView('campanhas')}/>
-          )}
+          <NavItem label="Campanhas" Icon={ITarget} iconColor={NB.mut}
+            count={campanhas.length||undefined} active={view==='campanhas'} onClick={()=>setView('campanhas')}/>
         </div>
 
         <div style={secLbl}>Módulos</div>
@@ -2363,11 +2361,12 @@ function CampanhaEditModal({ camp, onClose }) {
 }
 
 function CampanhaManagerCard({ camp }) {
-  const { publicarCampanha, despublicarCampanha, deleteCampanha } = useApp();
+  const { user, publicarCampanha, despublicarCampanha, deleteCampanha } = useApp();
   const [editar, setEditar] = useState(false);
   const [confirmar, setConfirmar] = useState(false);
   const publicada = camp.status === 'publicada';
   const nPecas = (camp.pecaIds||[]).length + (camp.pecasDemanda||[]).length;
+  const podeGerenciar = !!user.canPublishCampaigns;
 
   return (
     <div style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:13,padding:'16px 18px'}}>
@@ -2386,26 +2385,28 @@ function CampanhaManagerCard({ camp }) {
             {camp.desconto || 'sem desconto'}{camp.jornada ? ' · '+(PERSONAS.find(p=>p.id===camp.jornada)?.label||camp.jornada) : ''}
           </span>
         </div>
-        <div style={{display:'flex',gap:7,flexShrink:0}}>
-          <button onClick={()=>setEditar(true)} style={{padding:'7px 11px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:8,fontSize:12,fontWeight:500,color:NB.mut}}>
-            {camp.instagramLink ? 'Editar link' : 'Adicionar link'}
-          </button>
-          {publicada
-            ? <button onClick={()=>despublicarCampanha(camp)} style={{padding:'7px 11px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:8,fontSize:12,fontWeight:500,color:NB.mut}}>Despublicar</button>
-            : <button onClick={()=>publicarCampanha(camp)} style={{padding:'7px 13px',background:'#0F6E56',border:'none',borderRadius:8,fontSize:12,fontWeight:500,color:'#fff'}}>Publicar</button>}
-        </div>
+        {podeGerenciar && (
+          <div style={{display:'flex',gap:7,flexShrink:0}}>
+            <button onClick={()=>setEditar(true)} style={{padding:'7px 11px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:8,fontSize:12,fontWeight:500,color:NB.mut}}>
+              {camp.instagramLink ? 'Editar link' : 'Adicionar link'}
+            </button>
+            {publicada
+              ? <button onClick={()=>despublicarCampanha(camp)} style={{padding:'7px 11px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:8,fontSize:12,fontWeight:500,color:NB.mut}}>Despublicar</button>
+              : <button onClick={()=>publicarCampanha(camp)} style={{padding:'7px 13px',background:'#0F6E56',border:'none',borderRadius:8,fontSize:12,fontWeight:500,color:'#fff'}}>Publicar</button>}
+          </div>
+        )}
       </div>
       {camp.descricao && <p style={{fontSize:12.5,color:NB.mut,lineHeight:1.55,marginBottom:8}}>{camp.descricao}</p>}
       <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:10}}>
         <span style={{fontSize:11.5,color:NB.mut2}}>{nPecas} peça(s) · {camp.instagramLink?'link do Insta ok':'sem link do Insta ainda'}</span>
-        {confirmar ? (
+        {podeGerenciar && (confirmar ? (
           <span style={{display:'flex',gap:7}}>
             <button onClick={()=>deleteCampanha(camp.id)} style={{padding:'5px 10px',background:'#B4232A',border:'none',borderRadius:7,fontSize:11.5,color:'#fff'}}>Confirmar</button>
             <button onClick={()=>setConfirmar(false)} style={{padding:'5px 10px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:7,fontSize:11.5,color:NB.mut}}>Cancelar</button>
           </span>
         ) : (
           <button onClick={()=>setConfirmar(true)} style={{fontSize:11.5,color:'#B4232A',background:'none',border:'none',fontWeight:500}}>Excluir</button>
-        )}
+        ))}
       </div>
       {editar && <CampanhaEditModal camp={camp} onClose={()=>setEditar(false)}/>}
     </div>
@@ -2415,22 +2416,13 @@ function CampanhaManagerCard({ camp }) {
 function CampanhasManagerView() {
   const { user, campanhas } = useApp();
 
-  if (!user.canPublishCampaigns) {
-    return (
-      <div style={{padding:30}}>
-        <div style={{background:'#FFF6DE',border:'1px solid #F3D98A',borderRadius:12,padding:'16px 18px',fontSize:13.5,color:'#8A6206'}}>
-          Só quem publica campanhas acessa essa tela.
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div style={{padding:'22px 30px 30px',overflowY:'auto',overflowX:'hidden',height:'100%'}}>
       <div style={{marginBottom:18}}>
         <span style={{fontSize:13.5,color:NB.mut}}>{campanhas.length} campanha(s) no total</span>
         <p style={{fontSize:12.5,color:NB.mut2,marginTop:3}}>
           Campanha nasce numa demanda — marque "essa demanda é uma campanha" na criação, e quando ela chegar em "Publicado" vai ter o botão de enviar pra cá.
+          {!user.canPublishCampaigns && ' Só a Clara e a Mariana publicam, despublicam ou excluem — os outros veem por aqui.'}
         </p>
       </div>
       {campanhas.length===0 ? (
