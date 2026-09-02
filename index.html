@@ -651,6 +651,8 @@ const IRing    = ({s=15})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}
 
 /* Fila de publicação — canais com ícones genéricos (nunca o logo real da
    plataforma, que é marca registrada). O nome por extenso já identifica. */
+const SOCIAL_APP_URL = 'https://claraabrantes-bot.github.io/planejamento-social-nibo/planejamento-social-media.html';
+
 const CHANNELS = [
   { id:'ig_feed',    label:'Instagram Feed',       Icon:IPhoto, color:NB.pink },
   { id:'ig_stories', label:'Instagram Stories',    Icon:IRing,  color:NB.pink },
@@ -905,6 +907,10 @@ function Sidebar() {
                 active={area===a && view==='kanban'}
                 onClick={()=>{ setArea(a); setView('kanban'); }}/>
               {a==='Social' && area==='Social' && (
+                <NavItem label="Planejamento" Icon={ICal} iconColor={AREA_CLR.Social} indent
+                  active={view==='social'} onClick={()=>{ setArea('Social'); setView('social'); }}/>
+              )}
+              {a==='Social' && area==='Social' && (
                 <NavItem label="Fila de Publicação" Icon={IPhoto} iconColor={AREA_CLR.Social} indent
                   count={posts.filter(p=>p.status==='pronto').length||undefined}
                   active={view==='publicacoes'} onClick={()=>{ setArea('Social'); setView('publicacoes'); }}/>
@@ -1017,6 +1023,7 @@ function ContentHeader() {
     slack:      ['Automações Slack', 'Histórico das automações disparadas ao mover os cards.'],
     arquivadas: ['Arquivadas', 'Demandas fora do quadro. Restaure quando precisar ou exclua de vez.'],
     variacoes:  ['Variações de peça', 'Suba uma peça e gere os cortes de formato, versões de fundo e o briefing do que testar.'],
+    social:      ['Planejamento Social', 'Calendário, grid do Instagram e ideias — a plataforma do Social aberta aqui dentro.'],
     publicacoes:['Fila de Publicação', 'Monte o post, deixe pronto e publique — por enquanto manualmente no Meta Business Suite.'],
     gestao:     ['Gestão', 'Aprovações pendentes e pedidos de outros setores em um só lugar.'],
   };
@@ -1709,6 +1716,61 @@ function PublishQueueView() {
     </div>
   );
 }
+
+function SocialPlannerView() {
+  const [key, setKey]     = useState(0);
+  const [ready, setReady] = useState(false);
+  const [slow, setSlow]   = useState(false);
+
+  useEffect(() => {
+    setReady(false); setSlow(false);
+    const timer = setTimeout(() => setSlow(true), 6000);
+    return () => clearTimeout(timer);
+  }, [key]);
+
+  const open = () => window.open(SOCIAL_APP_URL, '_blank', 'noopener');
+
+  return (
+    <div style={{height:'100%',display:'flex',flexDirection:'column',padding:'16px 30px 22px',minHeight:0}}>
+      <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:12,flexWrap:'wrap'}}>
+        <span style={{display:'inline-flex',alignItems:'center',gap:8,fontSize:13.5,color:NB.mut}}>
+          <IChat s={16}/> Plataforma de planejamento do Social, aberta aqui dentro
+        </span>
+        <div style={{marginLeft:'auto',display:'flex',gap:8,flexShrink:0}}>
+          <button onClick={()=>setKey(k=>k+1)} title="Recarregar"
+            style={{display:'flex',alignItems:'center',gap:7,padding:'8px 13px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:9,fontSize:12.5,fontWeight:500,color:NB.mut}}>
+            <IRefresh s={14}/> Recarregar
+          </button>
+          <button onClick={open}
+            style={{display:'flex',alignItems:'center',gap:7,padding:'8px 13px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:9,fontSize:12.5,fontWeight:500,color:NB.azul}}>
+            <IExt s={14}/> Abrir em nova aba
+          </button>
+        </div>
+      </div>
+
+      {slow && !ready && (
+        <div style={{marginBottom:12,padding:'12px 15px',background:'#FFF6DE',border:'1px solid #F3D98A',borderRadius:10,fontSize:12.5,color:'#8A6206',lineHeight:1.6}}>
+          A plataforma está demorando ou o navegador pode estar bloqueando o login do Google dentro de uma janela embutida.
+          Se ficar preso na tela de entrar, use <strong style={{fontWeight:600}}>Abrir em nova aba</strong> — funciona igual.
+        </div>
+      )}
+
+      <div style={{flex:1,minHeight:0,borderRadius:14,border:'1px solid '+NB.bd,overflow:'hidden',background:'#fff',position:'relative'}}>
+        {!ready && (
+          <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center',flexDirection:'column',gap:12,color:NB.mut2,fontSize:13.5,background:'#fff'}}>
+            <div style={{width:34,height:34,border:'2.5px solid '+NB.bd,borderTopColor:NB.azul,borderRadius:'50%',animation:'nb-spin 0.8s linear infinite'}}/>
+            Carregando o planejamento…
+          </div>
+        )}
+        <iframe key={key} src={SOCIAL_APP_URL} title="Planejamento Social Nibo"
+          onLoad={()=>setReady(true)}
+          allow="clipboard-write; clipboard-read"
+          style={{width:'100%',height:'100%',border:'none',display:'block'}}/>
+      </div>
+    </div>
+  );
+}
+
 
 /* =========== GESTÃO — fila de aprovação =========== */
 function ApprovalCard({ demand }) {
@@ -3540,6 +3602,7 @@ function AppContent() {
               {view==='slack'      && <SlackFeed/>}
               {view==='arquivadas' && <ArchivedView/>}
               {view==='variacoes'  && <VariationsView/>}
+              {view==='social'     && <SocialPlannerView/>}
               {view==='publicacoes'&& <PublishQueueView/>}
               {view==='gestao'     && <GestaoView/>}
             </React.Fragment>
