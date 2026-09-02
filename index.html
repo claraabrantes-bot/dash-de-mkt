@@ -1983,7 +1983,6 @@ function CampanhasBuscaTab({ onIrPara }) {
   const publicadas = campanhas.filter(c=>c.status==='publicada')
     .sort((a,b)=>(b.publicadaEm||'').localeCompare(a.publicadaEm||''));
   const destaque = publicadas[0] || null;
-  const resto = destaque ? publicadas.slice(1) : [];
   const jornadaDestaque = destaque && PERSONAS.find(p=>p.id===destaque.jornada);
   const materiaisDestaque = destaque ? [
     ...pecas.filter(p=>(destaque.pecaIds||[]).includes(p.id)).map(p=>({ nome:p.nome, url:p.url })),
@@ -2086,28 +2085,23 @@ function CampanhasBuscaTab({ onIrPara }) {
           <p style={{fontSize:14,fontWeight:600,color:NB.txt,marginBottom:6}}>Nenhuma campanha publicada ainda</p>
           <p style={{fontSize:13,color:NB.mut,lineHeight:1.6,maxWidth:380,margin:'0 auto'}}>Assim que o marketing publicar uma, ela aparece aqui em destaque pra todo mundo do Nibo ver.</p>
         </div>
-      ) : resto.length===0 ? (
-        !destaque && (
-          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(340px,1fr))',gap:20}}>
-            {publicadas.map((c,i)=>(
-              <CampanhaPublicCard key={c.id} camp={c} indice={i} pecasDaCampanha={pecas.filter(p=>(c.pecaIds||[]).includes(p.id))}/>
-            ))}
-          </div>
-        )
       ) : (
         <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(340px,1fr))',gap:20}}>
-          {resto.map((c,i)=>(
-            <CampanhaPublicCard key={c.id} camp={c} indice={i+1} pecasDaCampanha={pecas.filter(p=>(c.pecaIds||[]).includes(p.id))}/>
+          {publicadas.map((c,i)=>(
+            <CampanhaPublicCard key={c.id} camp={c} indice={i} pecasDaCampanha={pecas.filter(p=>(c.pecaIds||[]).includes(p.id))}/>
           ))}
         </div>
       )}
 
-      <div style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:20,padding:44,marginTop:48,display:'grid',gridTemplateColumns:'1.1fr 0.9fr',gap:44,alignItems:'center'}}>
+      <div style={{background:'linear-gradient(120deg, #EAF3FD 0%, #F1ECFE 100%)',border:'1px solid #BFDDF7',borderRadius:20,padding:44,marginTop:48,display:'grid',gridTemplateColumns:'1.1fr 0.9fr',gap:44,alignItems:'center'}}>
         <div>
-          <h2 style={{fontSize:22,fontWeight:600,color:NB.txt,marginBottom:10}}>Precisa de uma peça nova?</h2>
+          <div style={{width:44,height:44,borderRadius:12,background:NB.navy1,color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',marginBottom:16}}>
+            <IPlus s={20}/>
+          </div>
+          <h2 style={{fontSize:23,fontWeight:600,color:NB.txt,marginBottom:10}}>Precisa de uma peça nova?</h2>
           <p style={{fontSize:14,color:NB.mut,lineHeight:1.6,marginBottom:18}}>Abra uma solicitação pro time de Design. Quanto mais completo o briefing, mais rápido a peça fica pronta.</p>
           <div style={{display:'flex',flexDirection:'column',gap:9,marginBottom:22}}>
-            {['Tipo de material e onde vai ser usado','Prazo desejado pra entrega','Referências, textos e informações obrigatórias'].map(t=>(
+            {['O que você precisa, seu setor e o tipo de material','Contexto, objetivo e onde vai ser usado','Prazo desejado e link de referência (opcional)'].map(t=>(
               <div key={t} style={{display:'flex',gap:9,alignItems:'flex-start'}}>
                 <span style={{color:NB.azul,marginTop:2,flexShrink:0}}><ICheck s={14}/></span>
                 <span style={{fontSize:13.5,color:NB.txt}}>{t}</span>
@@ -2119,13 +2113,35 @@ function CampanhasBuscaTab({ onIrPara }) {
             Abrir solicitação de design <IArrowR s={13}/>
           </a>
         </div>
-        <div style={{background:NB.col,border:'1px solid '+NB.bd,borderRadius:16,padding:22,display:'flex',flexDirection:'column',gap:13}}>
-          {[['Tipo de material','Post para redes sociais'],['Prazo desejado','Selecionar data'],['Time solicitante','Selecionar área']].map(([l,v])=>(
-            <div key={l}>
-              <div style={{fontSize:11,fontWeight:600,color:NB.mut,marginBottom:6,textTransform:'uppercase',letterSpacing:'0.05em'}}>{l}</div>
-              <div style={{background:'#fff',border:'1.5px solid '+NB.bd,borderRadius:9,padding:'9px 12px',fontSize:12.5,color:NB.mut2}}>{v}</div>
+        <div style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:16,padding:22,display:'flex',flexDirection:'column',gap:14,boxShadow:'0 6px 20px rgba(11,42,92,0.06)'}}>
+          <div>
+            <div style={{fontSize:11,fontWeight:600,color:NB.mut,marginBottom:6,textTransform:'uppercase',letterSpacing:'0.05em'}}>O que você precisa</div>
+            <div style={{background:NB.col,border:'1.5px solid '+NB.bd,borderRadius:9,padding:'9px 12px',fontSize:12.5,color:NB.mut2}}>Ex: banner para a campanha de vagas</div>
+          </div>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+            <div>
+              <div style={{fontSize:11,fontWeight:600,color:NB.mut,marginBottom:6,textTransform:'uppercase',letterSpacing:'0.05em'}}>Seu setor</div>
+              <div style={{background:NB.col,border:'1.5px solid '+NB.bd,borderRadius:9,padding:'9px 12px',fontSize:12.5,color:NB.mut2}}>Selecionar área</div>
             </div>
-          ))}
+            <div>
+              <div style={{fontSize:11,fontWeight:600,color:NB.mut,marginBottom:6,textTransform:'uppercase',letterSpacing:'0.05em'}}>Tipo de material</div>
+              <div style={{background:NB.col,border:'1.5px solid '+NB.bd,borderRadius:9,padding:'9px 12px',fontSize:12.5,color:NB.mut2}}>Selecionar tipo</div>
+            </div>
+          </div>
+          <div>
+            <div style={{fontSize:11,fontWeight:600,color:NB.mut,marginBottom:6,textTransform:'uppercase',letterSpacing:'0.05em'}}>Contexto e objetivo</div>
+            <div style={{background:NB.col,border:'1.5px solid '+NB.bd,borderRadius:9,padding:'9px 12px',fontSize:12.5,color:NB.mut2}}>Para que serve, onde vai ser usado...</div>
+          </div>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+            <div>
+              <div style={{fontSize:11,fontWeight:600,color:NB.mut,marginBottom:6,textTransform:'uppercase',letterSpacing:'0.05em'}}>Precisa para quando</div>
+              <div style={{background:NB.col,border:'1.5px solid '+NB.bd,borderRadius:9,padding:'9px 12px',fontSize:12.5,color:NB.mut2}}>Selecionar data</div>
+            </div>
+            <div>
+              <div style={{fontSize:11,fontWeight:600,color:NB.mut,marginBottom:6,textTransform:'uppercase',letterSpacing:'0.05em'}}>Link de referência</div>
+              <div style={{background:NB.col,border:'1.5px solid '+NB.bd,borderRadius:9,padding:'9px 12px',fontSize:12.5,color:NB.mut2}}>Drive, Figma...</div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
