@@ -1921,7 +1921,7 @@ function CampanhaPublicCard({ camp, pecasDaCampanha, indice=0 }) {
   );
 }
 
-function InfoCentralView() {
+function InfoCentralView({ onLogoClick, headerRight, topBanner }) {
   const { user, isTeamMember } = useApp();
   const podeEditar = isTeamMember && !!user;
   /* Pasta de Arquivos é a exceção: qualquer setor logado pode adicionar,
@@ -1940,23 +1940,32 @@ function InfoCentralView() {
   return (
     <div style={{height:'100%',overflowY:'auto',overflowX:'hidden',background:NB.bg}}>
       <div style={{position:'sticky',top:0,zIndex:10,background:'#fff',borderBottom:'1px solid '+NB.bd}}>
-        <div style={{maxWidth:1180,margin:'0 auto',padding:'0 32px',display:'flex',gap:26,overflowX:'auto'}} className="nb-scrollnone">
-          {abas.map(a=>{
-            const on = aba===a.id;
-            return (
-              <button key={a.id} onClick={()=>setAba(a.id)}
-                style={{display:'flex',alignItems:'center',gap:7,padding:'16px 2px 13px',background:'none',border:'none',
-                  borderBottom:'2.5px solid '+(on?NB.azul:'transparent'),
-                  fontSize:13.5,fontWeight:on?600:500,color:on?NB.navy1:NB.mut,whiteSpace:'nowrap',flexShrink:0}}>
-                <a.Icon s={14}/> {a.label}
-              </button>
-            );
-          })}
+        <div style={{maxWidth:1180,margin:'0 auto',padding:'0 32px',height:64,display:'flex',alignItems:'center',gap:36}}>
+          <button onClick={onLogoClick} style={{background:'none',border:'none',display:'flex',alignItems:'center',gap:9,cursor:'pointer',padding:0,flexShrink:0}}>
+            <NiboSymbol size={24} color={NB.navy1}/>
+            <span style={{fontSize:16,fontWeight:700,color:NB.navy1,letterSpacing:'-0.01em'}}>nibo mkt</span>
+          </button>
+          <div style={{display:'flex',gap:24,overflowX:'auto',flex:1}} className="nb-scrollnone">
+            {abas.map(a=>{
+              const on = aba===a.id;
+              return (
+                <button key={a.id} onClick={()=>setAba(a.id)}
+                  style={{padding:'21px 1px',background:'none',border:'none',
+                    borderBottom:'2.5px solid '+(on?NB.azul:'transparent'),
+                    fontSize:13.5,fontWeight:on?600:500,color:on?NB.navy1:NB.mut,whiteSpace:'nowrap',flexShrink:0}}>
+                  {a.label}
+                </button>
+              );
+            })}
+          </div>
+          <div style={{display:'flex',alignItems:'center',gap:10,flexShrink:0}}>{headerRight}</div>
         </div>
       </div>
 
-      <div style={{maxWidth:1180,margin:'0 auto',padding:'26px 32px 40px'}}>
-        {aba==='campanhas'   && <CampanhasBuscaTab/>}
+      {topBanner}
+
+      <div style={{maxWidth:1180,margin:'0 auto',padding:'0 32px 48px'}}>
+        {aba==='campanhas'   && <CampanhasBuscaTab onIrPara={setAba}/>}
         {aba==='social'      && <RedesSociaisTab podeEditar={podeEditar}/>}
         {aba==='arquivos'    && <ArquivosTab podeEditar={podeEditarArquivos}/>}
         {aba==='embaixadores'&& <EmbaixadoresTab podeEditar={podeEditar}/>}
@@ -1967,13 +1976,14 @@ function InfoCentralView() {
 }
 
 /* ---------- Campanhas + busca de peças (era a InfoCentralView inteira antes) ---------- */
-function CampanhasBuscaTab() {
+function CampanhasBuscaTab({ onIrPara }) {
   const { campanhas, pecas } = useApp();
   const [busca, setBusca] = useState('');
   const publicadas = campanhas.filter(c=>c.status==='publicada')
     .sort((a,b)=>(b.publicadaEm||'').localeCompare(a.publicadaEm||''));
   const destaque = publicadas[0] || null;
   const resto = destaque ? publicadas.slice(1) : [];
+  const jornadaDestaque = destaque && PERSONAS.find(p=>p.id===destaque.jornada);
 
   const resultados = busca.trim() ? pecas.filter(p => {
     const q = busca.toLowerCase();
@@ -1982,43 +1992,64 @@ function CampanhasBuscaTab() {
       || (p.tags||[]).some(t=>t.toLowerCase().includes(q));
   }) : [];
 
+  const chips = ['Black friday', 'Webinar', 'Banner', 'Institucional', 'Redes sociais'];
+
   return (
     <div>
       {destaque && (
-        <div style={{background:'linear-gradient(120deg, #001B45 0%, '+NB.navy1+' 55%, '+NB.roxo+' 130%)',borderRadius:20,padding:'40px 40px',marginBottom:32,color:'#fff',position:'relative',overflow:'hidden'}}>
-          <span style={{display:'inline-flex',alignItems:'center',gap:8,background:'rgba(255,255,255,0.12)',padding:'6px 13px',borderRadius:20,fontSize:12,color:'#DCE4FA',marginBottom:18}}>
-            <ITarget s={13}/> Campanha em destaque
-          </span>
-          <h1 style={{fontSize:30,fontWeight:600,color:'#fff',marginBottom:12,maxWidth:520,letterSpacing:'-0.01em'}}>{destaque.titulo}</h1>
-          {destaque.descricao && <p style={{color:'#B9C6E8',fontSize:14.5,lineHeight:1.6,maxWidth:460,marginBottom:22}}>{destaque.descricao}</p>}
-          <div style={{display:'flex',gap:10,flexWrap:'wrap'}}>
-            {destaque.desconto && (
-              <span style={{background:'#fff',color:NB.navy1,padding:'11px 20px',borderRadius:10,fontWeight:600,fontSize:14}}>{destaque.desconto}</span>
-            )}
-            {destaque.instagramLink && (
-              <a href={destaque.instagramLink} target="_blank" rel="noopener noreferrer"
-                style={{border:'1.5px solid rgba(255,255,255,0.35)',color:'#fff',padding:'11px 20px',borderRadius:10,fontWeight:600,fontSize:14,display:'flex',alignItems:'center',gap:8,textDecoration:'none'}}>
-                <IExt s={14}/> Ver no Instagram
-              </a>
-            )}
+        <div style={{background:'linear-gradient(120deg, #001B45 0%, '+NB.navy1+' 55%, '+NB.roxo+' 130%)',borderRadius:20,marginTop:24,marginBottom:36,color:'#fff',position:'relative',overflow:'hidden',display:'grid',gridTemplateColumns:'1.1fr 0.9fr',gap:0}}>
+          <div style={{padding:'40px 8px 40px 40px'}}>
+            <span style={{display:'inline-flex',alignItems:'center',gap:8,background:'rgba(255,255,255,0.12)',padding:'6px 13px',borderRadius:20,fontSize:12,color:'#DCE4FA',marginBottom:18}}>
+              <ITarget s={13}/> Campanha em destaque
+            </span>
+            <h1 style={{fontSize:29,fontWeight:600,color:'#fff',marginBottom:12,letterSpacing:'-0.01em'}}>{destaque.titulo}</h1>
+            {destaque.descricao && <p style={{color:'#B9C6E8',fontSize:14.5,lineHeight:1.6,marginBottom:24}}>{destaque.descricao}</p>}
+            <div style={{display:'flex',gap:10,flexWrap:'wrap'}}>
+              <button onClick={()=>onIrPara && onIrPara('arquivos')}
+                style={{background:'#fff',color:NB.navy1,padding:'12px 20px',border:'none',borderRadius:10,fontWeight:600,fontSize:13.5}}>
+                Ver todos os materiais
+              </button>
+              <button onClick={()=>onIrPara && onIrPara('abordagem')}
+                style={{border:'1.5px solid rgba(255,255,255,0.35)',background:'none',color:'#fff',padding:'12px 20px',borderRadius:10,fontWeight:600,fontSize:13.5}}>
+                Sugestões de texto
+              </button>
+            </div>
+          </div>
+          <div style={{position:'relative',margin:'20px 20px 20px 0',borderRadius:16,overflow:'hidden',background:'linear-gradient(135deg,'+NB.azul+','+NB.azulClaro+')',minHeight:200}}>
+            <div style={{position:'absolute',inset:0,opacity:0.5,background:'radial-gradient(circle at 75% 20%, rgba(255,255,255,0.5), transparent 55%)'}}/>
+            <div style={{position:'absolute',bottom:0,left:0,right:0,padding:'18px 20px',background:'linear-gradient(0deg, rgba(0,0,0,0.4), transparent)'}}>
+              {jornadaDestaque && <div style={{fontSize:11.5,color:'rgba(255,255,255,0.85)'}}>{jornadaDestaque.emoji} Pra {jornadaDestaque.label.toLowerCase()}</div>}
+              <div style={{fontSize:16,fontWeight:600,color:'#fff',marginTop:3}}>{destaque.titulo}</div>
+            </div>
           </div>
         </div>
       )}
 
-      <div style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:16,padding:'22px 24px',marginBottom:32,boxShadow:'0 1px 3px rgba(11,42,92,0.04)'}}>
-        <h2 style={{fontSize:18,fontWeight:600,color:NB.txt,marginBottom:4}}>Buscar peças e banners</h2>
-        <p style={{fontSize:13,color:NB.mut,marginBottom:16}}>Encontre pelo nome, descrição ou tag.</p>
-        <div style={{position:'relative',maxWidth:520}}>
+      <div style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:16,padding:'26px 28px',marginBottom:36,boxShadow:'0 1px 3px rgba(11,42,92,0.04)'}}>
+        <h2 style={{fontSize:19,fontWeight:600,color:NB.txt,marginBottom:4}}>O que você está procurando?</h2>
+        <p style={{fontSize:13,color:NB.mut,marginBottom:18}}>Busque por peça pronta, banner ou palavra-chave do briefing.</p>
+        <div style={{position:'relative',marginBottom:16}}>
           <span style={{position:'absolute',left:16,top:'50%',transform:'translateY(-50%)',color:NB.mut2,display:'flex'}}><ISearch s={17}/></span>
-          <input value={busca} onChange={e=>setBusca(e.target.value)} placeholder="ex: black friday, webinar, banner"
+          <input value={busca} onChange={e=>setBusca(e.target.value)} placeholder="Ex: banner Black Friday, post de aniversário..."
             style={{width:'100%',background:NB.bg,border:'1.5px solid '+NB.bd,borderRadius:14,padding:'13px 16px 13px 44px',fontSize:14.5,color:NB.txt,outline:'none'}}
             onFocus={e=>{e.target.style.borderColor=NB.azul;}} onBlur={e=>{e.target.style.borderColor=NB.bd;}}/>
         </div>
+        <div style={{display:'flex',flexWrap:'wrap',gap:8}}>
+          {chips.map(c=>{
+            const on = busca.toLowerCase()===c.toLowerCase();
+            return (
+              <button key={c} onClick={()=>setBusca(on?'':c)}
+                style={{padding:'7px 15px',borderRadius:20,fontSize:12.5,fontWeight:500,border:'1.5px solid '+(on?NB.navy1:NB.bd),background:on?NB.navy1:'#fff',color:on?'#fff':NB.mut}}>
+                {c}
+              </button>
+            );
+          })}
+        </div>
         {busca.trim() && (
           resultados.length===0 ? (
-            <p style={{fontSize:13,color:NB.mut2,marginTop:16}}>Nada encontrado pra "{busca}". Tente outra palavra ou peça pro marketing cadastrar essa peça.</p>
+            <p style={{fontSize:13,color:NB.mut2,marginTop:18}}>Nada encontrado pra "{busca}". Tente outra palavra ou peça pro marketing cadastrar essa peça.</p>
           ) : (
-            <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(230px,1fr))',gap:12,marginTop:18}}>
+            <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(230px,1fr))',gap:12,marginTop:20}}>
               {resultados.map(p=><PecaResultCard key={p.id} peca={p}/>)}
             </div>
           )
@@ -2027,7 +2058,7 @@ function CampanhasBuscaTab() {
 
       <div style={{display:'flex',alignItems:'flex-end',justifyContent:'space-between',marginBottom:22}}>
         <div>
-          <h2 style={{fontSize:20,fontWeight:600,color:NB.txt}}>{destaque ? 'Outras campanhas' : 'Campanhas ativas'}</h2>
+          <h2 style={{fontSize:20,fontWeight:600,color:NB.txt}}>{destaque ? 'Campanhas ativas e recentes' : 'Campanhas ativas'}</h2>
           <p style={{fontSize:13,color:NB.mut,marginTop:3}}>{publicadas.length===0?'Nenhuma no momento':publicadas.length+(publicadas.length===1?' campanha publicada':' campanhas publicadas')}</p>
         </div>
       </div>
@@ -2055,6 +2086,33 @@ function CampanhasBuscaTab() {
           ))}
         </div>
       )}
+
+      <div style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:20,padding:44,marginTop:48,display:'grid',gridTemplateColumns:'1.1fr 0.9fr',gap:44,alignItems:'center'}}>
+        <div>
+          <h2 style={{fontSize:22,fontWeight:600,color:NB.txt,marginBottom:10}}>Precisa de uma peça nova?</h2>
+          <p style={{fontSize:14,color:NB.mut,lineHeight:1.6,marginBottom:18}}>Abra uma solicitação pro time de Design. Quanto mais completo o briefing, mais rápido a peça fica pronta.</p>
+          <div style={{display:'flex',flexDirection:'column',gap:9,marginBottom:22}}>
+            {['Tipo de material e onde vai ser usado','Prazo desejado pra entrega','Referências, textos e informações obrigatórias'].map(t=>(
+              <div key={t} style={{display:'flex',gap:9,alignItems:'flex-start'}}>
+                <span style={{color:NB.azul,marginTop:2,flexShrink:0}}><ICheck s={14}/></span>
+                <span style={{fontSize:13.5,color:NB.txt}}>{t}</span>
+              </div>
+            ))}
+          </div>
+          <a href="/solicitar.html" target="_blank" rel="noopener noreferrer"
+            style={{display:'inline-flex',alignItems:'center',gap:8,background:NB.navy1,color:'#fff',padding:'13px 22px',borderRadius:10,fontWeight:600,fontSize:13.5,textDecoration:'none'}}>
+            Abrir solicitação de design <IArrowR s={13}/>
+          </a>
+        </div>
+        <div style={{background:NB.col,border:'1px solid '+NB.bd,borderRadius:16,padding:22,display:'flex',flexDirection:'column',gap:13}}>
+          {[['Tipo de material','Post para redes sociais'],['Prazo desejado','Selecionar data'],['Time solicitante','Selecionar área']].map(([l,v])=>(
+            <div key={l}>
+              <div style={{fontSize:11,fontWeight:600,color:NB.mut,marginBottom:6,textTransform:'uppercase',letterSpacing:'0.05em'}}>{l}</div>
+              <div style={{background:'#fff',border:'1.5px solid '+NB.bd,borderRadius:9,padding:'9px 12px',fontSize:12.5,color:NB.mut2}}>{v}</div>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
@@ -5122,66 +5180,73 @@ function EntryChooser({ onEscolherCentral }) {
 
 function PublicCentralPage({ onVoltar }) {
   const { dbErroPublico } = useApp();
+  const { entrar, busy } = useLoginGestao();
+
   return (
-    <div style={{height:'100vh',width:'100%',display:'flex',flexDirection:'column',background:NB.bg,overflow:'hidden'}}>
-      <header style={{background:'#fff',borderBottom:'1px solid '+NB.bd,padding:'16px 30px',display:'flex',alignItems:'center',gap:14,flexShrink:0}}>
-        <button onClick={onVoltar} style={{background:'none',border:'none',display:'flex',alignItems:'center',gap:14,cursor:'pointer',padding:0}}>
-          <NiboSymbol size={32} color={NB.navy1}/>
-          <div style={{textAlign:'left'}}>
-            <div style={{fontSize:16,fontWeight:700,color:NB.navy1,letterSpacing:'-0.01em'}}>Central de Informações de Marketing</div>
-            <div style={{fontSize:12,color:NB.mut}}>Nibo · aberta pra todo mundo, sem login</div>
+    <div style={{height:'100vh',width:'100%',overflow:'hidden'}}>
+      <InfoCentralView
+        onLogoClick={onVoltar}
+        topBanner={dbErroPublico && (
+          <div style={{background:'#FEF2F2',borderBottom:'1px solid #FECACA',padding:'11px 28px',fontSize:13,color:'#B4232A',display:'flex',alignItems:'center',gap:9}}>
+            <IAlert s={15}/> {dbErroPublico}
           </div>
-        </button>
-        <div style={{flex:1}}/>
-        <button onClick={onVoltar} style={{fontSize:12.5,color:NB.mut,background:'none',border:'1px solid '+NB.bd,borderRadius:9,padding:'8px 13px',display:'flex',alignItems:'center',gap:6}}>
-          <IArrowL s={13}/> Voltar
-        </button>
-      </header>
-      {dbErroPublico && (
-        <div style={{background:'#FEF2F2',borderBottom:'1px solid #FECACA',padding:'11px 28px',fontSize:13,color:'#B4232A',display:'flex',alignItems:'center',gap:9,flexShrink:0}}>
-          <IAlert s={15}/> {dbErroPublico}
-        </div>
-      )}
-      <main style={{flex:1,overflow:'hidden',minHeight:0}}>
-        <InfoCentralView/>
-      </main>
+        )}
+        headerRight={
+          <React.Fragment>
+            <a href="/solicitar.html" target="_blank" rel="noopener noreferrer"
+              style={{display:'flex',alignItems:'center',gap:7,padding:'9px 16px',background:NB.navy1,borderRadius:20,color:'#fff',fontSize:12.5,fontWeight:600,textDecoration:'none'}}>
+              <IPlus s={13}/> Solicitar peça
+            </a>
+            <button onClick={entrar} disabled={busy}
+              style={{padding:'9px 15px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:20,color:NB.mut,fontSize:12.5,fontWeight:500,opacity:busy?0.7:1}}>
+              {busy?'Entrando…':'Gestão'}
+            </button>
+          </React.Fragment>
+        }/>
     </div>
   );
 }
 
 function VisitorApp() {
   const { user, logout, dbReady, dbErro } = useApp();
+
+  if (!dbReady && !dbErro) {
+    return (
+      <div style={{height:'100vh',width:'100%',display:'flex',alignItems:'center',justifyContent:'center',flexDirection:'column',gap:13,color:NB.mut,background:NB.bg}}>
+        <div style={{width:32,height:32,border:'2.5px solid '+NB.bd,borderTopColor:NB.azul,borderRadius:'50%',animation:'nb-spin 0.8s linear infinite'}}/>
+        <span style={{fontSize:13.5}}>Carregando…</span>
+      </div>
+    );
+  }
+
   return (
-    <div style={{height:'100vh',width:'100%',display:'flex',flexDirection:'column',background:NB.bg,overflow:'hidden'}}>
-      <header style={{background:'#fff',borderBottom:'1px solid '+NB.bd,padding:'16px 30px',display:'flex',alignItems:'center',gap:14,flexShrink:0}}>
-        <NiboSymbol size={32} color={NB.navy1}/>
-        <div style={{flex:1,minWidth:0}}>
-          <div style={{fontSize:16,fontWeight:700,color:NB.navy1,letterSpacing:'-0.01em'}}>Central de Informações de Marketing</div>
-          <div style={{fontSize:12,color:NB.mut}}>Essa conta não tem acesso à Gestão do Marketing — aqui vai o que dá pra ver</div>
-        </div>
-        <div style={{display:'flex',alignItems:'center',gap:10,flexShrink:0}}>
-          <div style={{textAlign:'right'}}>
-            <div style={{fontSize:12.5,fontWeight:600,color:NB.txt}}>{user.name}</div>
-            <div style={{fontSize:11,color:NB.mut2}}>{user.email}</div>
-          </div>
-          <Avatar member={user} size={32} ring={false}/>
-          <button onClick={logout} title="Voltar para a Central"
-            style={{padding:9,background:'#fff',border:'1px solid '+NB.bd,borderRadius:9,color:NB.mut,display:'flex'}}><ILogout s={15}/></button>
-        </div>
-      </header>
-      {dbErro && (
-        <div style={{background:'#FEF2F2',borderBottom:'1px solid #FECACA',padding:'11px 28px',fontSize:13,color:'#B4232A',display:'flex',alignItems:'center',gap:9,flexShrink:0}}>
-          <IAlert s={15}/> {dbErro}
-        </div>
-      )}
-      <main style={{flex:1,overflow:'hidden',minHeight:0}}>
-        {!dbReady && !dbErro ? (
-          <div style={{height:'100%',display:'flex',alignItems:'center',justifyContent:'center',flexDirection:'column',gap:13,color:NB.mut}}>
-            <div style={{width:32,height:32,border:'2.5px solid '+NB.bd,borderTopColor:NB.azul,borderRadius:'50%',animation:'nb-spin 0.8s linear infinite'}}/>
-            <span style={{fontSize:13.5}}>Carregando…</span>
-          </div>
-        ) : <InfoCentralView/>}
-      </main>
+    <div style={{height:'100vh',width:'100%',overflow:'hidden'}}>
+      <InfoCentralView
+        onLogoClick={logout}
+        topBanner={
+          <React.Fragment>
+            <div style={{background:'#EAF3FD',borderBottom:'1px solid #BFDDF7',padding:'10px 28px',fontSize:12.5,color:NB.navy1,display:'flex',alignItems:'center',gap:9}}>
+              <IAlert s={14}/> Essa conta não tem acesso à Gestão do Marketing — aqui vai o que dá pra ver.
+            </div>
+            {dbErro && (
+              <div style={{background:'#FEF2F2',borderBottom:'1px solid #FECACA',padding:'11px 28px',fontSize:13,color:'#B4232A',display:'flex',alignItems:'center',gap:9}}>
+                <IAlert s={15}/> {dbErro}
+              </div>
+            )}
+          </React.Fragment>
+        }
+        headerRight={
+          <React.Fragment>
+            <a href="/solicitar.html" target="_blank" rel="noopener noreferrer"
+              style={{display:'flex',alignItems:'center',gap:7,padding:'9px 16px',background:NB.navy1,borderRadius:20,color:'#fff',fontSize:12.5,fontWeight:600,textDecoration:'none'}}>
+              <IPlus s={13}/> Solicitar peça
+            </a>
+            <span title={user.name+' · '+user.email}><Avatar member={user} size={30} ring={false}/></span>
+            <button onClick={logout} title="Sair" style={{padding:8,background:'#fff',border:'1px solid '+NB.bd,borderRadius:'50%',color:NB.mut,display:'flex'}}>
+              <ILogout s={14}/>
+            </button>
+          </React.Fragment>
+        }/>
     </div>
   );
 }
