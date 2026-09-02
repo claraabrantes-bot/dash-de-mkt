@@ -1852,50 +1852,69 @@ function WhatsAppPanel({ camp, onClose }) {
   );
 }
 
-function CampanhaPublicCard({ camp, pecasDaCampanha }) {
+const CAPA_GRADIENTES = [
+  ['#002D72','#0072CE'], ['#6431E2','#41B6E6'], ['#FF40B3','#6431E2'], ['#0072CE','#41B6E6'], ['#002D72','#6431E2'],
+];
+
+function CampanhaPublicCard({ camp, pecasDaCampanha, indice=0 }) {
   const [whats, setWhats] = useState(false);
   const jornada = PERSONAS.find(p=>p.id===camp.jornada);
   const pecasLinks = camp.pecasDemanda || [];
+  const [c1,c2] = CAPA_GRADIENTES[indice % CAPA_GRADIENTES.length];
+
   return (
-    <div style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:14,padding:'18px 20px',boxShadow:'0 1px 3px rgba(11,42,92,0.04)'}}>
-      <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:10,marginBottom:10}}>
-        <h3 style={{fontSize:16,fontWeight:600,color:NB.txt}}>{camp.titulo}</h3>
-        {camp.desconto && (
-          <span style={{fontSize:12,fontWeight:700,color:'#0F6E56',background:'#E1F5EE',borderRadius:7,padding:'4px 10px',flexShrink:0,whiteSpace:'nowrap'}}>{camp.desconto}</span>
-        )}
-      </div>
-      {camp.descricao && <p style={{fontSize:13,color:NB.mut,lineHeight:1.55,marginBottom:12}}>{camp.descricao}</p>}
-      <div style={{display:'flex',flexWrap:'wrap',gap:6,marginBottom:12}}>
+    <div style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:16,overflow:'hidden',boxShadow:'0 1px 3px rgba(11,42,92,0.04)',transition:'box-shadow 0.15s, transform 0.15s'}}
+      onMouseEnter={e=>{e.currentTarget.style.boxShadow='0 16px 32px rgba(11,42,92,0.09)'; e.currentTarget.style.transform='translateY(-2px)';}}
+      onMouseLeave={e=>{e.currentTarget.style.boxShadow='0 1px 3px rgba(11,42,92,0.04)'; e.currentTarget.style.transform='none';}}>
+
+      <div style={{aspectRatio:'16/8',background:'linear-gradient(135deg,'+c1+','+c2+')',position:'relative',display:'flex',alignItems:'flex-end',padding:16}}>
         {jornada && (
-          <span style={{fontSize:11.5,color:NB.azul,background:'#EAF3FD',border:'1px solid #BFDDF7',borderRadius:6,padding:'3px 9px'}}>{jornada.emoji} {jornada.label}</span>
+          <span style={{position:'absolute',top:14,right:14,width:32,height:32,background:'rgba(255,255,255,0.2)',borderRadius:9,display:'flex',alignItems:'center',justifyContent:'center',fontSize:15}}>
+            {jornada.emoji}
+          </span>
         )}
-        {(camp.produtos||[]).map(p=><span key={p} style={{fontSize:11.5,color:NB.txt,background:NB.col,border:'1px solid '+NB.bd,borderRadius:6,padding:'3px 9px'}}>{p}</span>)}
+        <h3 style={{fontSize:17,fontWeight:600,color:'#fff',position:'relative',zIndex:2,lineHeight:1.3}}>{camp.titulo}</h3>
       </div>
-      {(pecasDaCampanha.length>0 || pecasLinks.length>0) && (
-        <div style={{display:'flex',gap:7,flexWrap:'wrap',marginBottom:12}}>
-          {pecasDaCampanha.map(p=>(
-            <a key={p.id} href={p.url} target="_blank" rel="noopener noreferrer"
-              style={{display:'flex',alignItems:'center',gap:5,fontSize:11.5,color:NB.azul,background:'#EAF3FD',borderRadius:6,padding:'4px 9px',textDecoration:'none'}}>
-              <IExt s={11}/> {p.nome}
-            </a>
-          ))}
-          {pecasLinks.map((p,i)=>(
-            <a key={'d'+i} href={p.url} target="_blank" rel="noopener noreferrer"
-              style={{display:'flex',alignItems:'center',gap:5,fontSize:11.5,color:NB.azul,background:'#EAF3FD',borderRadius:6,padding:'4px 9px',textDecoration:'none'}}>
-              <IExt s={11}/> {p.name}
-            </a>
-          ))}
+
+      <div style={{padding:'16px 18px 18px'}}>
+        <div style={{display:'flex',flexWrap:'wrap',gap:6,marginBottom:10}}>
+          {camp.desconto && (
+            <span style={{fontSize:11.5,fontWeight:700,color:'#0F6E56',background:'#E1F5EE',borderRadius:20,padding:'3px 11px'}}>{camp.desconto}</span>
+          )}
+          {jornada && (
+            <span style={{fontSize:11.5,color:NB.azul,background:'#EAF3FD',borderRadius:20,padding:'3px 11px'}}>{jornada.label}</span>
+          )}
+          {(camp.produtos||[]).map(p=><span key={p} style={{fontSize:11.5,color:NB.txt,background:NB.col,borderRadius:20,padding:'3px 11px'}}>{p}</span>)}
         </div>
-      )}
-      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:10,paddingTop:12,borderTop:'1px solid '+NB.bdSoft,flexWrap:'wrap'}}>
-        {camp.instagramLink
-          ? <a href={camp.instagramLink} target="_blank" rel="noopener noreferrer"
-              style={{display:'flex',alignItems:'center',gap:6,fontSize:12.5,color:NB.azul,fontWeight:500,textDecoration:'none'}}><IExt s={13}/> Ver post no Instagram</a>
-          : <span style={{fontSize:12,color:NB.mut2}}>Link do Instagram ainda não disponível</span>}
-        <button onClick={()=>setWhats(true)}
-          style={{display:'flex',alignItems:'center',gap:7,padding:'8px 14px',background:NB.azul,border:'none',borderRadius:9,fontSize:12.5,fontWeight:500,color:'#fff'}}>
-          <IChatBox s={14}/> Mensagem pra WhatsApp
-        </button>
+        {camp.descricao && <p style={{fontSize:13,color:NB.mut,lineHeight:1.55,marginBottom:12}}>{camp.descricao}</p>}
+
+        {(pecasDaCampanha.length>0 || pecasLinks.length>0) && (
+          <div style={{display:'flex',gap:7,flexWrap:'wrap',marginBottom:12}}>
+            {pecasDaCampanha.map(p=>(
+              <a key={p.id} href={p.url} target="_blank" rel="noopener noreferrer"
+                style={{display:'flex',alignItems:'center',gap:5,fontSize:11.5,color:NB.azul,background:'#EAF3FD',borderRadius:6,padding:'4px 9px',textDecoration:'none'}}>
+                <IExt s={11}/> {p.nome}
+              </a>
+            ))}
+            {pecasLinks.map((p,i)=>(
+              <a key={'d'+i} href={p.url} target="_blank" rel="noopener noreferrer"
+                style={{display:'flex',alignItems:'center',gap:5,fontSize:11.5,color:NB.azul,background:'#EAF3FD',borderRadius:6,padding:'4px 9px',textDecoration:'none'}}>
+                <IExt s={11}/> {p.name}
+              </a>
+            ))}
+          </div>
+        )}
+
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:10,paddingTop:12,borderTop:'1px solid '+NB.bdSoft,flexWrap:'wrap'}}>
+          {camp.instagramLink
+            ? <a href={camp.instagramLink} target="_blank" rel="noopener noreferrer"
+                style={{display:'flex',alignItems:'center',gap:6,fontSize:12.5,color:NB.azul,fontWeight:500,textDecoration:'none'}}><IExt s={13}/> Ver no Instagram</a>
+            : <span style={{fontSize:12,color:NB.mut2}}>Sem link do Instagram</span>}
+          <button onClick={()=>setWhats(true)}
+            style={{display:'flex',alignItems:'center',gap:7,padding:'8px 14px',background:NB.azul,border:'none',borderRadius:9,fontSize:12.5,fontWeight:500,color:'#fff'}}>
+            <IChatBox s={14}/> WhatsApp
+          </button>
+        </div>
       </div>
       {whats && <WhatsAppPanel camp={camp} onClose={()=>setWhats(false)}/>}
     </div>
@@ -1919,26 +1938,30 @@ function InfoCentralView() {
   ];
 
   return (
-    <div style={{padding:'22px 30px 30px',overflowY:'auto',overflowX:'hidden',height:'100%'}}>
-      <div style={{display:'flex',gap:8,flexWrap:'wrap',marginBottom:20}}>
-        {abas.map(a=>{
-          const on = aba===a.id;
-          return (
-            <button key={a.id} onClick={()=>setAba(a.id)}
-              style={{display:'flex',alignItems:'center',gap:7,padding:'9px 14px',borderRadius:9,
-                border:'1px solid '+(on?NB.azul:NB.bd), background:on?'#EAF3FD':'#fff',
-                fontSize:13,fontWeight:500,color:on?NB.azul:NB.mut}}>
-              <a.Icon s={14}/> {a.label}
-            </button>
-          );
-        })}
+    <div style={{height:'100%',overflowY:'auto',overflowX:'hidden',background:NB.bg}}>
+      <div style={{position:'sticky',top:0,zIndex:10,background:'#fff',borderBottom:'1px solid '+NB.bd}}>
+        <div style={{maxWidth:1180,margin:'0 auto',padding:'0 32px',display:'flex',gap:26,overflowX:'auto'}} className="nb-scrollnone">
+          {abas.map(a=>{
+            const on = aba===a.id;
+            return (
+              <button key={a.id} onClick={()=>setAba(a.id)}
+                style={{display:'flex',alignItems:'center',gap:7,padding:'16px 2px 13px',background:'none',border:'none',
+                  borderBottom:'2.5px solid '+(on?NB.azul:'transparent'),
+                  fontSize:13.5,fontWeight:on?600:500,color:on?NB.navy1:NB.mut,whiteSpace:'nowrap',flexShrink:0}}>
+                <a.Icon s={14}/> {a.label}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
-      {aba==='campanhas'   && <CampanhasBuscaTab/>}
-      {aba==='social'      && <RedesSociaisTab podeEditar={podeEditar}/>}
-      {aba==='arquivos'    && <ArquivosTab podeEditar={podeEditarArquivos}/>}
-      {aba==='embaixadores'&& <EmbaixadoresTab podeEditar={podeEditar}/>}
-      {aba==='abordagem'   && <AbordagemTab/>}
+      <div style={{maxWidth:1180,margin:'0 auto',padding:'26px 32px 40px'}}>
+        {aba==='campanhas'   && <CampanhasBuscaTab/>}
+        {aba==='social'      && <RedesSociaisTab podeEditar={podeEditar}/>}
+        {aba==='arquivos'    && <ArquivosTab podeEditar={podeEditarArquivos}/>}
+        {aba==='embaixadores'&& <EmbaixadoresTab podeEditar={podeEditar}/>}
+        {aba==='abordagem'   && <AbordagemTab/>}
+      </div>
     </div>
   );
 }
@@ -1947,7 +1970,10 @@ function InfoCentralView() {
 function CampanhasBuscaTab() {
   const { campanhas, pecas } = useApp();
   const [busca, setBusca] = useState('');
-  const publicadas = campanhas.filter(c=>c.status==='publicada');
+  const publicadas = campanhas.filter(c=>c.status==='publicada')
+    .sort((a,b)=>(b.publicadaEm||'').localeCompare(a.publicadaEm||''));
+  const destaque = publicadas[0] || null;
+  const resto = destaque ? publicadas.slice(1) : [];
 
   const resultados = busca.trim() ? pecas.filter(p => {
     const q = busca.toLowerCase();
@@ -1958,37 +1984,70 @@ function CampanhasBuscaTab() {
 
   return (
     <div>
-      <div style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:16,padding:'20px 22px',marginBottom:22,boxShadow:'0 1px 3px rgba(11,42,92,0.04)'}}>
-        <div style={{...lbl,marginBottom:9}}>Buscar peças e banners</div>
-        <div style={{position:'relative'}}>
-          <span style={{position:'absolute',left:14,top:'50%',transform:'translateY(-50%)',color:NB.mut2,display:'flex'}}><ISearch s={16}/></span>
-          <input value={busca} onChange={e=>setBusca(e.target.value)} placeholder="Busque por nome, descrição ou tag — ex: black friday, webinar, banner"
-            style={{...inp,padding:'11px 14px 11px 40px',fontSize:14}}/>
+      {destaque && (
+        <div style={{background:'linear-gradient(120deg, #001B45 0%, '+NB.navy1+' 55%, '+NB.roxo+' 130%)',borderRadius:20,padding:'40px 40px',marginBottom:32,color:'#fff',position:'relative',overflow:'hidden'}}>
+          <span style={{display:'inline-flex',alignItems:'center',gap:8,background:'rgba(255,255,255,0.12)',padding:'6px 13px',borderRadius:20,fontSize:12,color:'#DCE4FA',marginBottom:18}}>
+            <ITarget s={13}/> Campanha em destaque
+          </span>
+          <h1 style={{fontSize:30,fontWeight:600,color:'#fff',marginBottom:12,maxWidth:520,letterSpacing:'-0.01em'}}>{destaque.titulo}</h1>
+          {destaque.descricao && <p style={{color:'#B9C6E8',fontSize:14.5,lineHeight:1.6,maxWidth:460,marginBottom:22}}>{destaque.descricao}</p>}
+          <div style={{display:'flex',gap:10,flexWrap:'wrap'}}>
+            {destaque.desconto && (
+              <span style={{background:'#fff',color:NB.navy1,padding:'11px 20px',borderRadius:10,fontWeight:600,fontSize:14}}>{destaque.desconto}</span>
+            )}
+            {destaque.instagramLink && (
+              <a href={destaque.instagramLink} target="_blank" rel="noopener noreferrer"
+                style={{border:'1.5px solid rgba(255,255,255,0.35)',color:'#fff',padding:'11px 20px',borderRadius:10,fontWeight:600,fontSize:14,display:'flex',alignItems:'center',gap:8,textDecoration:'none'}}>
+                <IExt s={14}/> Ver no Instagram
+              </a>
+            )}
+          </div>
+        </div>
+      )}
+
+      <div style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:16,padding:'22px 24px',marginBottom:32,boxShadow:'0 1px 3px rgba(11,42,92,0.04)'}}>
+        <h2 style={{fontSize:18,fontWeight:600,color:NB.txt,marginBottom:4}}>Buscar peças e banners</h2>
+        <p style={{fontSize:13,color:NB.mut,marginBottom:16}}>Encontre pelo nome, descrição ou tag.</p>
+        <div style={{position:'relative',maxWidth:520}}>
+          <span style={{position:'absolute',left:16,top:'50%',transform:'translateY(-50%)',color:NB.mut2,display:'flex'}}><ISearch s={17}/></span>
+          <input value={busca} onChange={e=>setBusca(e.target.value)} placeholder="ex: black friday, webinar, banner"
+            style={{width:'100%',background:NB.bg,border:'1.5px solid '+NB.bd,borderRadius:14,padding:'13px 16px 13px 44px',fontSize:14.5,color:NB.txt,outline:'none'}}
+            onFocus={e=>{e.target.style.borderColor=NB.azul;}} onBlur={e=>{e.target.style.borderColor=NB.bd;}}/>
         </div>
         {busca.trim() && (
           resultados.length===0 ? (
-            <p style={{fontSize:13,color:NB.mut2,marginTop:14}}>Nada encontrado pra "{busca}". Tente outra palavra ou peça pro marketing cadastrar essa peça.</p>
+            <p style={{fontSize:13,color:NB.mut2,marginTop:16}}>Nada encontrado pra "{busca}". Tente outra palavra ou peça pro marketing cadastrar essa peça.</p>
           ) : (
-            <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(230px,1fr))',gap:12,marginTop:16}}>
+            <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(230px,1fr))',gap:12,marginTop:18}}>
               {resultados.map(p=><PecaResultCard key={p.id} peca={p}/>)}
             </div>
           )
         )}
       </div>
 
-      <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:14}}>
-        <span style={{fontSize:16,fontWeight:600,color:NB.txt}}>Campanhas ativas</span>
-        <span style={{fontSize:13,color:NB.mut}}>{publicadas.length===0?'nenhuma no momento':publicadas.length+(publicadas.length===1?' campanha':' campanhas')}</span>
+      <div style={{display:'flex',alignItems:'flex-end',justifyContent:'space-between',marginBottom:22}}>
+        <div>
+          <h2 style={{fontSize:20,fontWeight:600,color:NB.txt}}>{destaque ? 'Outras campanhas' : 'Campanhas ativas'}</h2>
+          <p style={{fontSize:13,color:NB.mut,marginTop:3}}>{publicadas.length===0?'Nenhuma no momento':publicadas.length+(publicadas.length===1?' campanha publicada':' campanhas publicadas')}</p>
+        </div>
       </div>
 
       {publicadas.length===0 ? (
         <div style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:14,padding:'26px 22px',fontSize:13.5,color:NB.mut,lineHeight:1.6}}>
           Nenhuma campanha publicada no momento. Assim que o marketing publicar uma, ela aparece aqui pra todo mundo do Nibo ver.
         </div>
+      ) : resto.length===0 ? (
+        !destaque && (
+          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(340px,1fr))',gap:20}}>
+            {publicadas.map((c,i)=>(
+              <CampanhaPublicCard key={c.id} camp={c} indice={i} pecasDaCampanha={pecas.filter(p=>(c.pecaIds||[]).includes(p.id))}/>
+            ))}
+          </div>
+        )
       ) : (
-        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(340px,1fr))',gap:14}}>
-          {publicadas.map(c=>(
-            <CampanhaPublicCard key={c.id} camp={c} pecasDaCampanha={pecas.filter(p=>(c.pecaIds||[]).includes(p.id))}/>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(340px,1fr))',gap:20}}>
+          {resto.map((c,i)=>(
+            <CampanhaPublicCard key={c.id} camp={c} indice={i+1} pecasDaCampanha={pecas.filter(p=>(c.pecaIds||[]).includes(p.id))}/>
           ))}
         </div>
       )}
@@ -2177,30 +2236,27 @@ function ArquivosTab({ podeEditar }) {
         const v = ARQUIVO_VISUAL[cat];
         const CatIcon = v.Icon;
         return (
-          <div key={cat} style={{marginBottom:26}}>
-            <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:13}}>
-              <div style={{width:30,height:30,borderRadius:9,background:v.bg,border:'1px solid '+v.bd,color:v.ic,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-                <CatIcon s={15}/>
-              </div>
-              <span style={{fontSize:15,fontWeight:600,color:NB.txt}}>{label}</span>
-              <span style={{fontSize:12,color:NB.mut2,fontWeight:500}}>{itens.length}</span>
+          <div key={cat} style={{marginBottom:36}}>
+            <div style={{display:'flex',alignItems:'flex-end',justifyContent:'space-between',marginBottom:20}}>
+              <h2 style={{fontSize:19,fontWeight:600,color:NB.txt}}>{label}</h2>
+              <span style={{fontSize:12,color:NB.mut2,fontWeight:500}}>{itens.length} {itens.length===1?'arquivo':'arquivos'}</span>
             </div>
-            <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(240px,1fr))',gap:12}}>
+            <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(250px,1fr))',gap:16}}>
               {itens.map(a=>(
-                <div key={a.id} style={{background:'#fff',border:'1px solid '+v.bd,borderTop:'3px solid '+v.ic,borderRadius:12,padding:'15px 16px',boxShadow:'0 1px 3px rgba(11,42,92,0.04)'}}>
-                  <div style={{display:'flex',alignItems:'flex-start',gap:10,marginBottom:a.descricao?8:12}}>
-                    <div style={{width:32,height:32,borderRadius:9,background:v.bg,color:v.ic,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-                      <CatIcon s={15}/>
-                    </div>
-                    <div style={{fontSize:13.5,fontWeight:600,color:NB.txt,lineHeight:1.35,paddingTop:4}}>{a.nome}</div>
+                <div key={a.id} style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:16,padding:'18px',display:'flex',gap:14,alignItems:'flex-start'}}>
+                  <div style={{width:42,height:42,borderRadius:11,background:v.ic,color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                    <CatIcon s={17}/>
                   </div>
-                  {a.descricao && <p style={{fontSize:12,color:NB.mut,marginBottom:12,lineHeight:1.55}}>{a.descricao}</p>}
-                  <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8}}>
-                    <a href={a.url} target="_blank" rel="noopener noreferrer"
-                      style={{fontSize:12,fontWeight:600,color:v.ic,background:v.bg,border:'1px solid '+v.bd,borderRadius:8,padding:'6px 12px',textDecoration:'none',display:'flex',alignItems:'center',gap:6}}>
-                      <IExt s={12}/> Abrir
-                    </a>
-                    {podeEditar && !a.ehPadrao && <button onClick={()=>removeArquivo(a.id)} style={{fontSize:11,color:'#B4232A',background:'none',border:'none'}}>Remover</button>}
+                  <div style={{flex:1,minWidth:0}}>
+                    <h4 style={{fontSize:14.5,fontWeight:600,color:NB.txt,marginBottom:4,lineHeight:1.3}}>{a.nome}</h4>
+                    <span style={{fontSize:11.5,color:NB.mut2}}>{a.descricao || 'Link externo'}</span>
+                    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginTop:10}}>
+                      <a href={a.url} target="_blank" rel="noopener noreferrer"
+                        style={{display:'flex',alignItems:'center',gap:6,fontSize:12.5,fontWeight:600,color:v.ic,textDecoration:'none'}}>
+                        Abrir arquivo <IDown s={11}/>
+                      </a>
+                      {podeEditar && !a.ehPadrao && <button onClick={()=>removeArquivo(a.id)} style={{fontSize:11,color:'#B4232A',background:'none',border:'none'}}>Remover</button>}
+                    </div>
                   </div>
                 </div>
               ))}
@@ -2247,15 +2303,25 @@ function EmbaixadorModal({ onClose }) {
   );
 }
 
+const AVATAR_GRADIENTES = [
+  ['#002D72','#0072CE'], ['#0072CE','#FF40B3'], ['#6431E2','#41B6E6'], ['#002D72','#FF40B3'], ['#0072CE','#6431E2'],
+];
+
 function EmbaixadoresTab({ podeEditar }) {
   const { embaixadores, removeEmbaixador } = useApp();
   const [novo, setNovo] = useState(false);
+  const iniciais = nome => (nome||'').split(/\s+/).filter(Boolean).map(s=>s[0]).slice(0,2).join('').toUpperCase();
+
   return (
     <div>
-      <div style={{display:'flex',justifyContent:'flex-end',marginBottom:14}}>
+      <div style={{display:'flex',alignItems:'flex-end',justifyContent:'space-between',marginBottom:22}}>
+        <div>
+          <h2 style={{fontSize:19,fontWeight:600,color:NB.txt}}>Nossos embaixadores</h2>
+          <p style={{fontSize:13,color:NB.mut,marginTop:3,maxWidth:520}}>Colaboradores que ajudam a levar a voz do Nibo pras redes sociais, eventos e conteúdos.</p>
+        </div>
         {podeEditar && (
           <button onClick={()=>setNovo(true)}
-            style={{display:'flex',alignItems:'center',gap:7,padding:'9px 15px',background:NB.azul,border:'none',borderRadius:9,fontSize:13,fontWeight:500,color:'#fff'}}>
+            style={{display:'flex',alignItems:'center',gap:7,padding:'9px 15px',background:NB.azul,border:'none',borderRadius:9,fontSize:13,fontWeight:500,color:'#fff',flexShrink:0}}>
             <IPlus s={13}/> Novo embaixador
           </button>
         )}
@@ -2265,19 +2331,31 @@ function EmbaixadoresTab({ podeEditar }) {
           Nenhum embaixador cadastrado ainda.
         </div>
       ) : (
-        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(230px,1fr))',gap:12}}>
-          {embaixadores.map(e=>(
-            <div key={e.id} style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:12,padding:'14px 16px'}}>
-              <div style={{fontSize:14,fontWeight:600,color:NB.txt,marginBottom:5}}>{e.nome}</div>
-              {e.descricao && <p style={{fontSize:12,color:NB.mut,marginBottom:9,lineHeight:1.5}}>{e.descricao}</p>}
-              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8}}>
-                {e.instagram
-                  ? <a href={e.instagram.startsWith('http')?e.instagram:'https://instagram.com/'+e.instagram.replace('@','')} target="_blank" rel="noopener noreferrer" style={{fontSize:12.5,color:NB.azul,textDecoration:'none'}}>{e.instagram}</a>
-                  : <span/>}
-                {podeEditar && <button onClick={()=>removeEmbaixador(e.id)} style={{fontSize:11,color:'#B4232A',background:'none',border:'none'}}>Remover</button>}
+        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(190px,1fr))',gap:18}}>
+          {embaixadores.map((e,i)=>{
+            const [c1,c2] = AVATAR_GRADIENTES[i % AVATAR_GRADIENTES.length];
+            const ano = e.criadoEm ? new Date(e.criadoEm).getFullYear() : null;
+            return (
+              <div key={e.id} style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:16,padding:'24px 18px',textAlign:'center'}}>
+                <div style={{width:64,height:64,borderRadius:'50%',background:'linear-gradient(135deg,'+c1+','+c2+')',color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',fontSize:19,fontWeight:600,margin:'0 auto 14px',position:'relative'}}>
+                  {iniciais(e.nome)}
+                  <span style={{position:'absolute',bottom:-1,right:-1,width:20,height:20,borderRadius:'50%',background:'#0F6E56',border:'2px solid #fff',display:'flex',alignItems:'center',justifyContent:'center'}}>
+                    <ICheck s={10}/>
+                  </span>
+                </div>
+                <h4 style={{fontSize:14.5,fontWeight:600,color:NB.txt,marginBottom:4}}>{e.nome}</h4>
+                {e.descricao && <p style={{fontSize:12,color:NB.mut,marginBottom:6,lineHeight:1.45}}>{e.descricao}</p>}
+                {ano && <p style={{fontSize:11,color:NB.mut2}}>Embaixador(a) desde {ano}</p>}
+                {e.instagram && (
+                  <a href={e.instagram.startsWith('http')?e.instagram:'https://instagram.com/'+e.instagram.replace('@','')} target="_blank" rel="noopener noreferrer"
+                    style={{display:'inline-block',fontSize:12,color:NB.azul,textDecoration:'none',marginTop:8}}>{e.instagram}</a>
+                )}
+                {podeEditar && (
+                  <button onClick={()=>removeEmbaixador(e.id)} style={{display:'block',margin:'8px auto 0',fontSize:11,color:'#B4232A',background:'none',border:'none'}}>Remover</button>
+                )}
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
       {novo && <EmbaixadorModal onClose={()=>setNovo(false)}/>}
