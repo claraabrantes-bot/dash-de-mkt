@@ -2186,13 +2186,44 @@ function ArquivoModal({ onClose }) {
   );
 }
 
+/* Links trazidos da central-mkt-nibo antiga, pra carregar uma vez só na nova.
+   Vários apontam pro mesmo ID de pasta no Drive na origem — provável dado
+   incompleto de lá; carrego assim mesmo e sinalizo pra revisão depois. */
+const ARQUIVOS_CENTRAL_ANTIGA = [
+  { nome:'Pasta de Divulgação',    descricao:'Todos os materiais de divulgação do time',        url:'https://drive.google.com/drive/folders/1yHX-y_3KOomT2b0YN0dAFTLtATspb23F', categoria:'conteudo' },
+  { nome:'Peças de Produtos Nibo', descricao:'Peças e artes dos produtos Nibo',                  url:'https://drive.google.com/drive/folders/1FWwG_F3uzH2W__Z661ZTrYGu-ZiwKPe8', categoria:'conteudo' },
+  { nome:'Pack Embaixadores',      descricao:'Materiais para uso pelos embaixadores',            url:'https://drive.google.com/drive/folders/1I0MhkI_dFaxJONIHsBFkPiL0x_4RDAQR', categoria:'conteudo' },
+  { nome:'Pack Institucional',     descricao:'Materiais institucionais do Nibo',                 url:'https://drive.google.com/drive/folders/1dL56J6lYkHFIIZKNHHYXFvX5BFBjnzco', categoria:'conteudo' },
+  { nome:'Brand para Externos',    descricao:'Assets de marca para embaixadores e uso externo',  url:'https://www.canva.com/brand/', categoria:'conteudo' },
+  { nome:'Background MKT',         descricao:'Fundos e assets visuais de marketing',             url:'https://drive.google.com/drive/folders/1yHX-y_3KOomT2b0YN0dAFTLtATspb23F', categoria:'conteudo' },
+  { nome:'MKT + CS Materiais',     descricao:'Materiais personalizados de marketing e CS',       url:'https://drive.google.com/drive/folders/1yHX-y_3KOomT2b0YN0dAFTLtATspb23F', categoria:'conteudo' },
+  { nome:'Fotos de Eventos 2026',  descricao:'Registro fotográfico dos eventos do ano',          url:'https://drive.google.com/drive/folders/1yHX-y_3KOomT2b0YN0dAFTLtATspb23F', categoria:'eventos' },
+  { nome:'Guia de Gravação',       descricao:'Orientações para gravação de vídeos',              url:'https://drive.google.com/drive/folders/1yHX-y_3KOomT2b0YN0dAFTLtATspb23F', categoria:'eventos' },
+  { nome:'Vídeos Embaixadores',    descricao:'Conteúdos dos embaixadores do Nibo',               url:'https://drive.google.com/drive/folders/1yHX-y_3KOomT2b0YN0dAFTLtATspb23F', categoria:'eventos' },
+  { nome:'Planilha de UTMs',       descricao:'Parâmetros de rastreamento por canal',             url:'https://docs.google.com/spreadsheets/d/1uVl1DQvJwIEEm782j7HwEomSSYv5gy4HFsc0FJjamkY/edit', categoria:'restrito' },
+  { nome:'ADS · HubSpot',          descricao:'Campanhas ativas no Google Ads e Meta',            url:'https://app.hubspot.com/ads/1554114/?attributionView=ALL&statuses=ENABLED,PAUSED', categoria:'restrito' },
+];
+
 function ArquivosTab({ podeEditar }) {
-  const { arquivos, removeArquivo } = useApp();
+  const { arquivos, addArquivo, removeArquivo } = useApp();
   const [novo, setNovo] = useState(false);
+  const [carregando, setCarregando] = useState(false);
+
+  const carregarDaCentralAntiga = () => {
+    setCarregando(true);
+    ARQUIVOS_CENTRAL_ANTIGA.forEach(item => addArquivo(item));
+    setTimeout(()=>setCarregando(false), 600);
+  };
 
   return (
     <div>
-      <div style={{display:'flex',justifyContent:'flex-end',marginBottom:14}}>
+      <div style={{display:'flex',justifyContent:'flex-end',gap:9,marginBottom:14,flexWrap:'wrap'}}>
+        {podeEditar && arquivos.length===0 && (
+          <button onClick={carregarDaCentralAntiga} disabled={carregando}
+            style={{display:'flex',alignItems:'center',gap:7,padding:'9px 15px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:9,fontSize:13,fontWeight:500,color:NB.mut,opacity:carregando?0.6:1}}>
+            <IRefresh s={13}/> {carregando?'Carregando…':'Carregar links da central antiga'}
+          </button>
+        )}
         {podeEditar && (
           <button onClick={()=>setNovo(true)}
             style={{display:'flex',alignItems:'center',gap:7,padding:'9px 15px',background:NB.azul,border:'none',borderRadius:9,fontSize:13,fontWeight:500,color:'#fff'}}>
