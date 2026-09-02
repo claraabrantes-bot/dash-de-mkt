@@ -1871,7 +1871,6 @@ function InfoCentralView() {
     { id:'social',     label:'Redes Sociais',   Icon:IChat },
     { id:'arquivos',   label:'Pasta de Arquivos', Icon:IFile },
     { id:'embaixadores', label:'Embaixadores',  Icon:IStamp },
-    { id:'utm',        label:'Gerador de UTM',  Icon:ILink },
     { id:'abordagem',  label:'Gerar Abordagem', Icon:IChatBox },
   ];
 
@@ -1896,7 +1895,6 @@ function InfoCentralView() {
       {aba==='social'      && <RedesSociaisTab podeEditar={podeEditar}/>}
       {aba==='arquivos'    && <ArquivosTab podeEditar={podeEditar}/>}
       {aba==='embaixadores'&& <EmbaixadoresTab podeEditar={podeEditar}/>}
-      {aba==='utm'         && <UtmTab/>}
       {aba==='abordagem'   && <AbordagemTab/>}
     </div>
   );
@@ -2077,66 +2075,81 @@ function CalendarioTab({ podeEditar }) {
 /* ---------- Redes Sociais ---------- */
 function RedesSociaisTab({ podeEditar }) {
   const { redesSociais, salvarRedesSociais } = useApp();
-  const [editando, setEditando] = useState(false);
+  const [editandoHandle, setEditandoHandle] = useState(false);
   const [handle, setHandle] = useState(redesSociais.instagramHandle||'');
-  const [posts, setPostsF] = useState((redesSociais.posts||['','','']).concat(['','','']).slice(0,3));
+  const posts = redesSociais.posts || [];
+  const sincronizado = !!redesSociais.lastSyncedAt;
 
-  useEffect(() => { if (editando) { setHandle(redesSociais.instagramHandle||''); setPostsF((redesSociais.posts||['','','']).concat(['','','']).slice(0,3)); } }, [editando]);
-
-  const salvar = () => {
-    salvarRedesSociais({ instagramHandle:handle.trim(), posts:posts.map(p=>p.trim()).filter(Boolean) });
-    setEditando(false);
-  };
+  const salvarHandle = () => { salvarRedesSociais({ instagramHandle: handle.trim() }); setEditandoHandle(false); };
 
   return (
     <div style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:16,padding:'22px 24px',boxShadow:'0 1px 3px rgba(11,42,92,0.04)'}}>
-      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:16,gap:12}}>
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:16,gap:12,flexWrap:'wrap'}}>
         <div>
-          <div style={{fontSize:15,fontWeight:600,color:NB.txt}}>@{redesSociais.instagramHandle || 'nibosoftware'}</div>
-          <p style={{fontSize:12.5,color:NB.mut}}>Curta e comente nos posts — isso aumenta o alcance.</p>
+          {editandoHandle ? (
+            <div style={{display:'flex',alignItems:'center',gap:8}}>
+              <span style={{fontSize:15,color:NB.mut}}>@</span>
+              <input value={handle} onChange={e=>setHandle(e.target.value)} autoFocus
+                style={{...inp,padding:'6px 10px',fontSize:14,width:180}}/>
+              <button onClick={salvarHandle} style={{padding:'6px 12px',background:NB.azul,border:'none',borderRadius:7,fontSize:12,fontWeight:500,color:'#fff'}}>Salvar</button>
+              <button onClick={()=>setEditandoHandle(false)} style={{padding:'6px 12px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:7,fontSize:12,color:NB.mut}}>Cancelar</button>
+            </div>
+          ) : (
+            <div style={{display:'flex',alignItems:'center',gap:9}}>
+              <span style={{fontSize:15,fontWeight:600,color:NB.txt}}>@{redesSociais.instagramHandle || 'nibosoftware'}</span>
+              {podeEditar && <button onClick={()=>setEditandoHandle(true)} style={{fontSize:11.5,color:NB.azul,background:'none',border:'none'}}>trocar conta</button>}
+            </div>
+          )}
+          <p style={{fontSize:12.5,color:NB.mut,marginTop:4}}>Curta e comente nos posts — isso aumenta o alcance.</p>
         </div>
-        {podeEditar && !editando && (
-          <button onClick={()=>setEditando(true)} style={{padding:'8px 14px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:9,fontSize:12.5,fontWeight:500,color:NB.mut,flexShrink:0}}>Editar posts</button>
-        )}
+        <span style={{fontSize:11.5,color:sincronizado?'#0F6E56':NB.mut2,background:sincronizado?'#E1F5EE':NB.col,borderRadius:7,padding:'5px 11px',flexShrink:0,display:'flex',alignItems:'center',gap:6}}>
+          {sincronizado ? <ICheck s={12}/> : <IClock s={12}/>}
+          {sincronizado
+            ? 'Sincronizado automaticamente · '+fmtWhen(redesSociais.lastSyncedAt)
+            : 'Sincronização automática ainda não configurada'}
+        </span>
       </div>
 
-      {editando ? (
-        <div style={{display:'flex',flexDirection:'column',gap:10}}>
-          <div>
-            <div style={{...lbl,marginBottom:6}}>Usuário do Instagram</div>
-            <input value={handle} onChange={e=>setHandle(e.target.value)} placeholder="nibosoftware" style={{...inp,padding:'9px 12px',fontSize:13.5}}/>
-          </div>
-          <div style={{...lbl,marginBottom:2}}>Até 3 links de posts</div>
-          {posts.map((p,i)=>(
-            <input key={i} value={p} onChange={e=>setPostsF(arr=>arr.map((x,ix)=>ix===i?e.target.value:x))}
-              placeholder="https://www.instagram.com/p/ABC123/" style={{...inp,padding:'9px 12px',fontSize:13.5}}/>
-          ))}
-          <div style={{display:'flex',gap:8,justifyContent:'flex-end',marginTop:6}}>
-            <button onClick={()=>setEditando(false)} style={{padding:'8px 14px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:8,fontSize:12.5,fontWeight:500,color:NB.mut}}>Cancelar</button>
-            <button onClick={salvar} style={{padding:'8px 16px',background:NB.azul,border:'none',borderRadius:8,fontSize:12.5,fontWeight:500,color:'#fff'}}>Salvar</button>
-          </div>
+      {posts.length===0 ? (
+        <div style={{background:NB.col,border:'1px dashed '+NB.bd,borderRadius:11,padding:'22px 18px',textAlign:'center'}}>
+          <p style={{fontSize:13,color:NB.mut,lineHeight:1.6}}>
+            {sincronizado
+              ? 'Nenhum post encontrado na última sincronização.'
+              : <React.Fragment>Assim que a automação do Instagram estiver ativa, os posts recentes de <strong>@{redesSociais.instagramHandle||'nibosoftware'}</strong> aparecem aqui sozinhos.</React.Fragment>}
+          </p>
         </div>
       ) : (
-        (redesSociais.posts||[]).length===0 ? (
-          <p style={{fontSize:13,color:NB.mut2}}>Nenhum post cadastrado ainda.</p>
-        ) : (
-          <div style={{display:'flex',flexDirection:'column',gap:8}}>
-            {redesSociais.posts.map((p,i)=>(
-              <a key={i} href={p} target="_blank" rel="noopener noreferrer"
-                style={{display:'flex',alignItems:'center',gap:8,fontSize:13,color:NB.azul,textDecoration:'none',background:NB.col,borderRadius:9,padding:'10px 13px'}}>
-                <IExt s={13}/> {p}
+        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(220px,1fr))',gap:12}}>
+          {posts.map((p,i)=>{
+            const post = typeof p === 'string' ? { permalink:p } : p;
+            return (
+              <a key={post.id||i} href={post.permalink} target="_blank" rel="noopener noreferrer"
+                style={{display:'block',background:NB.col,border:'1px solid '+NB.bd,borderRadius:11,overflow:'hidden',textDecoration:'none'}}>
+                {post.mediaUrl && (
+                  <div style={{width:'100%',aspectRatio:'1/1',background:'#E8EDF5',overflow:'hidden'}}>
+                    <img src={post.mediaUrl} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>
+                  </div>
+                )}
+                <div style={{padding:'10px 12px'}}>
+                  {post.caption
+                    ? <p style={{fontSize:12,color:NB.txt,lineHeight:1.5,display:'-webkit-box',WebkitLineClamp:2,WebkitBoxOrient:'vertical',overflow:'hidden',marginBottom:6}}>{post.caption}</p>
+                    : <p style={{fontSize:12,color:NB.azul,marginBottom:6,wordBreak:'break-all'}}>{post.permalink}</p>}
+                  <span style={{fontSize:11,color:NB.mut2,display:'flex',alignItems:'center',gap:5}}><IExt s={10}/> Ver no Instagram</span>
+                </div>
               </a>
-            ))}
-          </div>
-        )
+            );
+          })}
+        </div>
       )}
+
       <a href={'https://instagram.com/'+(redesSociais.instagramHandle||'nibosoftware')} target="_blank" rel="noopener noreferrer"
-        style={{display:'inline-flex',alignItems:'center',gap:6,fontSize:12.5,color:NB.mut,textDecoration:'none',marginTop:14}}>
+        style={{display:'inline-flex',alignItems:'center',gap:6,fontSize:12.5,color:NB.mut,textDecoration:'none',marginTop:16}}>
         <IExt s={12}/> Ver perfil no Instagram
       </a>
     </div>
   );
 }
+
 
 /* ---------- Pasta de Arquivos ---------- */
 const CATEGORIAS_ARQUIVO = { conteudo:'Conteúdo e Materiais', eventos:'Eventos e Vídeos', restrito:'Apenas time de Marketing' };
@@ -2281,87 +2294,6 @@ function EmbaixadoresTab({ podeEditar }) {
         </div>
       )}
       {novo && <EmbaixadorModal onClose={()=>setNovo(false)}/>}
-    </div>
-  );
-}
-
-/* ---------- Gerador de UTM ---------- */
-const UTM_SOURCES  = ['hs_email','ferramenta','webinar','meta','instagram','inapp','whatsapp','blog','linkthree','embaixadores','evento','adwords','email','parceiros'];
-const UTM_MEDIUMS   = ['email_campaing','webinar','ferramenta','banner','linkthree','instagram','whatsapp','mensagem','automacao','inapp_campaing','live','tv','panfleto','influencer'];
-
-function UtmTab() {
-  const [url, setUrl]         = useState('');
-  const [source, setSource]   = useState('');
-  const [medium, setMedium]   = useState('');
-  const [campaign, setCampaign] = useState('');
-  const [gerados, setGerados] = useState([]);
-  const [copiado, setCopiado] = useState(false);
-
-  const limpo = campaign.toLowerCase().replace(/[^a-z0-9-]+/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,'');
-  const link = url && source && medium && limpo
-    ? url + (url.includes('?')?'&':'?') + 'utm_source='+encodeURIComponent(source)+'&utm_medium='+encodeURIComponent(medium)+'&utm_campaign='+encodeURIComponent(limpo)
-    : '';
-
-  const gerar = () => {
-    if (!link) return;
-    setGerados(g=>[{ url:link, quando:new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) }, ...g]);
-  };
-  const copiar = () => { if(!link) return; navigator.clipboard && navigator.clipboard.writeText(link); setCopiado(true); setTimeout(()=>setCopiado(false),1800); };
-
-  return (
-    <div style={{display:'grid',gridTemplateColumns:'1fr 300px',gap:18,alignItems:'start'}}>
-      <div style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:16,padding:'22px 24px',boxShadow:'0 1px 3px rgba(11,42,92,0.04)'}}>
-        <div style={{marginBottom:14}}>
-          <div style={{...lbl,marginBottom:6}}>URL base</div>
-          <input value={url} onChange={e=>setUrl(e.target.value)} placeholder="https://nibo.com.br/..." style={{...inp,padding:'9px 12px',fontSize:13.5}}/>
-        </div>
-        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:14}}>
-          <div>
-            <div style={{...lbl,marginBottom:6}}>utm_source</div>
-            <input value={source} onChange={e=>setSource(e.target.value)} list="utm-src" style={{...inp,padding:'9px 12px',fontSize:13.5}}/>
-            <datalist id="utm-src">{UTM_SOURCES.map(s=><option key={s} value={s}/>)}</datalist>
-          </div>
-          <div>
-            <div style={{...lbl,marginBottom:6}}>utm_medium</div>
-            <input value={medium} onChange={e=>setMedium(e.target.value)} list="utm-med" style={{...inp,padding:'9px 12px',fontSize:13.5}}/>
-            <datalist id="utm-med">{UTM_MEDIUMS.map(m=><option key={m} value={m}/>)}</datalist>
-          </div>
-        </div>
-        <div style={{marginBottom:16}}>
-          <div style={{...lbl,marginBottom:6}}>utm_campaign</div>
-          <input value={campaign} onChange={e=>setCampaign(e.target.value)} placeholder="webinar-lancamento-produto" style={{...inp,padding:'9px 12px',fontSize:13.5}}/>
-          <p style={{fontSize:11.5,color:NB.mut2,marginTop:5}}>Letras minúsculas, números e hífens. Sem espaço ou acento.</p>
-        </div>
-        <div style={{background:NB.col,border:'1px solid '+NB.bd,borderRadius:10,padding:'12px 14px',marginBottom:14,wordBreak:'break-all',fontSize:12.5,color:link?NB.txt:NB.mut2,minHeight:20}}>
-          {link || 'Preencha os campos para gerar o link.'}
-        </div>
-        <div style={{display:'flex',gap:9}}>
-          <button onClick={gerar} disabled={!link} style={{padding:'9px 16px',background:link?NB.azul:'#CFD8E6',border:'none',borderRadius:9,fontSize:13,fontWeight:500,color:'#fff',cursor:link?'pointer':'not-allowed'}}>Gerar link</button>
-          <button onClick={copiar} disabled={!link} style={{padding:'9px 16px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:9,fontSize:13,fontWeight:500,color:link?NB.mut:NB.mut2}}>{copiado?'Copiado ✓':'Copiar link'}</button>
-        </div>
-      </div>
-      <div style={{display:'flex',flexDirection:'column',gap:12}}>
-        <div style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:14,padding:'16px 17px'}}>
-          <div style={{fontSize:12.5,fontWeight:600,color:NB.txt,marginBottom:8}}>Regras de nomenclatura</div>
-          <p style={{fontSize:12,color:NB.mut,lineHeight:1.7}}>
-            <strong style={{color:NB.txt}}>source:</strong> origem do tráfego<br/>
-            <strong style={{color:NB.txt}}>medium:</strong> tipo de mídia<br/>
-            <strong style={{color:NB.txt}}>campaign:</strong> nome da ação, minúsculo com hífen
-          </p>
-        </div>
-        <div style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:14,padding:'16px 17px'}}>
-          <div style={{fontSize:12.5,fontWeight:600,color:NB.txt,marginBottom:8}}>Gerados nesta sessão</div>
-          {gerados.length===0 ? <p style={{fontSize:12,color:NB.mut2}}>Nenhum link gerado ainda.</p> : (
-            <div style={{display:'flex',flexDirection:'column',gap:7,maxHeight:220,overflowY:'auto'}}>
-              {gerados.map((g,i)=>(
-                <div key={i} style={{fontSize:11,color:NB.mut,wordBreak:'break-all',borderBottom:'1px solid '+NB.bdSoft,paddingBottom:6}}>
-                  <span style={{color:NB.mut2}}>{g.quando}</span> — {g.url}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
     </div>
   );
 }
