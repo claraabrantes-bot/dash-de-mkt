@@ -2172,6 +2172,11 @@ function RedesSociaisTab({ podeEditar }) {
 
 /* ---------- Pasta de Arquivos ---------- */
 const CATEGORIAS_ARQUIVO = { conteudo:'Conteúdo e Materiais', eventos:'Eventos e Vídeos', restrito:'Apenas time de Marketing' };
+const ARQUIVO_VISUAL = {
+  conteudo: { bg:'#EAF3FD', bd:'#BFDDF7', ic:NB.azul,  Icon:IFile },
+  eventos:  { bg:'#F1ECFE', bd:'#DDD0FB', ic:NB.roxo,  Icon:IPlay },
+  restrito: { bg:'#FFF6DE', bd:'#F3D98A', ic:'#8A6206', Icon:IEyeOff },
+};
 
 function ArquivoModal({ onClose }) {
   const { addArquivo } = useApp();
@@ -2267,16 +2272,32 @@ function ArquivosTab({ podeEditar }) {
       {Object.entries(CATEGORIAS_ARQUIVO).map(([cat,label])=>{
         const itens = arquivos.filter(a=>a.categoria===cat);
         if (itens.length===0) return null;
+        const v = ARQUIVO_VISUAL[cat];
+        const CatIcon = v.Icon;
         return (
-          <div key={cat} style={{marginBottom:22}}>
-            <div style={{fontSize:14,fontWeight:600,color:NB.txt,marginBottom:10}}>{label}</div>
-            <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(240px,1fr))',gap:11}}>
+          <div key={cat} style={{marginBottom:26}}>
+            <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:13}}>
+              <div style={{width:30,height:30,borderRadius:9,background:v.bg,border:'1px solid '+v.bd,color:v.ic,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                <CatIcon s={15}/>
+              </div>
+              <span style={{fontSize:15,fontWeight:600,color:NB.txt}}>{label}</span>
+              <span style={{fontSize:12,color:NB.mut2,fontWeight:500}}>{itens.length}</span>
+            </div>
+            <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(240px,1fr))',gap:12}}>
               {itens.map(a=>(
-                <div key={a.id} style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:12,padding:'13px 15px'}}>
-                  <div style={{fontSize:13.5,fontWeight:600,color:NB.txt,marginBottom:4}}>{a.nome}</div>
-                  {a.descricao && <p style={{fontSize:12,color:NB.mut,marginBottom:9,lineHeight:1.5}}>{a.descricao}</p>}
+                <div key={a.id} style={{background:'#fff',border:'1px solid '+v.bd,borderTop:'3px solid '+v.ic,borderRadius:12,padding:'15px 16px',boxShadow:'0 1px 3px rgba(11,42,92,0.04)'}}>
+                  <div style={{display:'flex',alignItems:'flex-start',gap:10,marginBottom:a.descricao?8:12}}>
+                    <div style={{width:32,height:32,borderRadius:9,background:v.bg,color:v.ic,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                      <CatIcon s={15}/>
+                    </div>
+                    <div style={{fontSize:13.5,fontWeight:600,color:NB.txt,lineHeight:1.35,paddingTop:4}}>{a.nome}</div>
+                  </div>
+                  {a.descricao && <p style={{fontSize:12,color:NB.mut,marginBottom:12,lineHeight:1.55}}>{a.descricao}</p>}
                   <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8}}>
-                    <a href={a.url} target="_blank" rel="noopener noreferrer" style={{fontSize:12.5,color:NB.azul,textDecoration:'none',display:'flex',alignItems:'center',gap:5}}><IExt s={12}/> Abrir</a>
+                    <a href={a.url} target="_blank" rel="noopener noreferrer"
+                      style={{fontSize:12,fontWeight:600,color:v.ic,background:v.bg,border:'1px solid '+v.bd,borderRadius:8,padding:'6px 12px',textDecoration:'none',display:'flex',alignItems:'center',gap:6}}>
+                      <IExt s={12}/> Abrir
+                    </a>
                     {podeEditar && !a.ehPadrao && <button onClick={()=>removeArquivo(a.id)} style={{fontSize:11,color:'#B4232A',background:'none',border:'none'}}>Remover</button>}
                   </div>
                 </div>
