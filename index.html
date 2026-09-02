@@ -165,6 +165,8 @@ function Provider({ children }) {
   const [dbReady, setDbReady] = useState(false);
   const [dbErro, setDbErro]   = useState('');
   const dbRef    = useRef(null);
+  const publicDbRef = useRef(null);
+  const [dbErroPublico, setDbErroPublico] = useState('');
   const pipesRef = useRef(pipes);
   pipesRef.current = pipes;
 
@@ -239,7 +241,30 @@ function Provider({ children }) {
           googlePhoto: fbUser.photoURL }
     : null;
 
-  /* Escutas do Firestore só depois do login — as regras exigem usuária autenticada. */
+  /* Central de Informações é pública: essas duas coleções carregam sempre,
+     com ou sem login — as regras do Firestore liberam leitura sem exigir conta. */
+  useEffect(() => {
+    let db;
+    try { db = firebase.firestore(); publicDbRef.current = db; }
+    catch (e) { setDbErroPublico('Não foi possível abrir o banco: ' + e.message); return; }
+
+    const erro = e => setDbErroPublico(
+      e && e.code === 'permission-denied'
+        ? 'Sem permissão de leitura pública. Publique as regras do Firestore no console do Firebase.'
+        : 'Falha de conexão: ' + (e && e.message ? e.message : 'desconhecida')
+    );
+
+    const uc = db.collection('campanhas').onSnapshot(snap => {
+      setCampanhas(snap.docs.map(d => ({ id:d.id, ...d.data() })));
+    }, erro);
+    const up = db.collection('pecas').onSnapshot(snap => {
+      setPecas(snap.docs.map(d => ({ id:d.id, ...d.data() })));
+    }, erro);
+
+    return () => { uc(); up(); };
+  }, []);
+
+  /* Escutas do que é interno só depois do login — as regras exigem usuária autenticada. */
   useEffect(() => {
     if (!fbUser) { dbRef.current = null; setDbReady(false); return; }
     let db;
@@ -274,15 +299,7 @@ function Provider({ children }) {
       setPipes(d && d.data ? d.data : DEFAULT_PIPELINES);
     }, erro);
 
-    const u6 = db.collection('campanhas').onSnapshot(snap => {
-      setCampanhas(snap.docs.map(d => ({ id:d.id, ...d.data() })));
-    }, erro);
-
-    const u7 = db.collection('pecas').onSnapshot(snap => {
-      setPecas(snap.docs.map(d => ({ id:d.id, ...d.data() })));
-    }, erro);
-
-    return () => { u1(); u2(); u3(); u4(); u5(); u6(); u7(); };
+    return () => { u1(); u2(); u3(); u4(); u5(); };
   }, [fbUser]);
 
   /* Ao entrar, cai direto no próprio setor. Quem aprova cai na fila de Gestão. */
@@ -645,7 +662,7 @@ function Provider({ children }) {
   window.__nbDem = demands;
   window.__nbPosts = posts;
 
-  return <Ctx.Provider value={{ demands, active, archived, filtered, slack, user, isTeamMember, authReady, authError, setAuthError, dbReady, dbErro, seed, pedidos, aceitarPedido, recusarPedido, posts, addPost, updatePost, deletePost, campanhas, addCampanha, updateCampanha, publicarCampanha, despublicarCampanha, deleteCampanha, pecas, addPeca, removePeca, view, setView, layout, setLayout, area, setArea, query, setQuery, priFilter, setPriFilter, reqFilter, setReqFilter, selDemand, setModal, newOpen, setNewOpen, notifyPending, setNotifyPending, profileOpen, setProfileOpen, editStages, setEditStages, dragging, setDragging, previewMember, setPreviewMember, photos, googlePhotos, profiles, pipes, salvarPipes, attach, comments, storageWarn, MAX_FILE, addAttachment, uploadFile, migrarLocal, carregarAnexo, removeAttachment, addComment, removeComment, logout, savePhoto, removePhoto, saveProfile, addDemand, moveStage, moveArea, setAssignees, updateDemand, archiveDemand, restoreDemand, delDemand }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ demands, active, archived, filtered, slack, user, isTeamMember, authReady, authError, setAuthError, dbReady, dbErro, dbErroPublico, seed, pedidos, aceitarPedido, recusarPedido, posts, addPost, updatePost, deletePost, campanhas, addCampanha, updateCampanha, publicarCampanha, despublicarCampanha, deleteCampanha, pecas, addPeca, removePeca, view, setView, layout, setLayout, area, setArea, query, setQuery, priFilter, setPriFilter, reqFilter, setReqFilter, selDemand, setModal, newOpen, setNewOpen, notifyPending, setNotifyPending, profileOpen, setProfileOpen, editStages, setEditStages, dragging, setDragging, previewMember, setPreviewMember, photos, googlePhotos, profiles, pipes, salvarPipes, attach, comments, storageWarn, MAX_FILE, addAttachment, uploadFile, migrarLocal, carregarAnexo, removeAttachment, addComment, removeComment, logout, savePhoto, removePhoto, saveProfile, addDemand, moveStage, moveArea, setAssignees, updateDemand, archiveDemand, restoreDemand, delDemand }}>{children}</Ctx.Provider>;
 }
 
 const useApp = () => useContext(Ctx);
@@ -788,101 +805,6 @@ function Splash() {
 }
 
 /* =========== LOGIN =========== */
-function LoginScreen() {
-  const { photos, googlePhotos, authError, setAuthError } = useApp();
-  const [busy, setBusy]   = useState(false);
-  const [local, setLocal] = useState('');
-
-  const signIn = async () => {
-    setBusy(true); setLocal(''); setAuthError('');
-    try {
-      const provider = new firebase.auth.GoogleAuthProvider();
-      provider.setCustomParameters({ hd: 'nibo.com.br', prompt: 'select_account' });
-      await firebase.auth().signInWithPopup(provider);
-    } catch (err) {
-      const code = err && err.code;
-      if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') {
-        /* fechou de propósito */
-      } else if (code === 'auth/unauthorized-domain') {
-        setLocal('Este endereço não está autorizado no Firebase. Adicione o domínio em Authentication → Configurações → Domínios autorizados.');
-      } else if (code === 'auth/popup-blocked') {
-        setLocal('Seu navegador bloqueou a janela do Google. Libere pop-ups para este site e tente de novo.');
-      } else if (code === 'auth/operation-not-allowed') {
-        setLocal('O login com Google está desligado no Firebase. Ative em Authentication → Método de login → Google.');
-      } else {
-        setLocal('Não foi possível entrar. Erro: ' + (code || 'desconhecido'));
-      }
-      setBusy(false);
-    }
-  };
-
-  const msg = local || authError;
-
-  return (
-    <div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',padding:24,
-      background:'radial-gradient(1100px 560px at 12% -12%, '+NB.roxo+'2E, transparent 62%), radial-gradient(900px 500px at 100% 100%, '+NB.pink+'1C, transparent 55%), linear-gradient(160deg,#06183A,'+NB.navy1+' 58%,#0A3A82)'}}>
-      <div style={{width:'100%',maxWidth:980,display:'grid',gridTemplateColumns:'1.05fr 1fr',background:'#fff',borderRadius:22,overflow:'hidden',boxShadow:'0 30px 80px rgba(4,18,48,0.5)'}}>
-
-        <div style={{padding:'52px 46px',background:'linear-gradient(155deg,'+NB.navy1+' 0%,#0A3F94 58%,'+NB.roxo+' 135%)',color:'#fff',position:'relative',overflow:'hidden'}}>
-          <div style={{position:'absolute',width:320,height:320,borderRadius:'50%',background:NB.pink,opacity:0.15,right:-125,top:-95}}/>
-          <div style={{position:'absolute',width:220,height:220,borderRadius:'50%',background:NB.azulClaro,opacity:0.17,left:-85,bottom:-72}}/>
-          <div style={{position:'relative'}}>
-            <div style={{display:'flex',alignItems:'center',gap:13,marginBottom:40}}>
-              <NiboMark size={46} radius={13} bg="#fff" color={NB.navy1}/>
-              <div>
-                <div style={{fontWeight:600,fontSize:18,lineHeight:1.15}}>Demandas</div>
-                <div style={{fontSize:13,color:NB.gelo}}>Nibo Marketing</div>
-              </div>
-            </div>
-            <h1 style={{fontSize:33,lineHeight:1.22,fontWeight:600,marginBottom:16}}>
-              Toda demanda de marketing<br/>em um só lugar.
-            </h1>
-            <p style={{fontSize:15,color:NB.gelo,lineHeight:1.65,maxWidth:380}}>
-              Solicite, acompanhe e aprove demandas de Social, Design, Mídia Paga, Produto e RevOps — com as automações caindo direto no Slack.
-            </p>
-            <div style={{display:'flex',gap:9,marginTop:38,flexWrap:'wrap'}}>
-              {ACTIVE_TEAM.slice(0,6).map(m=>(
-                <div key={m.id} style={{width:38,height:38,borderRadius:'50%',overflow:'hidden',border:'2px solid rgba(255,255,255,0.5)',flexShrink:0}}>
-                  {(photos[m.id] || googlePhotos[m.id])
-                    ? <img src={photos[m.id] || googlePhotos[m.id]} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>
-                    : <div style={{width:'100%',height:'100%',background:m.color,color:'#fff',fontSize:13,fontWeight:600,display:'flex',alignItems:'center',justifyContent:'center'}}>{m.initials}</div>}
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        <div style={{padding:'52px 46px',display:'flex',flexDirection:'column',justifyContent:'center'}}>
-          <h2 style={{fontSize:24,fontWeight:600,color:NB.txt,marginBottom:8}}>Entrar</h2>
-          <p style={{fontSize:14.5,color:NB.mut,lineHeight:1.6,marginBottom:32}}>
-            Use sua conta Google do Nibo. O acesso é restrito a e-mails <strong style={{color:NB.txt,fontWeight:600}}>{NIBO_DOMAIN}</strong>.
-          </p>
-
-          <button onClick={signIn} disabled={busy}
-            style={{display:'flex',alignItems:'center',justifyContent:'center',gap:13,width:'100%',padding:'15px 20px',background:'#fff',border:'1.5px solid #DADCE0',borderRadius:12,fontSize:15.5,fontWeight:500,color:'#3C4043',boxShadow:'0 1px 3px rgba(0,0,0,0.08)',opacity:busy?0.6:1,cursor:busy?'wait':'pointer'}}
-            onMouseEnter={e=>{ if(!busy) e.currentTarget.style.background='#F8F9FB'; }}
-            onMouseLeave={e=>{ e.currentTarget.style.background='#fff'; }}>
-            {busy
-              ? <span style={{width:18,height:18,border:'2px solid #DADCE0',borderTopColor:'#4285F4',borderRadius:'50%',animation:'nb-spin 0.7s linear infinite',display:'inline-block'}}/>
-              : <IGoogle/>}
-            {busy ? 'Abrindo o Google…' : 'Entrar com Google'}
-          </button>
-
-          {msg && (
-            <div style={{marginTop:18,padding:'13px 16px',background:'#FEF2F2',border:'1px solid #FECACA',borderRadius:10,fontSize:13,color:'#991B1B',lineHeight:1.55}}>
-              {msg}
-            </div>
-          )}
-
-          <p style={{marginTop:28,fontSize:12.5,color:NB.mut2,lineHeight:1.6}}>
-            Não consegue entrar? Fale com a Mariana para liberar seu e-mail no acesso da equipe.
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 /* =========== SIDEBAR =========== */
 /* =========== NAVEGAÇÃO SUPERIOR =========== */
 /* =========== ITEM DE NAVEGAÇÃO (fundo branco) =========== */
@@ -4144,6 +4066,69 @@ function NewModal() {
 
 /* =========== APP =========== */
 /* =========== APP DE VISITANTE — qualquer conta do Nibo fora do marketing ============ */
+/* =========== PORTA DE ENTRADA — pública, sem login. "Gestão" pede login. ============ */
+function GestaoLoginButton() {
+  const { setAuthError } = useApp();
+  const [busy, setBusy] = useState(false);
+  const [erro, setErro] = useState('');
+
+  const entrar = async () => {
+    setBusy(true); setErro(''); setAuthError('');
+    try {
+      const provider = new firebase.auth.GoogleAuthProvider();
+      provider.setCustomParameters({ hd: 'nibo.com.br', prompt: 'select_account' });
+      await firebase.auth().signInWithPopup(provider);
+      /* onAuthStateChanged assume a partir daqui */
+    } catch (err) {
+      const code = err && err.code;
+      if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') { /* fechou de propósito */ }
+      else if (code === 'auth/unauthorized-domain') setErro('Domínio não autorizado no Firebase.');
+      else if (code === 'auth/popup-blocked') setErro('O navegador bloqueou o popup. Libere pop-ups e tente de novo.');
+      else setErro('Não foi possível entrar. Erro: ' + (code || 'desconhecido'));
+      setBusy(false); return;
+    }
+    setBusy(false);
+  };
+
+  return (
+    <div style={{position:'relative'}}>
+      <button onClick={entrar} disabled={busy}
+        style={{display:'flex',alignItems:'center',gap:8,padding:'9px 16px',background:NB.navy1,border:'none',borderRadius:10,color:'#fff',fontSize:13,fontWeight:600,opacity:busy?0.7:1,cursor:busy?'wait':'pointer'}}>
+        <IStamp s={14}/> {busy?'Entrando…':'Gestão'}
+      </button>
+      {erro && (
+        <div style={{position:'absolute',top:'calc(100% + 8px)',right:0,width:260,background:'#fff',border:'1px solid #FECACA',borderRadius:10,padding:'10px 12px',fontSize:12,color:'#B4232A',boxShadow:'0 10px 30px rgba(4,18,48,0.16)',zIndex:20}}>
+          {erro}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PublicCentralPage() {
+  const { dbErroPublico } = useApp();
+  return (
+    <div style={{height:'100vh',width:'100%',display:'flex',flexDirection:'column',background:NB.bg,overflow:'hidden'}}>
+      <header style={{background:'#fff',borderBottom:'1px solid '+NB.bd,padding:'16px 30px',display:'flex',alignItems:'center',gap:14,flexShrink:0}}>
+        <NiboSymbol size={32} color={NB.navy1}/>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontSize:16,fontWeight:700,color:NB.navy1,letterSpacing:'-0.01em'}}>Central de Informações de Marketing</div>
+          <div style={{fontSize:12,color:NB.mut}}>Nibo · aberta pra todo mundo, sem login</div>
+        </div>
+        <GestaoLoginButton/>
+      </header>
+      {dbErroPublico && (
+        <div style={{background:'#FEF2F2',borderBottom:'1px solid #FECACA',padding:'11px 28px',fontSize:13,color:'#B4232A',display:'flex',alignItems:'center',gap:9,flexShrink:0}}>
+          <IAlert s={15}/> {dbErroPublico}
+        </div>
+      )}
+      <main style={{flex:1,overflow:'hidden',minHeight:0}}>
+        <InfoCentralView/>
+      </main>
+    </div>
+  );
+}
+
 function VisitorApp() {
   const { user, logout, dbReady, dbErro } = useApp();
   return (
@@ -4152,7 +4137,7 @@ function VisitorApp() {
         <NiboSymbol size={32} color={NB.navy1}/>
         <div style={{flex:1,minWidth:0}}>
           <div style={{fontSize:16,fontWeight:700,color:NB.navy1,letterSpacing:'-0.01em'}}>Central de Informações de Marketing</div>
-          <div style={{fontSize:12,color:NB.mut}}>Nibo · aberta pra todo mundo do time</div>
+          <div style={{fontSize:12,color:NB.mut}}>Essa conta não tem acesso à Gestão do Marketing — aqui vai o que dá pra ver</div>
         </div>
         <div style={{display:'flex',alignItems:'center',gap:10,flexShrink:0}}>
           <div style={{textAlign:'right'}}>
@@ -4160,7 +4145,7 @@ function VisitorApp() {
             <div style={{fontSize:11,color:NB.mut2}}>{user.email}</div>
           </div>
           <Avatar member={user} size={32} ring={false}/>
-          <button onClick={logout} title="Sair"
+          <button onClick={logout} title="Voltar para a Central"
             style={{padding:9,background:'#fff',border:'1px solid '+NB.bd,borderRadius:9,color:NB.mut,display:'flex'}}><ILogout s={15}/></button>
         </div>
       </header>
@@ -4184,7 +4169,7 @@ function VisitorApp() {
 function AppContent() {
   const { view, user, isTeamMember, authReady, setDragging, editStages, setEditStages, dbReady, dbErro, previewMember, setPreviewMember } = useApp();
   if (!authReady) return <Splash/>;
-  if (!user)      return <LoginScreen/>;
+  if (!user)      return <PublicCentralPage/>;
   if (!isTeamMember) return <VisitorApp/>;
   return (
     <div style={{display:'flex',height:'100vh',width:'100%',overflow:'hidden',background:NB.bg}}
