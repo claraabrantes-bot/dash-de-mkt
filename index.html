@@ -2368,27 +2368,55 @@ function EmbaixadoresTab({ podeEditar }) {
 
 /* ---------- Gerar Abordagem (IA por persona) ---------- */
 function AbordagemTab() {
+  const { campanhas } = useApp();
+  const publicadas = campanhas.filter(c=>c.status==='publicada');
+  const [campId, setCampId] = useState(null);
   const [persona, setPersona] = useState(null);
   const [copiado, setCopiado] = useState(null);
   const copiar = (t,i) => { navigator.clipboard && navigator.clipboard.writeText(t); setCopiado(i); setTimeout(()=>setCopiado(null),1800); };
+  const camp = publicadas.find(c=>c.id===campId) || null;
 
   return (
     <div style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:16,padding:'22px 24px',boxShadow:'0 1px 3px rgba(11,42,92,0.04)'}}>
-      <div style={{...lbl,marginBottom:11}}>Para quem é essa abordagem?</div>
-      <div style={{display:'flex',gap:9,flexWrap:'wrap',marginBottom:22}}>
-        {PERSONAS.map(p=>{
-          const on = persona===p.id;
-          return (
-            <button key={p.id} onClick={()=>setPersona(p.id)}
-              style={{display:'flex',alignItems:'center',gap:8,padding:'10px 16px',borderRadius:10,border:'1px solid '+(on?NB.azul:NB.bd),background:on?'#EAF3FD':'#fff',fontSize:13.5,fontWeight:500,color:on?NB.azul:NB.mut}}>
-              <span>{p.emoji}</span> {p.label}
-            </button>
-          );
-        })}
-      </div>
-      {persona && (
+      <div style={{...lbl,marginBottom:11}}>Qual campanha você vai abordar?</div>
+      {publicadas.length===0 ? (
+        <div style={{background:NB.col,border:'1px dashed '+NB.bd,borderRadius:11,padding:'18px 16px',marginBottom:8}}>
+          <p style={{fontSize:13,color:NB.mut,lineHeight:1.6}}>Nenhuma campanha publicada no momento. A abordagem sempre parte de uma campanha real — assim que o marketing publicar uma, ela aparece aqui pra escolher.</p>
+        </div>
+      ) : (
+        <div style={{display:'flex',gap:9,flexWrap:'wrap',marginBottom:22}}>
+          {publicadas.map(c=>{
+            const on = campId===c.id;
+            return (
+              <button key={c.id} onClick={()=>setCampId(c.id)}
+                style={{padding:'10px 16px',borderRadius:10,border:'1px solid '+(on?NB.azul:NB.bd),background:on?'#EAF3FD':'#fff',fontSize:13.5,fontWeight:500,color:on?NB.azul:NB.mut,textAlign:'left'}}>
+                {c.titulo}{c.desconto && <span style={{color:NB.mut2,fontWeight:400}}> · {c.desconto}</span>}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {camp && (
+        <React.Fragment>
+          <div style={{...lbl,marginBottom:11}}>Pra quem é essa abordagem?</div>
+          <div style={{display:'flex',gap:9,flexWrap:'wrap',marginBottom:22}}>
+            {PERSONAS.map(p=>{
+              const on = persona===p.id;
+              return (
+                <button key={p.id} onClick={()=>setPersona(p.id)}
+                  style={{display:'flex',alignItems:'center',gap:8,padding:'10px 16px',borderRadius:10,border:'1px solid '+(on?NB.azul:NB.bd),background:on?'#EAF3FD':'#fff',fontSize:13.5,fontWeight:500,color:on?NB.azul:NB.mut}}>
+                  <span>{p.emoji}</span> {p.label}
+                </button>
+              );
+            })}
+          </div>
+        </React.Fragment>
+      )}
+
+      {camp && persona && (
         <div style={{display:'flex',flexDirection:'column',gap:11}}>
-          {personaVariants(persona).map((v,i)=>(
+          {personaVariants(persona, camp).map((v,i)=>(
             <div key={i} style={{background:NB.col,border:'1px solid '+NB.bd,borderRadius:11,padding:'14px 16px'}}>
               <div style={{fontSize:10.5,fontWeight:600,color:NB.mut2,textTransform:'uppercase',letterSpacing:'0.05em',marginBottom:7}}>{v.rotulo}</div>
               <p style={{fontSize:13.5,color:NB.txt,lineHeight:1.6,marginBottom:10}}>{v.texto}</p>
@@ -2403,6 +2431,7 @@ function AbordagemTab() {
     </div>
   );
 }
+
 
 
 /* =========== CAMPANHAS — gestão, só quem tem permissão ============ */
@@ -3687,25 +3716,33 @@ const PERSONAS = [
 ];
 
 /* Abordagens prontas por persona — SDR (primeiro contato) e CS (upsell/retenção). */
-function personaVariants(personaId) {
-  const textos = {
-    contador: {
-      sdr: 'Oi! Trabalho com o Nibo e ajudamos escritórios contábeis a automatizar reconciliação bancária, emissão de NFS-e e obrigações fiscais — sem trocar de sistema. Posso te mostrar como funciona?',
-      cs:  'Oi! Vi que você já usa o Nibo — tem uma novidade que reduz retrabalho no fechamento mensal do seu escritório. Faz sentido eu te explicar rapidinho?',
-    },
-    empresa: {
-      sdr: 'Oi! O Nibo cuida da parte financeira e contábil de empresas como a sua — conciliação automática, gestão financeira e obrigações em um só lugar. Posso te mostrar como funciona pro seu caso?',
-      cs:  'Oi! Notei que sua empresa já usa o Nibo — temos uma função que pode facilitar sua rotina financeira ainda mais. Posso te contar mais?',
-    },
-    bpo: {
-      sdr: 'Oi! Ajudamos empresas de BPO Financeiro a escalar operação sem aumentar equipe, automatizando conciliação e emissão pros seus clientes. Quer entender como funciona?',
-      cs:  'Oi! Como você já opera BPO com o Nibo, separei uma novidade que deixa o atendimento aos seus clientes ainda mais ágil. Posso te explicar?',
-    },
+function personaVariants(personaId, camp) {
+  const nomeOferta = camp ? camp.titulo : null;
+  const desc = camp && camp.desconto ? camp.desconto : '';
+  const produtos = camp && (camp.produtos||[]).length ? (camp.produtos||[]).join(', ') : '';
+  const ofertaFrase = nomeOferta
+    ? nomeOferta + (desc ? ' — ' + desc : '') + (produtos ? ' (válido pra ' + produtos + ')' : '')
+    : null;
+
+  const contexto = {
+    contador: { area:'escritório contábil', dor:'reconciliação bancária, emissão de NFS-e e obrigações fiscais — sem trocar de sistema' },
+    empresa:  { area:'empresa',             dor:'conciliação automática, gestão financeira e obrigações em um só lugar' },
+    bpo:      { area:'operação de BPO Financeiro', dor:'conciliação e emissão pros seus clientes, sem aumentar equipe' },
   };
-  const t = textos[personaId] || textos.empresa;
+  const c = contexto[personaId] || contexto.empresa;
+
+  if (!ofertaFrase) {
+    return [
+      { rotulo:'SDR — Primeiro contato', texto:'Oi! Trabalho com o Nibo e ajudamos '+c.area+' com '+c.dor+'. Posso te mostrar como funciona?' },
+      { rotulo:'CS — Upsell / Retenção', texto:'Oi! Vi que você já usa o Nibo — tem uma novidade que pode facilitar ainda mais o seu dia a dia. Posso te contar?' },
+    ];
+  }
+
   return [
-    { rotulo:'SDR — Primeiro contato', texto:t.sdr },
-    { rotulo:'CS — Upsell / Retenção', texto:t.cs },
+    { rotulo:'SDR — Primeiro contato', texto:
+      'Oi! Trabalho com o Nibo e queria te contar sobre '+ofertaFrase+' — a gente ajuda '+c.area+' com '+c.dor+'. Posso te explicar como funciona?' },
+    { rotulo:'CS — Upsell / Retenção', texto:
+      'Oi! Vi que você já usa o Nibo — separei uma condição especial: '+ofertaFrase+'. Faz sentido eu te explicar rapidinho?' },
   ];
 }
 
