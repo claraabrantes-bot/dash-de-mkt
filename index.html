@@ -1979,11 +1979,16 @@ function InfoCentralView({ onLogoClick, headerRight, topBanner }) {
 function CampanhasBuscaTab({ onIrPara }) {
   const { campanhas, pecas } = useApp();
   const [busca, setBusca] = useState('');
+  const [mostrarMateriais, setMostrarMateriais] = useState(false);
   const publicadas = campanhas.filter(c=>c.status==='publicada')
     .sort((a,b)=>(b.publicadaEm||'').localeCompare(a.publicadaEm||''));
   const destaque = publicadas[0] || null;
   const resto = destaque ? publicadas.slice(1) : [];
   const jornadaDestaque = destaque && PERSONAS.find(p=>p.id===destaque.jornada);
+  const materiaisDestaque = destaque ? [
+    ...pecas.filter(p=>(destaque.pecaIds||[]).includes(p.id)).map(p=>({ nome:p.nome, url:p.url })),
+    ...(destaque.pecasDemanda||[]).map(p=>({ nome:p.name, url:p.url })),
+  ] : [];
 
   const resultados = busca.trim() ? pecas.filter(p => {
     const q = busca.toLowerCase();
@@ -2005,15 +2010,25 @@ function CampanhasBuscaTab({ onIrPara }) {
             <h1 style={{fontSize:29,fontWeight:600,color:'#fff',marginBottom:12,letterSpacing:'-0.01em'}}>{destaque.titulo}</h1>
             {destaque.descricao && <p style={{color:'#B9C6E8',fontSize:14.5,lineHeight:1.6,marginBottom:24}}>{destaque.descricao}</p>}
             <div style={{display:'flex',gap:10,flexWrap:'wrap'}}>
-              <button onClick={()=>onIrPara && onIrPara('arquivos')}
-                style={{background:'#fff',color:NB.navy1,padding:'12px 20px',border:'none',borderRadius:10,fontWeight:600,fontSize:13.5}}>
-                Ver todos os materiais
+              <button onClick={()=>setMostrarMateriais(v=>!v)} disabled={materiaisDestaque.length===0}
+                style={{background:'#fff',color:NB.navy1,padding:'12px 20px',border:'none',borderRadius:10,fontWeight:600,fontSize:13.5,opacity:materiaisDestaque.length===0?0.6:1,cursor:materiaisDestaque.length===0?'default':'pointer'}}>
+                {materiaisDestaque.length===0 ? 'Sem materiais anexados' : (mostrarMateriais?'Ocultar materiais':'Ver todos os materiais')}
               </button>
               <button onClick={()=>onIrPara && onIrPara('abordagem')}
                 style={{border:'1.5px solid rgba(255,255,255,0.35)',background:'none',color:'#fff',padding:'12px 20px',borderRadius:10,fontWeight:600,fontSize:13.5}}>
                 Sugestões de texto
               </button>
             </div>
+            {mostrarMateriais && materiaisDestaque.length>0 && (
+              <div style={{display:'flex',flexDirection:'column',gap:8,marginTop:18}}>
+                {materiaisDestaque.map((m,i)=>(
+                  <a key={i} href={m.url} target="_blank" rel="noopener noreferrer"
+                    style={{display:'flex',alignItems:'center',gap:8,background:'rgba(255,255,255,0.1)',borderRadius:9,padding:'9px 13px',fontSize:13,color:'#fff',textDecoration:'none'}}>
+                    <IExt s={13}/> {m.nome}
+                  </a>
+                ))}
+              </div>
+            )}
           </div>
           <div style={{position:'relative',margin:'20px 20px 20px 0',borderRadius:16,overflow:'hidden',background:'linear-gradient(135deg,'+NB.azul+','+NB.azulClaro+')',minHeight:200}}>
             <div style={{position:'absolute',inset:0,opacity:0.5,background:'radial-gradient(circle at 75% 20%, rgba(255,255,255,0.5), transparent 55%)'}}/>
