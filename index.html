@@ -1879,6 +1879,9 @@ function CampanhaPublicCard({ camp, pecasDaCampanha }) {
 function InfoCentralView() {
   const { user, isTeamMember } = useApp();
   const podeEditar = isTeamMember && !!user;
+  /* Pasta de Arquivos é a exceção: qualquer setor logado pode adicionar,
+     não só o marketing — as demais seções continuam só pra marketing. */
+  const podeEditarArquivos = !!user;
   const [aba, setAba] = useState('campanhas');
 
   const abas = [
@@ -1909,7 +1912,7 @@ function InfoCentralView() {
       {aba==='campanhas'   && <CampanhasBuscaTab/>}
       {aba==='calendario'  && <CalendarioTab podeEditar={podeEditar}/>}
       {aba==='social'      && <RedesSociaisTab podeEditar={podeEditar}/>}
-      {aba==='arquivos'    && <ArquivosTab podeEditar={podeEditar}/>}
+      {aba==='arquivos'    && <ArquivosTab podeEditar={podeEditarArquivos}/>}
       {aba==='embaixadores'&& <EmbaixadoresTab podeEditar={podeEditar}/>}
       {aba==='abordagem'   && <AbordagemTab/>}
     </div>
