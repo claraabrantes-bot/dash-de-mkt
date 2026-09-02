@@ -2227,38 +2227,34 @@ const ARQUIVOS_CORRIGIDOS = [
 ];
 
 function ArquivosTab({ podeEditar }) {
-  const { arquivos, addArquivo, removeArquivo } = useApp();
+  const { arquivos: arquivosDoBanco, addArquivo, removeArquivo } = useApp();
   const [novo, setNovo] = useState(false);
-  const [carregando, setCarregando] = useState(false);
+  const [corrigindo, setCorrigindo] = useState(false);
 
-  const temLinksRuins = arquivos.some(a => a.url === URL_PLACEHOLDER_RUIM);
+  /* Os arquivos padrão sempre aparecem, e o que for adicionado de verdade
+     entra junto — nunca é tudo ou nada. Se algum dia um item real usar a
+     mesma URL de um padrão, o padrão correspondente some pra não duplicar. */
+  const padroesRestantes = ARQUIVOS_CORRIGIDOS
+    .filter(padrao => !arquivosDoBanco.some(real => real.url === padrao.url))
+    .map((item, i) => ({ ...item, id: 'padrao-'+i, ehPadrao: true }));
+  const arquivos = [...arquivosDoBanco, ...padroesRestantes];
 
-  const carregarArquivos = () => {
-    setCarregando(true);
-    ARQUIVOS_CORRIGIDOS.forEach(item => addArquivo(item));
-    setTimeout(()=>setCarregando(false), 700);
-  };
+  const temLinksRuins = arquivosDoBanco.some(a => a.url === URL_PLACEHOLDER_RUIM);
 
   const corrigirLinks = () => {
-    setCarregando(true);
-    arquivos.filter(a => a.url === URL_PLACEHOLDER_RUIM).forEach(a => removeArquivo(a.id));
+    setCorrigindo(true);
+    arquivosDoBanco.filter(a => a.url === URL_PLACEHOLDER_RUIM).forEach(a => removeArquivo(a.id));
     ARQUIVOS_CORRIGIDOS.forEach(item => addArquivo(item));
-    setTimeout(()=>setCarregando(false), 700);
+    setTimeout(()=>setCorrigindo(false), 700);
   };
 
   return (
     <div>
       <div style={{display:'flex',justifyContent:'flex-end',gap:9,marginBottom:14,flexWrap:'wrap'}}>
-        {podeEditar && arquivos.length===0 && (
-          <button onClick={carregarArquivos} disabled={carregando}
-            style={{display:'flex',alignItems:'center',gap:7,padding:'9px 15px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:9,fontSize:13,fontWeight:500,color:NB.mut,opacity:carregando?0.6:1}}>
-            <IRefresh s={13}/> {carregando?'Carregando…':'Carregar arquivos'}
-          </button>
-        )}
         {podeEditar && temLinksRuins && (
-          <button onClick={corrigirLinks} disabled={carregando}
-            style={{display:'flex',alignItems:'center',gap:7,padding:'9px 15px',background:'#FFF6DE',border:'1px solid #F3D98A',borderRadius:9,fontSize:13,fontWeight:500,color:'#8A6206',opacity:carregando?0.6:1}}>
-            <IRefresh s={13}/> {carregando?'Corrigindo…':'Corrigir links duplicados'}
+          <button onClick={corrigirLinks} disabled={corrigindo}
+            style={{display:'flex',alignItems:'center',gap:7,padding:'9px 15px',background:'#FFF6DE',border:'1px solid #F3D98A',borderRadius:9,fontSize:13,fontWeight:500,color:'#8A6206',opacity:corrigindo?0.6:1}}>
+            <IRefresh s={13}/> {corrigindo?'Corrigindo…':'Corrigir links duplicados'}
           </button>
         )}
         {podeEditar && (
@@ -2281,7 +2277,7 @@ function ArquivosTab({ podeEditar }) {
                   {a.descricao && <p style={{fontSize:12,color:NB.mut,marginBottom:9,lineHeight:1.5}}>{a.descricao}</p>}
                   <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8}}>
                     <a href={a.url} target="_blank" rel="noopener noreferrer" style={{fontSize:12.5,color:NB.azul,textDecoration:'none',display:'flex',alignItems:'center',gap:5}}><IExt s={12}/> Abrir</a>
-                    {podeEditar && <button onClick={()=>removeArquivo(a.id)} style={{fontSize:11,color:'#B4232A',background:'none',border:'none'}}>Remover</button>}
+                    {podeEditar && !a.ehPadrao && <button onClick={()=>removeArquivo(a.id)} style={{fontSize:11,color:'#B4232A',background:'none',border:'none'}}>Remover</button>}
                   </div>
                 </div>
               ))}
