@@ -5190,11 +5190,11 @@ function EntryChooser({ onEscolherCentral }) {
         <button onClick={entrar} disabled={busy} style={{...cardStyle, opacity:busy?0.75:1, cursor:busy?'wait':'pointer'}}
           onMouseEnter={e=>{ if(!busy){ e.currentTarget.style.boxShadow='0 10px 30px rgba(11,42,92,0.10)'; e.currentTarget.style.borderColor='#C9D6EA'; }}}
           onMouseLeave={e=>{e.currentTarget.style.boxShadow='none'; e.currentTarget.style.borderColor=NB.bd;}}>
-          <div style={{width:46,height:46,borderRadius:12,background:NB.navy1,color:'#fff',display:'flex',alignItems:'center',justifyContent:'center'}}>
+          <div style={{width:46,height:46,borderRadius:12,background:NB.pink,color:'#fff',display:'flex',alignItems:'center',justifyContent:'center'}}>
             <IStamp s={22}/>
           </div>
           <div>
-            <div style={{fontSize:17,fontWeight:600,color:NB.txt,marginBottom:5}}>{busy?'Entrando…':'Gestão (Marketing)'}</div>
+            <div style={{fontSize:17,fontWeight:600,color:NB.txt,marginBottom:5}}>{busy?'Entrando…':'Gestão (MKT)'}</div>
             <p style={{fontSize:13,color:NB.mut,lineHeight:1.55}}>Painel completo do time — pede login com conta @nibo.com.br do marketing.</p>
           </div>
         </button>
@@ -5229,8 +5229,8 @@ function PublicCentralPage({ onVoltar }) {
               <IPlus s={13}/> Solicitar demanda
             </a>
             <button onClick={entrar} disabled={busy}
-              style={{padding:'9px 15px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:20,color:NB.mut,fontSize:12.5,fontWeight:500,opacity:busy?0.7:1}}>
-              {busy?'Entrando…':'Gestão'}
+              style={{padding:'9px 16px',background:NB.pink,border:'none',borderRadius:20,color:'#fff',fontSize:12.5,fontWeight:600,opacity:busy?0.7:1}}>
+              {busy?'Entrando…':'Gestão (MKT)'}
             </button>
           </React.Fragment>
         }/>
