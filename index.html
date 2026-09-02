@@ -159,6 +159,10 @@ function Provider({ children }) {
   const [pedidos, setPedidos] = useState([]);
   const [posts, setPosts] = useState([]);
   const [campanhas, setCampanhas] = useState([]);
+  const [lancamentos, setLancamentos] = useState([]);
+  const [redesSociais, setRedesSociais] = useState({ instagramHandle:'', posts:[] });
+  const [arquivos, setArquivos] = useState([]);
+  const [embaixadores, setEmbaixadores] = useState([]);
   const [pecas, setPecas] = useState([]);
   const [slack, setSlack]     = useState([]);
   const [pipes, setPipes]     = useState(DEFAULT_PIPELINES);
@@ -260,8 +264,20 @@ function Provider({ children }) {
     const up = db.collection('pecas').onSnapshot(snap => {
       setPecas(snap.docs.map(d => ({ id:d.id, ...d.data() })));
     }, erro);
+    const ul = db.collection('lancamentos').onSnapshot(snap => {
+      setLancamentos(snap.docs.map(d => ({ id:d.id, ...d.data() })));
+    }, erro);
+    const ur = db.collection('redesSociais').doc('principal').onSnapshot(doc => {
+      setRedesSociais(doc.exists ? doc.data() : { instagramHandle:'', posts:[] });
+    }, erro);
+    const ua = db.collection('arquivos').onSnapshot(snap => {
+      setArquivos(snap.docs.map(d => ({ id:d.id, ...d.data() })));
+    }, erro);
+    const ue = db.collection('embaixadores').onSnapshot(snap => {
+      setEmbaixadores(snap.docs.map(d => ({ id:d.id, ...d.data() })));
+    }, erro);
 
-    return () => { uc(); up(); };
+    return () => { uc(); up(); ul(); ur(); ua(); ue(); };
   }, []);
 
   /* Escutas do que é interno só depois do login — as regras exigem usuária autenticada. */
@@ -631,6 +647,52 @@ function Provider({ children }) {
     db.collection('pecas').doc(id).delete().catch(e=>setDbErro('Não foi possível remover a peça: '+e.message));
   }, []);
 
+  /* ---------- Calendário de Produto ---------- */
+  const addLancamento = useCallback((dados) => {
+    const db = dbRef.current; if (!db) return;
+    db.collection('lancamentos').add({ ...dados, criadoPor:(user&&user.name)||'', criadoEm:new Date().toISOString() })
+      .then(()=>feed({ code:'LANC', area:'Gestão' }, 'Novo lançamento no calendário',
+        (user&&user.name)+' cadastrou "'+dados.nome+'"', dados.data?('Previsto para '+fmtDate(dados.data)):'', 'new'))
+      .catch(e => setDbErro('Não foi possível salvar o lançamento: '+e.message));
+  }, [user]);
+  const updateLancamento = useCallback((id, patch) => {
+    const db = dbRef.current; if (!db) return;
+    db.collection('lancamentos').doc(id).update(patch).catch(e=>setDbErro('Não foi possível atualizar: '+e.message));
+  }, []);
+  const removeLancamento = useCallback((id) => {
+    const db = dbRef.current; if (!db) return;
+    db.collection('lancamentos').doc(id).delete().catch(e=>setDbErro('Não foi possível remover: '+e.message));
+  }, []);
+
+  /* ---------- Redes Sociais (documento único) ---------- */
+  const salvarRedesSociais = useCallback((dados) => {
+    const db = dbRef.current; if (!db) return;
+    db.collection('redesSociais').doc('principal').set(dados, { merge:true })
+      .catch(e => setDbErro('Não foi possível salvar: '+e.message));
+  }, []);
+
+  /* ---------- Pasta de Arquivos ---------- */
+  const addArquivo = useCallback((dados) => {
+    const db = dbRef.current; if (!db) return;
+    db.collection('arquivos').add({ ...dados, criadoPor:(user&&user.name)||'', criadoEm:new Date().toISOString() })
+      .catch(e => setDbErro('Não foi possível salvar: '+e.message));
+  }, [user]);
+  const removeArquivo = useCallback((id) => {
+    const db = dbRef.current; if (!db) return;
+    db.collection('arquivos').doc(id).delete().catch(e=>setDbErro('Não foi possível remover: '+e.message));
+  }, []);
+
+  /* ---------- Embaixadores ---------- */
+  const addEmbaixador = useCallback((dados) => {
+    const db = dbRef.current; if (!db) return;
+    db.collection('embaixadores').add({ ...dados, criadoPor:(user&&user.name)||'', criadoEm:new Date().toISOString() })
+      .catch(e => setDbErro('Não foi possível salvar: '+e.message));
+  }, [user]);
+  const removeEmbaixador = useCallback((id) => {
+    const db = dbRef.current; if (!db) return;
+    db.collection('embaixadores').doc(id).delete().catch(e=>setDbErro('Não foi possível remover: '+e.message));
+  }, []);
+
   const seed = useCallback(() => {
     const db = dbRef.current; if (!db) return;
     const lote = db.batch();
@@ -662,7 +724,7 @@ function Provider({ children }) {
   window.__nbDem = demands;
   window.__nbPosts = posts;
 
-  return <Ctx.Provider value={{ demands, active, archived, filtered, slack, user, isTeamMember, authReady, authError, setAuthError, dbReady, dbErro, dbErroPublico, seed, pedidos, aceitarPedido, recusarPedido, posts, addPost, updatePost, deletePost, campanhas, addCampanha, updateCampanha, publicarCampanha, despublicarCampanha, deleteCampanha, pecas, addPeca, removePeca, view, setView, layout, setLayout, area, setArea, query, setQuery, priFilter, setPriFilter, reqFilter, setReqFilter, selDemand, setModal, newOpen, setNewOpen, notifyPending, setNotifyPending, profileOpen, setProfileOpen, editStages, setEditStages, dragging, setDragging, previewMember, setPreviewMember, photos, googlePhotos, profiles, pipes, salvarPipes, attach, comments, storageWarn, MAX_FILE, addAttachment, uploadFile, migrarLocal, carregarAnexo, removeAttachment, addComment, removeComment, logout, savePhoto, removePhoto, saveProfile, addDemand, moveStage, moveArea, setAssignees, updateDemand, archiveDemand, restoreDemand, delDemand }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ demands, active, archived, filtered, slack, user, isTeamMember, authReady, authError, setAuthError, dbReady, dbErro, dbErroPublico, seed, pedidos, aceitarPedido, recusarPedido, posts, addPost, updatePost, deletePost, campanhas, addCampanha, updateCampanha, publicarCampanha, despublicarCampanha, deleteCampanha, pecas, addPeca, removePeca, lancamentos, addLancamento, updateLancamento, removeLancamento, redesSociais, salvarRedesSociais, arquivos, addArquivo, removeArquivo, embaixadores, addEmbaixador, removeEmbaixador, view, setView, layout, setLayout, area, setArea, query, setQuery, priFilter, setPriFilter, reqFilter, setReqFilter, selDemand, setModal, newOpen, setNewOpen, notifyPending, setNotifyPending, profileOpen, setProfileOpen, editStages, setEditStages, dragging, setDragging, previewMember, setPreviewMember, photos, googlePhotos, profiles, pipes, salvarPipes, attach, comments, storageWarn, MAX_FILE, addAttachment, uploadFile, migrarLocal, carregarAnexo, removeAttachment, addComment, removeComment, logout, savePhoto, removePhoto, saveProfile, addDemand, moveStage, moveArea, setAssignees, updateDemand, archiveDemand, restoreDemand, delDemand }}>{children}</Ctx.Provider>;
 }
 
 const useApp = () => useContext(Ctx);
@@ -1799,6 +1861,49 @@ function CampanhaPublicCard({ camp, pecasDaCampanha }) {
 }
 
 function InfoCentralView() {
+  const { user, isTeamMember } = useApp();
+  const podeEditar = isTeamMember && !!user;
+  const [aba, setAba] = useState('campanhas');
+
+  const abas = [
+    { id:'campanhas',  label:'Campanhas',      Icon:ITarget },
+    { id:'calendario', label:'Calendário',      Icon:ICal },
+    { id:'social',     label:'Redes Sociais',   Icon:IChat },
+    { id:'arquivos',   label:'Pasta de Arquivos', Icon:IFile },
+    { id:'embaixadores', label:'Embaixadores',  Icon:IStamp },
+    { id:'utm',        label:'Gerador de UTM',  Icon:ILink },
+    { id:'abordagem',  label:'Gerar Abordagem', Icon:IChatBox },
+  ];
+
+  return (
+    <div style={{padding:'22px 30px 30px',overflowY:'auto',overflowX:'hidden',height:'100%'}}>
+      <div style={{display:'flex',gap:8,flexWrap:'wrap',marginBottom:20}}>
+        {abas.map(a=>{
+          const on = aba===a.id;
+          return (
+            <button key={a.id} onClick={()=>setAba(a.id)}
+              style={{display:'flex',alignItems:'center',gap:7,padding:'9px 14px',borderRadius:9,
+                border:'1px solid '+(on?NB.azul:NB.bd), background:on?'#EAF3FD':'#fff',
+                fontSize:13,fontWeight:500,color:on?NB.azul:NB.mut}}>
+              <a.Icon s={14}/> {a.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {aba==='campanhas'   && <CampanhasBuscaTab/>}
+      {aba==='calendario'  && <CalendarioTab podeEditar={podeEditar}/>}
+      {aba==='social'      && <RedesSociaisTab podeEditar={podeEditar}/>}
+      {aba==='arquivos'    && <ArquivosTab podeEditar={podeEditar}/>}
+      {aba==='embaixadores'&& <EmbaixadoresTab podeEditar={podeEditar}/>}
+      {aba==='utm'         && <UtmTab/>}
+      {aba==='abordagem'   && <AbordagemTab/>}
+    </div>
+  );
+}
+
+/* ---------- Campanhas + busca de peças (era a InfoCentralView inteira antes) ---------- */
+function CampanhasBuscaTab() {
   const { campanhas, pecas } = useApp();
   const [busca, setBusca] = useState('');
   const publicadas = campanhas.filter(c=>c.status==='publicada');
@@ -1811,7 +1916,7 @@ function InfoCentralView() {
   }) : [];
 
   return (
-    <div style={{padding:'22px 30px 30px',overflowY:'auto',overflowX:'hidden',height:'100%'}}>
+    <div>
       <div style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:16,padding:'20px 22px',marginBottom:22,boxShadow:'0 1px 3px rgba(11,42,92,0.04)'}}>
         <div style={{...lbl,marginBottom:9}}>Buscar peças e banners</div>
         <div style={{position:'relative'}}>
@@ -1849,6 +1954,456 @@ function InfoCentralView() {
     </div>
   );
 }
+
+/* ---------- Calendário de Produto ---------- */
+const STATUS_LANC = {
+  planejado: { label:'Planejado', bg:'#EAF3FD', txt:NB.azul },
+  em_breve:  { label:'Em breve',  bg:'#FFF6DE', txt:'#8A6206' },
+  entregue:  { label:'Entregue',  bg:'#E1F5EE', txt:'#0F6E56' },
+};
+
+function LancamentoModal({ item, onClose }) {
+  const { addLancamento, updateLancamento } = useApp();
+  const editando = !!item;
+  const [f, setF] = useState(() => item ? {
+    nome:item.nome||'', data:item.data||'', descricao:item.descricao||'',
+    link:item.link||'', status:item.status||'planejado',
+  } : { nome:'', data:'', descricao:'', link:'', status:'planejado' });
+  const [err, setErr] = useState('');
+  const set = (k,v)=>setF(x=>({...x,[k]:v}));
+
+  const salvar = () => {
+    if (!f.nome.trim() || !f.data) return setErr('Preencha nome e data.');
+    if (editando) updateLancamento(item.id, f); else addLancamento(f);
+    onClose();
+  };
+
+  return (
+    <Modal onClose={onClose} width={480}>
+      <div style={{padding:'22px 24px 16px',borderBottom:'1px solid '+NB.bdSoft}}>
+        <h2 style={{fontSize:17,fontWeight:600,color:NB.txt}}>{editando?'Editar lançamento':'Novo lançamento'}</h2>
+      </div>
+      <div style={{padding:'20px 24px',display:'flex',flexDirection:'column',gap:13}}>
+        <div>
+          <div style={{...lbl,marginBottom:6}}>Nome</div>
+          <input value={f.nome} onChange={e=>set('nome',e.target.value)} placeholder="ex: Obrigações Plus v2" style={{...inp,padding:'9px 12px',fontSize:13.5}}/>
+        </div>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+          <div>
+            <div style={{...lbl,marginBottom:6}}>Data</div>
+            <input type="date" value={f.data} onChange={e=>set('data',e.target.value)} style={{...inp,padding:'9px 12px',fontSize:13.5}}/>
+          </div>
+          <div>
+            <div style={{...lbl,marginBottom:6}}>Status</div>
+            <select value={f.status} onChange={e=>set('status',e.target.value)} style={{...inp,padding:'9px 12px',fontSize:13.5}}>
+              {Object.entries(STATUS_LANC).map(([k,v])=><option key={k} value={k}>{v.label}</option>)}
+            </select>
+          </div>
+        </div>
+        <div>
+          <div style={{...lbl,marginBottom:6}}>Descrição</div>
+          <textarea value={f.descricao} onChange={e=>set('descricao',e.target.value)} rows={2} style={{...inp,padding:'9px 12px',fontSize:13.5,resize:'vertical'}}/>
+        </div>
+        <div>
+          <div style={{...lbl,marginBottom:6}}>Link do documento de campanha (opcional)</div>
+          <input value={f.link} onChange={e=>set('link',e.target.value)} style={{...inp,padding:'9px 12px',fontSize:13.5}}/>
+        </div>
+        {err && <p style={{fontSize:12.5,color:'#B4232A'}}>{err}</p>}
+      </div>
+      <div style={{padding:'16px 24px',borderTop:'1px solid '+NB.bdSoft,display:'flex',justifyContent:'flex-end',gap:10}}>
+        <button onClick={onClose} style={{padding:'10px 16px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:9,fontSize:13,fontWeight:500,color:NB.mut}}>Cancelar</button>
+        <button onClick={salvar} style={{padding:'10px 20px',background:NB.azul,border:'none',borderRadius:9,fontSize:13,fontWeight:500,color:'#fff'}}>Salvar</button>
+      </div>
+    </Modal>
+  );
+}
+
+function CalendarioTab({ podeEditar }) {
+  const { lancamentos, removeLancamento } = useApp();
+  const [editar, setEditar] = useState(null);
+  const [novo, setNovo] = useState(false);
+  const ordenados = lancamentos.slice().sort((a,b)=>(a.data||'').localeCompare(b.data||''));
+
+  return (
+    <div>
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:16,gap:12}}>
+        <p style={{fontSize:13,color:NB.mut}}>Lançamentos e atualizações de produto, organizados por data.</p>
+        {podeEditar && (
+          <button onClick={()=>setNovo(true)}
+            style={{display:'flex',alignItems:'center',gap:7,padding:'9px 15px',background:NB.azul,border:'none',borderRadius:9,fontSize:13,fontWeight:500,color:'#fff',flexShrink:0}}>
+            <IPlus s={13}/> Adicionar
+          </button>
+        )}
+      </div>
+      {ordenados.length===0 ? (
+        <div style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:14,padding:'34px 22px',textAlign:'center',color:NB.mut,fontSize:13.5}}>
+          Nenhum lançamento cadastrado ainda.
+        </div>
+      ) : (
+        <div style={{display:'flex',flexDirection:'column',gap:9}}>
+          {ordenados.map(l=>{
+            const st = STATUS_LANC[l.status]||STATUS_LANC.planejado;
+            return (
+              <div key={l.id} style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:12,padding:'14px 16px',display:'flex',alignItems:'center',gap:14,flexWrap:'wrap'}}>
+                <div style={{textAlign:'center',flexShrink:0,minWidth:52}}>
+                  <div style={{fontSize:17,fontWeight:700,color:NB.txt,lineHeight:1}}>{l.data?l.data.split('-')[2]:'—'}</div>
+                  <div style={{fontSize:10.5,color:NB.mut2,textTransform:'uppercase'}}>{l.data?['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'][parseInt(l.data.split('-')[1],10)-1]:''}</div>
+                </div>
+                <div style={{flex:1,minWidth:180}}>
+                  <div style={{display:'flex',alignItems:'center',gap:9,marginBottom:3,flexWrap:'wrap'}}>
+                    <span style={{fontSize:14,fontWeight:600,color:NB.txt}}>{l.nome}</span>
+                    <span style={{fontSize:10.5,fontWeight:600,padding:'2px 8px',borderRadius:6,background:st.bg,color:st.txt}}>{st.label}</span>
+                  </div>
+                  {l.descricao && <p style={{fontSize:12.5,color:NB.mut,lineHeight:1.5}}>{l.descricao}</p>}
+                  {l.link && <a href={l.link} target="_blank" rel="noopener noreferrer" style={{fontSize:12,color:NB.azul,textDecoration:'none'}}>Ver documento</a>}
+                </div>
+                {podeEditar && (
+                  <div style={{display:'flex',gap:6,flexShrink:0}}>
+                    <button onClick={()=>setEditar(l)} style={{padding:'6px 10px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:7,fontSize:11.5,color:NB.mut}}>Editar</button>
+                    <button onClick={()=>removeLancamento(l.id)} style={{padding:'6px 10px',background:'#fff',border:'1px solid #FBD5D5',borderRadius:7,fontSize:11.5,color:'#B4232A'}}>Remover</button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+      {novo && <LancamentoModal item={null} onClose={()=>setNovo(false)}/>}
+      {editar && <LancamentoModal item={editar} onClose={()=>setEditar(null)}/>}
+    </div>
+  );
+}
+
+/* ---------- Redes Sociais ---------- */
+function RedesSociaisTab({ podeEditar }) {
+  const { redesSociais, salvarRedesSociais } = useApp();
+  const [editando, setEditando] = useState(false);
+  const [handle, setHandle] = useState(redesSociais.instagramHandle||'');
+  const [posts, setPostsF] = useState((redesSociais.posts||['','','']).concat(['','','']).slice(0,3));
+
+  useEffect(() => { if (editando) { setHandle(redesSociais.instagramHandle||''); setPostsF((redesSociais.posts||['','','']).concat(['','','']).slice(0,3)); } }, [editando]);
+
+  const salvar = () => {
+    salvarRedesSociais({ instagramHandle:handle.trim(), posts:posts.map(p=>p.trim()).filter(Boolean) });
+    setEditando(false);
+  };
+
+  return (
+    <div style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:16,padding:'22px 24px',boxShadow:'0 1px 3px rgba(11,42,92,0.04)'}}>
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:16,gap:12}}>
+        <div>
+          <div style={{fontSize:15,fontWeight:600,color:NB.txt}}>@{redesSociais.instagramHandle || 'nibosoftware'}</div>
+          <p style={{fontSize:12.5,color:NB.mut}}>Curta e comente nos posts — isso aumenta o alcance.</p>
+        </div>
+        {podeEditar && !editando && (
+          <button onClick={()=>setEditando(true)} style={{padding:'8px 14px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:9,fontSize:12.5,fontWeight:500,color:NB.mut,flexShrink:0}}>Editar posts</button>
+        )}
+      </div>
+
+      {editando ? (
+        <div style={{display:'flex',flexDirection:'column',gap:10}}>
+          <div>
+            <div style={{...lbl,marginBottom:6}}>Usuário do Instagram</div>
+            <input value={handle} onChange={e=>setHandle(e.target.value)} placeholder="nibosoftware" style={{...inp,padding:'9px 12px',fontSize:13.5}}/>
+          </div>
+          <div style={{...lbl,marginBottom:2}}>Até 3 links de posts</div>
+          {posts.map((p,i)=>(
+            <input key={i} value={p} onChange={e=>setPostsF(arr=>arr.map((x,ix)=>ix===i?e.target.value:x))}
+              placeholder="https://www.instagram.com/p/ABC123/" style={{...inp,padding:'9px 12px',fontSize:13.5}}/>
+          ))}
+          <div style={{display:'flex',gap:8,justifyContent:'flex-end',marginTop:6}}>
+            <button onClick={()=>setEditando(false)} style={{padding:'8px 14px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:8,fontSize:12.5,fontWeight:500,color:NB.mut}}>Cancelar</button>
+            <button onClick={salvar} style={{padding:'8px 16px',background:NB.azul,border:'none',borderRadius:8,fontSize:12.5,fontWeight:500,color:'#fff'}}>Salvar</button>
+          </div>
+        </div>
+      ) : (
+        (redesSociais.posts||[]).length===0 ? (
+          <p style={{fontSize:13,color:NB.mut2}}>Nenhum post cadastrado ainda.</p>
+        ) : (
+          <div style={{display:'flex',flexDirection:'column',gap:8}}>
+            {redesSociais.posts.map((p,i)=>(
+              <a key={i} href={p} target="_blank" rel="noopener noreferrer"
+                style={{display:'flex',alignItems:'center',gap:8,fontSize:13,color:NB.azul,textDecoration:'none',background:NB.col,borderRadius:9,padding:'10px 13px'}}>
+                <IExt s={13}/> {p}
+              </a>
+            ))}
+          </div>
+        )
+      )}
+      <a href={'https://instagram.com/'+(redesSociais.instagramHandle||'nibosoftware')} target="_blank" rel="noopener noreferrer"
+        style={{display:'inline-flex',alignItems:'center',gap:6,fontSize:12.5,color:NB.mut,textDecoration:'none',marginTop:14}}>
+        <IExt s={12}/> Ver perfil no Instagram
+      </a>
+    </div>
+  );
+}
+
+/* ---------- Pasta de Arquivos ---------- */
+const CATEGORIAS_ARQUIVO = { conteudo:'Conteúdo e Materiais', eventos:'Eventos e Vídeos', restrito:'Apenas time de Marketing' };
+
+function ArquivoModal({ onClose }) {
+  const { addArquivo } = useApp();
+  const [f, setF] = useState({ nome:'', descricao:'', url:'', categoria:'conteudo' });
+  const [err, setErr] = useState('');
+  const set=(k,v)=>setF(x=>({...x,[k]:v}));
+  const salvar = () => {
+    if (!f.nome.trim() || !f.url.trim()) return setErr('Preencha nome e link.');
+    addArquivo(f); onClose();
+  };
+  return (
+    <Modal onClose={onClose} width={460}>
+      <div style={{padding:'22px 24px 16px',borderBottom:'1px solid '+NB.bdSoft}}>
+        <h2 style={{fontSize:17,fontWeight:600,color:NB.txt}}>Novo item na pasta</h2>
+      </div>
+      <div style={{padding:'20px 24px',display:'flex',flexDirection:'column',gap:12}}>
+        <input value={f.nome} onChange={e=>set('nome',e.target.value)} placeholder="Nome — ex: Pasta de Divulgação" style={{...inp,padding:'9px 12px',fontSize:13.5}}/>
+        <input value={f.descricao} onChange={e=>set('descricao',e.target.value)} placeholder="Descrição curta" style={{...inp,padding:'9px 12px',fontSize:13.5}}/>
+        <input value={f.url} onChange={e=>set('url',e.target.value)} placeholder="Link (Drive, Canva...)" style={{...inp,padding:'9px 12px',fontSize:13.5}}/>
+        <select value={f.categoria} onChange={e=>set('categoria',e.target.value)} style={{...inp,padding:'9px 12px',fontSize:13.5}}>
+          {Object.entries(CATEGORIAS_ARQUIVO).map(([k,v])=><option key={k} value={k}>{v}</option>)}
+        </select>
+        {f.categoria==='restrito' && <p style={{fontSize:12,color:'#8A6206',background:'#FFF6DE',borderRadius:8,padding:'8px 11px'}}>Restrito: só quem estiver logado no time vê esse link.</p>}
+        {err && <p style={{fontSize:12.5,color:'#B4232A'}}>{err}</p>}
+      </div>
+      <div style={{padding:'16px 24px',borderTop:'1px solid '+NB.bdSoft,display:'flex',justifyContent:'flex-end',gap:10}}>
+        <button onClick={onClose} style={{padding:'10px 16px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:9,fontSize:13,fontWeight:500,color:NB.mut}}>Cancelar</button>
+        <button onClick={salvar} style={{padding:'10px 20px',background:NB.azul,border:'none',borderRadius:9,fontSize:13,fontWeight:500,color:'#fff'}}>Salvar</button>
+      </div>
+    </Modal>
+  );
+}
+
+function ArquivosTab({ podeEditar }) {
+  const { arquivos, removeArquivo } = useApp();
+  const [novo, setNovo] = useState(false);
+
+  return (
+    <div>
+      <div style={{display:'flex',justifyContent:'flex-end',marginBottom:14}}>
+        {podeEditar && (
+          <button onClick={()=>setNovo(true)}
+            style={{display:'flex',alignItems:'center',gap:7,padding:'9px 15px',background:NB.azul,border:'none',borderRadius:9,fontSize:13,fontWeight:500,color:'#fff'}}>
+            <IPlus s={13}/> Adicionar link
+          </button>
+        )}
+      </div>
+      {Object.entries(CATEGORIAS_ARQUIVO).map(([cat,label])=>{
+        const itens = arquivos.filter(a=>a.categoria===cat);
+        if (itens.length===0) return null;
+        return (
+          <div key={cat} style={{marginBottom:22}}>
+            <div style={{fontSize:14,fontWeight:600,color:NB.txt,marginBottom:10}}>{label}</div>
+            <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(240px,1fr))',gap:11}}>
+              {itens.map(a=>(
+                <div key={a.id} style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:12,padding:'13px 15px'}}>
+                  <div style={{fontSize:13.5,fontWeight:600,color:NB.txt,marginBottom:4}}>{a.nome}</div>
+                  {a.descricao && <p style={{fontSize:12,color:NB.mut,marginBottom:9,lineHeight:1.5}}>{a.descricao}</p>}
+                  <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8}}>
+                    <a href={a.url} target="_blank" rel="noopener noreferrer" style={{fontSize:12.5,color:NB.azul,textDecoration:'none',display:'flex',alignItems:'center',gap:5}}><IExt s={12}/> Abrir</a>
+                    {podeEditar && <button onClick={()=>removeArquivo(a.id)} style={{fontSize:11,color:'#B4232A',background:'none',border:'none'}}>Remover</button>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })}
+      {arquivos.length===0 && (
+        <div style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:14,padding:'34px 22px',textAlign:'center',color:NB.mut,fontSize:13.5}}>
+          Nenhum arquivo cadastrado ainda.
+        </div>
+      )}
+      {novo && <ArquivoModal onClose={()=>setNovo(false)}/>}
+    </div>
+  );
+}
+
+/* ---------- Embaixadores ---------- */
+function EmbaixadorModal({ onClose }) {
+  const { addEmbaixador } = useApp();
+  const [f, setF] = useState({ nome:'', instagram:'', descricao:'' });
+  const [err, setErr] = useState('');
+  const set=(k,v)=>setF(x=>({...x,[k]:v}));
+  const salvar = () => {
+    if (!f.nome.trim()) return setErr('Preencha o nome.');
+    addEmbaixador(f); onClose();
+  };
+  return (
+    <Modal onClose={onClose} width={440}>
+      <div style={{padding:'22px 24px 16px',borderBottom:'1px solid '+NB.bdSoft}}>
+        <h2 style={{fontSize:17,fontWeight:600,color:NB.txt}}>Novo embaixador</h2>
+      </div>
+      <div style={{padding:'20px 24px',display:'flex',flexDirection:'column',gap:12}}>
+        <input value={f.nome} onChange={e=>set('nome',e.target.value)} placeholder="Nome" style={{...inp,padding:'9px 12px',fontSize:13.5}}/>
+        <input value={f.instagram} onChange={e=>set('instagram',e.target.value)} placeholder="@instagram ou link" style={{...inp,padding:'9px 12px',fontSize:13.5}}/>
+        <textarea value={f.descricao} onChange={e=>set('descricao',e.target.value)} rows={2} placeholder="Como ele colabora com o Nibo" style={{...inp,padding:'9px 12px',fontSize:13.5,resize:'vertical'}}/>
+        {err && <p style={{fontSize:12.5,color:'#B4232A'}}>{err}</p>}
+      </div>
+      <div style={{padding:'16px 24px',borderTop:'1px solid '+NB.bdSoft,display:'flex',justifyContent:'flex-end',gap:10}}>
+        <button onClick={onClose} style={{padding:'10px 16px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:9,fontSize:13,fontWeight:500,color:NB.mut}}>Cancelar</button>
+        <button onClick={salvar} style={{padding:'10px 20px',background:NB.azul,border:'none',borderRadius:9,fontSize:13,fontWeight:500,color:'#fff'}}>Salvar</button>
+      </div>
+    </Modal>
+  );
+}
+
+function EmbaixadoresTab({ podeEditar }) {
+  const { embaixadores, removeEmbaixador } = useApp();
+  const [novo, setNovo] = useState(false);
+  return (
+    <div>
+      <div style={{display:'flex',justifyContent:'flex-end',marginBottom:14}}>
+        {podeEditar && (
+          <button onClick={()=>setNovo(true)}
+            style={{display:'flex',alignItems:'center',gap:7,padding:'9px 15px',background:NB.azul,border:'none',borderRadius:9,fontSize:13,fontWeight:500,color:'#fff'}}>
+            <IPlus s={13}/> Novo embaixador
+          </button>
+        )}
+      </div>
+      {embaixadores.length===0 ? (
+        <div style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:14,padding:'34px 22px',textAlign:'center',color:NB.mut,fontSize:13.5}}>
+          Nenhum embaixador cadastrado ainda.
+        </div>
+      ) : (
+        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(230px,1fr))',gap:12}}>
+          {embaixadores.map(e=>(
+            <div key={e.id} style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:12,padding:'14px 16px'}}>
+              <div style={{fontSize:14,fontWeight:600,color:NB.txt,marginBottom:5}}>{e.nome}</div>
+              {e.descricao && <p style={{fontSize:12,color:NB.mut,marginBottom:9,lineHeight:1.5}}>{e.descricao}</p>}
+              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8}}>
+                {e.instagram
+                  ? <a href={e.instagram.startsWith('http')?e.instagram:'https://instagram.com/'+e.instagram.replace('@','')} target="_blank" rel="noopener noreferrer" style={{fontSize:12.5,color:NB.azul,textDecoration:'none'}}>{e.instagram}</a>
+                  : <span/>}
+                {podeEditar && <button onClick={()=>removeEmbaixador(e.id)} style={{fontSize:11,color:'#B4232A',background:'none',border:'none'}}>Remover</button>}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      {novo && <EmbaixadorModal onClose={()=>setNovo(false)}/>}
+    </div>
+  );
+}
+
+/* ---------- Gerador de UTM ---------- */
+const UTM_SOURCES  = ['hs_email','ferramenta','webinar','meta','instagram','inapp','whatsapp','blog','linkthree','embaixadores','evento','adwords','email','parceiros'];
+const UTM_MEDIUMS   = ['email_campaing','webinar','ferramenta','banner','linkthree','instagram','whatsapp','mensagem','automacao','inapp_campaing','live','tv','panfleto','influencer'];
+
+function UtmTab() {
+  const [url, setUrl]         = useState('');
+  const [source, setSource]   = useState('');
+  const [medium, setMedium]   = useState('');
+  const [campaign, setCampaign] = useState('');
+  const [gerados, setGerados] = useState([]);
+  const [copiado, setCopiado] = useState(false);
+
+  const limpo = campaign.toLowerCase().replace(/[^a-z0-9-]+/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,'');
+  const link = url && source && medium && limpo
+    ? url + (url.includes('?')?'&':'?') + 'utm_source='+encodeURIComponent(source)+'&utm_medium='+encodeURIComponent(medium)+'&utm_campaign='+encodeURIComponent(limpo)
+    : '';
+
+  const gerar = () => {
+    if (!link) return;
+    setGerados(g=>[{ url:link, quando:new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) }, ...g]);
+  };
+  const copiar = () => { if(!link) return; navigator.clipboard && navigator.clipboard.writeText(link); setCopiado(true); setTimeout(()=>setCopiado(false),1800); };
+
+  return (
+    <div style={{display:'grid',gridTemplateColumns:'1fr 300px',gap:18,alignItems:'start'}}>
+      <div style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:16,padding:'22px 24px',boxShadow:'0 1px 3px rgba(11,42,92,0.04)'}}>
+        <div style={{marginBottom:14}}>
+          <div style={{...lbl,marginBottom:6}}>URL base</div>
+          <input value={url} onChange={e=>setUrl(e.target.value)} placeholder="https://nibo.com.br/..." style={{...inp,padding:'9px 12px',fontSize:13.5}}/>
+        </div>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:14}}>
+          <div>
+            <div style={{...lbl,marginBottom:6}}>utm_source</div>
+            <input value={source} onChange={e=>setSource(e.target.value)} list="utm-src" style={{...inp,padding:'9px 12px',fontSize:13.5}}/>
+            <datalist id="utm-src">{UTM_SOURCES.map(s=><option key={s} value={s}/>)}</datalist>
+          </div>
+          <div>
+            <div style={{...lbl,marginBottom:6}}>utm_medium</div>
+            <input value={medium} onChange={e=>setMedium(e.target.value)} list="utm-med" style={{...inp,padding:'9px 12px',fontSize:13.5}}/>
+            <datalist id="utm-med">{UTM_MEDIUMS.map(m=><option key={m} value={m}/>)}</datalist>
+          </div>
+        </div>
+        <div style={{marginBottom:16}}>
+          <div style={{...lbl,marginBottom:6}}>utm_campaign</div>
+          <input value={campaign} onChange={e=>setCampaign(e.target.value)} placeholder="webinar-lancamento-produto" style={{...inp,padding:'9px 12px',fontSize:13.5}}/>
+          <p style={{fontSize:11.5,color:NB.mut2,marginTop:5}}>Letras minúsculas, números e hífens. Sem espaço ou acento.</p>
+        </div>
+        <div style={{background:NB.col,border:'1px solid '+NB.bd,borderRadius:10,padding:'12px 14px',marginBottom:14,wordBreak:'break-all',fontSize:12.5,color:link?NB.txt:NB.mut2,minHeight:20}}>
+          {link || 'Preencha os campos para gerar o link.'}
+        </div>
+        <div style={{display:'flex',gap:9}}>
+          <button onClick={gerar} disabled={!link} style={{padding:'9px 16px',background:link?NB.azul:'#CFD8E6',border:'none',borderRadius:9,fontSize:13,fontWeight:500,color:'#fff',cursor:link?'pointer':'not-allowed'}}>Gerar link</button>
+          <button onClick={copiar} disabled={!link} style={{padding:'9px 16px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:9,fontSize:13,fontWeight:500,color:link?NB.mut:NB.mut2}}>{copiado?'Copiado ✓':'Copiar link'}</button>
+        </div>
+      </div>
+      <div style={{display:'flex',flexDirection:'column',gap:12}}>
+        <div style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:14,padding:'16px 17px'}}>
+          <div style={{fontSize:12.5,fontWeight:600,color:NB.txt,marginBottom:8}}>Regras de nomenclatura</div>
+          <p style={{fontSize:12,color:NB.mut,lineHeight:1.7}}>
+            <strong style={{color:NB.txt}}>source:</strong> origem do tráfego<br/>
+            <strong style={{color:NB.txt}}>medium:</strong> tipo de mídia<br/>
+            <strong style={{color:NB.txt}}>campaign:</strong> nome da ação, minúsculo com hífen
+          </p>
+        </div>
+        <div style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:14,padding:'16px 17px'}}>
+          <div style={{fontSize:12.5,fontWeight:600,color:NB.txt,marginBottom:8}}>Gerados nesta sessão</div>
+          {gerados.length===0 ? <p style={{fontSize:12,color:NB.mut2}}>Nenhum link gerado ainda.</p> : (
+            <div style={{display:'flex',flexDirection:'column',gap:7,maxHeight:220,overflowY:'auto'}}>
+              {gerados.map((g,i)=>(
+                <div key={i} style={{fontSize:11,color:NB.mut,wordBreak:'break-all',borderBottom:'1px solid '+NB.bdSoft,paddingBottom:6}}>
+                  <span style={{color:NB.mut2}}>{g.quando}</span> — {g.url}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------- Gerar Abordagem (IA por persona) ---------- */
+function AbordagemTab() {
+  const [persona, setPersona] = useState(null);
+  const [copiado, setCopiado] = useState(null);
+  const copiar = (t,i) => { navigator.clipboard && navigator.clipboard.writeText(t); setCopiado(i); setTimeout(()=>setCopiado(null),1800); };
+
+  return (
+    <div style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:16,padding:'22px 24px',boxShadow:'0 1px 3px rgba(11,42,92,0.04)'}}>
+      <div style={{...lbl,marginBottom:11}}>Para quem é essa abordagem?</div>
+      <div style={{display:'flex',gap:9,flexWrap:'wrap',marginBottom:22}}>
+        {PERSONAS.map(p=>{
+          const on = persona===p.id;
+          return (
+            <button key={p.id} onClick={()=>setPersona(p.id)}
+              style={{display:'flex',alignItems:'center',gap:8,padding:'10px 16px',borderRadius:10,border:'1px solid '+(on?NB.azul:NB.bd),background:on?'#EAF3FD':'#fff',fontSize:13.5,fontWeight:500,color:on?NB.azul:NB.mut}}>
+              <span>{p.emoji}</span> {p.label}
+            </button>
+          );
+        })}
+      </div>
+      {persona && (
+        <div style={{display:'flex',flexDirection:'column',gap:11}}>
+          {personaVariants(persona).map((v,i)=>(
+            <div key={i} style={{background:NB.col,border:'1px solid '+NB.bd,borderRadius:11,padding:'14px 16px'}}>
+              <div style={{fontSize:10.5,fontWeight:600,color:NB.mut2,textTransform:'uppercase',letterSpacing:'0.05em',marginBottom:7}}>{v.rotulo}</div>
+              <p style={{fontSize:13.5,color:NB.txt,lineHeight:1.6,marginBottom:10}}>{v.texto}</p>
+              <button onClick={()=>copiar(v.texto,i)}
+                style={{padding:'7px 13px',background:copiado===i?'#E1F5EE':'#fff',border:'1px solid '+(copiado===i?'#0F6E56':NB.bd),borderRadius:8,fontSize:12,fontWeight:500,color:copiado===i?'#0F6E56':NB.mut}}>
+                {copiado===i?'Copiado ✓':'Copiar'}
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 
 /* =========== CAMPANHAS — gestão, só quem tem permissão ============ */
 function CampanhaEditModal({ camp, onClose }) {
@@ -3123,6 +3678,37 @@ async function drawEncerramento(w, h, frase) {
 }
 
 /* Variações de texto pra WhatsApp — pré-vendas usa uma dessas na campanha ativa. */
+const PRODUTOS_NIBO = ['App Personalizado','Radar e-CAC','Conciliador / Open Finance','Gestão Financeira','BPO Financeiro','Emissor NFS-e','Obrigações Plus','WhatsApp Contábil','Todos os produtos'];
+
+const PERSONAS = [
+  { id:'contador', label:'Contador', emoji:'🧾' },
+  { id:'empresa',  label:'Empresa',  emoji:'🏢' },
+  { id:'bpo',      label:'BPO Financeiro', emoji:'💼' },
+];
+
+/* Abordagens prontas por persona — SDR (primeiro contato) e CS (upsell/retenção). */
+function personaVariants(personaId) {
+  const textos = {
+    contador: {
+      sdr: 'Oi! Trabalho com o Nibo e ajudamos escritórios contábeis a automatizar reconciliação bancária, emissão de NFS-e e obrigações fiscais — sem trocar de sistema. Posso te mostrar como funciona?',
+      cs:  'Oi! Vi que você já usa o Nibo — tem uma novidade que reduz retrabalho no fechamento mensal do seu escritório. Faz sentido eu te explicar rapidinho?',
+    },
+    empresa: {
+      sdr: 'Oi! O Nibo cuida da parte financeira e contábil de empresas como a sua — conciliação automática, gestão financeira e obrigações em um só lugar. Posso te mostrar como funciona pro seu caso?',
+      cs:  'Oi! Notei que sua empresa já usa o Nibo — temos uma função que pode facilitar sua rotina financeira ainda mais. Posso te contar mais?',
+    },
+    bpo: {
+      sdr: 'Oi! Ajudamos empresas de BPO Financeiro a escalar operação sem aumentar equipe, automatizando conciliação e emissão pros seus clientes. Quer entender como funciona?',
+      cs:  'Oi! Como você já opera BPO com o Nibo, separei uma novidade que deixa o atendimento aos seus clientes ainda mais ágil. Posso te explicar?',
+    },
+  };
+  const t = textos[personaId] || textos.empresa;
+  return [
+    { rotulo:'SDR — Primeiro contato', texto:t.sdr },
+    { rotulo:'CS — Upsell / Retenção', texto:t.cs },
+  ];
+}
+
 function whatsappVariants(camp) {
   const produtos = (camp.produtos||[]).join(', ');
   const desc = camp.desconto ? camp.desconto : '';
