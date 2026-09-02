@@ -3817,17 +3817,21 @@ const PERSONAS = [
 const PACOTES_TAREFAS_PADRAO = {
   webinar: {
     nome: 'Pacote Webinar',
-    descricao: 'Cria de uma vez as tarefas padrão pra organizar um webinar com embaixador.',
+    descricao: 'Cria uma tarefa principal com o checklist de subtarefas do webinar — cada uma libera pra próxima pessoa só depois de aprovada.',
     campoData: 'Data do webinar',
-    tarefas: [
-      { titulo:'Roteiro e questionário pro embaixador — {tema}', area:'Social',      assignees:['CA'],       priority:'Alta',  diasAntes:15 },
-      { titulo:'Landing Page do webinar — {tema}',               area:'Design',      assignees:['MB'],       priority:'Alta',  diasAntes:12 },
-      { titulo:'Sequência de e-mails de convite — {tema}',        area:'RevOps',      assignees:['JE'],       priority:'Média', diasAntes:10 },
-      { titulo:'Peças estáticas (orgânico + Meta Ads) — {tema}',  area:'Design',      assignees:['MK'],       priority:'Média', diasAntes:8 },
-      { titulo:'Stories de divulgação — {tema}',                  area:'Design',      assignees:['MK'],       priority:'Média', diasAntes:6 },
-      { titulo:'Arte "Estamos ao vivo" — {tema}',                 area:'Design',      assignees:['MB'],       priority:'Baixa', diasAntes:3 },
-      { titulo:'Capa para YouTube — {tema}',                      area:'Design',      assignees:['MB'],       priority:'Baixa', diasAntes:3 },
-      { titulo:'Configurar links (YouTube/StreamYard) — {tema}',  area:'RevOps',      assignees:['JE'],       priority:'Média', diasAntes:2 },
+    tituloPrincipal: 'Organizar Webinar — {tema}',
+    area: 'Social',
+    responsavelPrincipal: 'CA',
+    priority: 'Alta',
+    subtarefas: [
+      { titulo:'Roteiro e questionário pro embaixador — {tema}', responsavel:'CA', diasAntes:15 },
+      { titulo:'Landing Page do webinar — {tema}',               responsavel:'MB', diasAntes:12 },
+      { titulo:'Sequência de e-mails de convite — {tema}',        responsavel:'JE', diasAntes:10 },
+      { titulo:'Peças estáticas (orgânico + Meta Ads) — {tema}',  responsavel:'MK', diasAntes:8 },
+      { titulo:'Stories de divulgação — {tema}',                  responsavel:'MK', diasAntes:6 },
+      { titulo:'Arte "Estamos ao vivo" — {tema}',                 responsavel:'MB', diasAntes:3 },
+      { titulo:'Capa para YouTube — {tema}',                      responsavel:'MB', diasAntes:3 },
+      { titulo:'Configurar links (YouTube/StreamYard) — {tema}',  responsavel:'JE', diasAntes:2 },
     ],
   },
 };
@@ -4449,7 +4453,7 @@ function CardModal() {
                   if (needsNotify) setNotifyPending({ demandId:d.id, stageId:stage.id, demandTitle:d.title });
                   else moveStage(d.id, stage.id);
                 }}
-                  style={{display:'flex',alignItems:'center',gap:6,padding:'8px 14px',borderRadius:9,fontSize:13,fontWeight:500,border:'1px solid '+(isCur?ac:NB.bd),background:isCur?ac:'#fff',color:isCur?'#fff':NB.mut,transition:'all 0.12s'}}
+                  style={{display:'flex',alignItems:'center',gap:6,padding:'8px 14px',borderRadius:9,fontSize:13,fontWeight:500,border:'1px solid '+(isCur?NB.azul:NB.bd),background:isCur?NB.azul:'#fff',color:isCur?'#fff':NB.mut,transition:'all 0.12s'}}
                   onMouseEnter={e=>{ if(!isCur){e.currentTarget.style.color=NB.txt; e.currentTarget.style.borderColor='#D3DCEA';} }}
                   onMouseLeave={e=>{ if(!isCur){e.currentTarget.style.color=NB.mut; e.currentTarget.style.borderColor=NB.bd;} }}>
                   {isCur && <ICheck s={13}/>}
@@ -4776,12 +4780,18 @@ function PacoteModal() {
   const criar = () => {
     if (!tema.trim()) return setErr('Dê um nome pra esse fluxo.');
     setCriando(true);
-    pacote.tarefas.forEach(t => {
-      addDemand({
-        title: resolverTitulo(t.titulo, tema.trim()), area: t.area, priority: t.priority,
-        deadline: somarDias(dataBase, t.diasAntes), description: '',
-        requester: 'Pacote: '+pacote.nome, assignees: t.assignees,
-      });
+    const subtarefas = (pacote.subtarefas||[]).map((s,i) => ({
+      id: 'sub'+i,
+      titulo: resolverTitulo(s.titulo, tema.trim()),
+      responsavel: s.responsavel,
+      prazo: somarDias(dataBase, s.diasAntes),
+      status: i===0 ? 'pendente' : 'bloqueada',
+    }));
+    addDemand({
+      title: resolverTitulo(pacote.tituloPrincipal, tema.trim()),
+      area: pacote.area, priority: pacote.priority, deadline: dataBase, description: pacote.descricao||'',
+      requester: 'Pacote: '+pacote.nome, assignees: [pacote.responsavelPrincipal],
+      subtarefas,
     });
     setTimeout(() => { setCriando(false); setPacoteOpen(false); }, 700);
   };
@@ -4828,21 +4838,17 @@ function PacoteModal() {
         </div>
 
         <div style={{background:NB.col,border:'1px solid '+NB.bd,borderRadius:11,padding:'14px 16px'}}>
-          <div style={{fontSize:12,fontWeight:600,color:NB.mut,marginBottom:9,textTransform:'uppercase',letterSpacing:'0.06em'}}>
-            {(pacote.tarefas||[]).length} tarefas vão ser criadas
-          </div>
+          <div style={{fontSize:13,fontWeight:600,color:NB.txt,marginBottom:3}}>{resolverTitulo(pacote.tituloPrincipal, tema.trim())}</div>
+          <div style={{fontSize:11.5,color:NB.mut2,marginBottom:12}}>Fica com {ACTIVE_TEAM.find(m=>m.initials===pacote.responsavelPrincipal)?.name || pacote.responsavelPrincipal} · {(pacote.subtarefas||[]).length} subtarefas no checklist</div>
           <div style={{display:'flex',flexDirection:'column',gap:7}}>
-            {(pacote.tarefas||[]).map((t,i)=>{
-              const areaColor = AREA_CLR[t.area]||NB.azul;
-              return (
-                <div key={i} style={{display:'flex',alignItems:'center',gap:9,fontSize:12.5,color:NB.txt}}>
-                  <span style={{width:6,height:6,borderRadius:2,background:areaColor,flexShrink:0}}/>
-                  <span style={{flex:1,minWidth:0,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{resolverTitulo(t.titulo, tema.trim())}</span>
-                  <span style={{color:NB.mut2,flexShrink:0,fontSize:11.5}}>{dataBase?fmtDate(somarDias(dataBase,t.diasAntes)):''}</span>
-                </div>
-              );
-            })}
-            {(pacote.tarefas||[]).length===0 && <p style={{fontSize:12.5,color:NB.mut2}}>Esse pacote ainda não tem tarefas — clica em "Editar este" pra adicionar.</p>}
+            {(pacote.subtarefas||[]).map((s,i)=>(
+              <div key={i} style={{display:'flex',alignItems:'center',gap:9,fontSize:12.5,color:NB.txt}}>
+                <span style={{width:18,height:18,borderRadius:'50%',background:i===0?NB.azul:'#fff',border:'1.5px solid '+(i===0?NB.azul:NB.bd),color:i===0?'#fff':NB.mut2,fontSize:10,fontWeight:700,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>{i+1}</span>
+                <span style={{flex:1,minWidth:0,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{resolverTitulo(s.titulo, tema.trim())}</span>
+                <span style={{color:NB.mut2,flexShrink:0,fontSize:11}}>{s.responsavel}</span>
+              </div>
+            ))}
+            {(pacote.subtarefas||[]).length===0 && <p style={{fontSize:12.5,color:NB.mut2}}>Esse pacote ainda não tem subtarefas — clica em "Editar este" pra adicionar.</p>}
           </div>
         </div>
 
@@ -4854,9 +4860,9 @@ function PacoteModal() {
           style={{padding:'11px 18px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:9,fontSize:13,fontWeight:500,color:NB.mut}}>
           Cancelar
         </button>
-        <button onClick={criar} disabled={criando || (pacote.tarefas||[]).length===0}
-          style={{padding:'11px 24px',background:(criando||(pacote.tarefas||[]).length===0)?'#CFD8E6':NB.azul,border:'none',borderRadius:9,fontSize:13,fontWeight:500,color:'#fff',cursor:criando?'wait':'pointer'}}>
-          {criando?'Criando…':'Criar '+(pacote.tarefas||[]).length+' tarefas'}
+        <button onClick={criar} disabled={criando || (pacote.subtarefas||[]).length===0}
+          style={{padding:'11px 24px',background:(criando||(pacote.subtarefas||[]).length===0)?'#CFD8E6':NB.azul,border:'none',borderRadius:9,fontSize:13,fontWeight:500,color:'#fff',cursor:criando?'wait':'pointer'}}>
+          {criando?'Criando…':'Criar tarefa com '+(pacote.subtarefas||[]).length+' subtarefas'}
         </button>
       </div>
     </Modal>
@@ -4864,43 +4870,34 @@ function PacoteModal() {
 }
 
 /* =========== EDITOR DE PACOTE ============ */
-function TarefaRow({ tarefa, onChange, onRemove }) {
-  const set = (k,v) => onChange({ ...tarefa, [k]:v });
-  const toggleResp = init => {
-    const has = tarefa.assignees.includes(init);
-    set('assignees', has ? tarefa.assignees.filter(i=>i!==init) : [...tarefa.assignees, init]);
-  };
+function SubtarefaRow({ subtarefa, ordem, onChange, onRemove }) {
+  const set = (k,v) => onChange({ ...subtarefa, [k]:v });
 
   return (
     <div style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:10,padding:'12px 13px',display:'flex',flexDirection:'column',gap:9}}>
       <div style={{display:'flex',gap:8,alignItems:'center'}}>
-        <input value={tarefa.titulo} onChange={e=>set('titulo',e.target.value)} placeholder="Título — use {tema} pra puxar o nome do fluxo"
+        <span style={{width:20,height:20,borderRadius:'50%',background:NB.col,color:NB.mut2,fontSize:10,fontWeight:700,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>{ordem+1}</span>
+        <input value={subtarefa.titulo} onChange={e=>set('titulo',e.target.value)} placeholder="Título — use {tema} pra puxar o nome do fluxo"
           style={{...inp,padding:'8px 11px',fontSize:12.5,flex:1}}/>
         <button type="button" onClick={onRemove} style={{padding:8,background:'#fff',border:'1px solid '+NB.bd,borderRadius:8,color:'#B4232A',display:'flex',flexShrink:0}}><ITrash s={13}/></button>
       </div>
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8}}>
-        <select value={tarefa.area} onChange={e=>set('area',e.target.value)} style={{...inp,padding:'7px 9px',fontSize:12}}>
-          {['Social','Design','Mídia Paga','Produto','RevOps'].map(a=><option key={a}>{a}</option>)}
-        </select>
-        <select value={tarefa.priority} onChange={e=>set('priority',e.target.value)} style={{...inp,padding:'7px 9px',fontSize:12}}>
-          {PRIORITIES.map(p=><option key={p}>{p}</option>)}
-        </select>
-        <div style={{display:'flex',alignItems:'center',gap:6}}>
-          <input type="number" min="0" value={tarefa.diasAntes} onChange={e=>set('diasAntes',parseInt(e.target.value,10)||0)}
-            style={{...inp,padding:'7px 9px',fontSize:12,width:60}}/>
-          <span style={{fontSize:11,color:NB.mut2,whiteSpace:'nowrap'}}>dias antes</span>
+      <div style={{display:'flex',gap:8,alignItems:'center',paddingLeft:28}}>
+        <span style={{fontSize:11,color:NB.mut2,flexShrink:0}}>Responsável:</span>
+        <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
+          {ACTIVE_TEAM.map(m=>{
+            const on = subtarefa.responsavel===m.initials;
+            return (
+              <button key={m.id} type="button" onClick={()=>set('responsavel',m.initials)}
+                style={{padding:'4px 10px',borderRadius:20,border:'1px solid '+(on?NB.azul:NB.bd),background:on?'#EAF3FD':'#fff',fontSize:11.5,fontWeight:500,color:on?NB.azul:NB.mut}}>
+                {m.initials}
+              </button>
+            );
+          })}
         </div>
-      </div>
-      <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
-        {ACTIVE_TEAM.map(m=>{
-          const on = tarefa.assignees.includes(m.initials);
-          return (
-            <button key={m.id} type="button" onClick={()=>toggleResp(m.initials)}
-              style={{padding:'4px 10px',borderRadius:20,border:'1px solid '+(on?NB.azul:NB.bd),background:on?'#EAF3FD':'#fff',fontSize:11.5,fontWeight:500,color:on?NB.azul:NB.mut}}>
-              {m.initials}
-            </button>
-          );
-        })}
+        <span style={{flex:1}}/>
+        <input type="number" min="0" value={subtarefa.diasAntes} onChange={e=>set('diasAntes',parseInt(e.target.value,10)||0)}
+          style={{...inp,padding:'6px 9px',fontSize:11.5,width:52,flexShrink:0}}/>
+        <span style={{fontSize:11,color:NB.mut2,whiteSpace:'nowrap',flexShrink:0}}>dias antes</span>
       </div>
     </div>
   );
@@ -4911,23 +4908,29 @@ function PacoteEditModal({ id, pacote, onClose, onSaved }) {
   const editando = !!pacote;
   const [form, setForm] = useState(() => pacote ? {
     nome: pacote.nome||'', descricao: pacote.descricao||'', campoData: pacote.campoData||'Data-base',
-    tarefas: (pacote.tarefas||[]).map(t=>({...t})),
-  } : { nome:'', descricao:'', campoData:'Data-base', tarefas:[] });
+    tituloPrincipal: pacote.tituloPrincipal||'', area: pacote.area||'Social', responsavelPrincipal: pacote.responsavelPrincipal||'',
+    priority: pacote.priority||'Média',
+    subtarefas: (pacote.subtarefas||[]).map(s=>({...s})),
+  } : { nome:'', descricao:'', campoData:'Data-base', tituloPrincipal:'', area:'Social', responsavelPrincipal:'', priority:'Média', subtarefas:[] });
   const [err, setErr] = useState('');
   const [confirmarExcluir, setConfirmarExcluir] = useState(false);
   const set = (k,v) => { setForm(f=>({...f,[k]:v})); setErr(''); };
 
-  const addTarefa = () => setForm(f=>({...f, tarefas:[...f.tarefas, { titulo:'', area:'Social', assignees:[], priority:'Média', diasAntes:5 }]}));
-  const updateTarefa = (i, nova) => setForm(f=>({...f, tarefas: f.tarefas.map((t,ix)=>ix===i?nova:t)}));
-  const removeTarefa = i => setForm(f=>({...f, tarefas: f.tarefas.filter((_,ix)=>ix!==i)}));
+  const addSubtarefa = () => setForm(f=>({...f, subtarefas:[...f.subtarefas, { titulo:'', responsavel:'', diasAntes:5 }]}));
+  const updateSubtarefa = (i, nova) => setForm(f=>({...f, subtarefas: f.subtarefas.map((s,ix)=>ix===i?nova:s)}));
+  const removeSubtarefa = i => setForm(f=>({...f, subtarefas: f.subtarefas.filter((_,ix)=>ix!==i)}));
 
   const salvar = () => {
     if (!form.nome.trim()) return setErr('Dê um nome pro pacote.');
-    if (form.tarefas.length===0) return setErr('Adicione pelo menos uma tarefa.');
-    if (form.tarefas.some(t=>!t.titulo.trim())) return setErr('Toda tarefa precisa de um título.');
+    if (!form.tituloPrincipal.trim()) return setErr('Dê um título pra tarefa principal.');
+    if (!form.responsavelPrincipal) return setErr('Escolha quem fica responsável pela tarefa principal.');
+    if (form.subtarefas.length===0) return setErr('Adicione pelo menos uma subtarefa.');
+    if (form.subtarefas.some(s=>!s.titulo.trim())) return setErr('Toda subtarefa precisa de um título.');
+    if (form.subtarefas.some(s=>!s.responsavel)) return setErr('Toda subtarefa precisa de um responsável.');
     salvarPacote(id, {
       nome: form.nome.trim(), descricao: form.descricao.trim(), campoData: form.campoData.trim()||'Data-base',
-      tarefas: form.tarefas,
+      tituloPrincipal: form.tituloPrincipal.trim(), area: form.area, responsavelPrincipal: form.responsavelPrincipal,
+      priority: form.priority, subtarefas: form.subtarefas,
     });
     onSaved(id);
   };
@@ -4959,20 +4962,57 @@ function PacoteEditModal({ id, pacote, onClose, onSaved }) {
           <input value={form.campoData} onChange={e=>set('campoData',e.target.value)} placeholder="ex: Data do webinar, Data de início..." style={{...inp,padding:'9px 12px',fontSize:13.5}}/>
         </div>
 
+        <div style={{background:NB.col,border:'1px solid '+NB.bd,borderRadius:11,padding:'14px 16px',display:'flex',flexDirection:'column',gap:12}}>
+          <div style={{fontSize:12,fontWeight:600,color:NB.mut,textTransform:'uppercase',letterSpacing:'0.05em'}}>Tarefa principal</div>
+          <div>
+            <div style={{...lbl,marginBottom:6}}>Título — use {'{tema}'} pra puxar o nome do fluxo</div>
+            <input value={form.tituloPrincipal} onChange={e=>set('tituloPrincipal',e.target.value)} placeholder="ex: Organizar Webinar — {tema}" style={{...inp,padding:'8px 11px',fontSize:12.5,background:'#fff'}}/>
+          </div>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+            <div>
+              <div style={{...lbl,marginBottom:6}}>Área</div>
+              <select value={form.area} onChange={e=>set('area',e.target.value)} style={{...inp,padding:'7px 9px',fontSize:12,background:'#fff'}}>
+                {['Social','Design','Mídia Paga','Produto','RevOps'].map(a=><option key={a}>{a}</option>)}
+              </select>
+            </div>
+            <div>
+              <div style={{...lbl,marginBottom:6}}>Prioridade</div>
+              <select value={form.priority} onChange={e=>set('priority',e.target.value)} style={{...inp,padding:'7px 9px',fontSize:12,background:'#fff'}}>
+                {PRIORITIES.map(p=><option key={p}>{p}</option>)}
+              </select>
+            </div>
+          </div>
+          <div>
+            <div style={{...lbl,marginBottom:6}}>Quem fica responsável pela tarefa (e aprova cada subtarefa)</div>
+            <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
+              {ACTIVE_TEAM.map(m=>{
+                const on = form.responsavelPrincipal===m.initials;
+                return (
+                  <button key={m.id} type="button" onClick={()=>set('responsavelPrincipal',m.initials)}
+                    style={{padding:'5px 12px',borderRadius:20,border:'1px solid '+(on?NB.azul:NB.bd),background:on?'#EAF3FD':'#fff',fontSize:12,fontWeight:500,color:on?NB.azul:NB.mut}}>
+                    {m.name} ({m.initials})
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
         <div>
           <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:9}}>
-            <div style={{...lbl,marginBottom:0}}>Tarefas ({form.tarefas.length})</div>
-            <button type="button" onClick={addTarefa} style={{display:'flex',alignItems:'center',gap:6,fontSize:12,color:NB.azul,background:'none',border:'none',fontWeight:500}}>
-              <IPlus s={12}/> Adicionar tarefa
+            <div style={{...lbl,marginBottom:0}}>Checklist de subtarefas ({form.subtarefas.length})</div>
+            <button type="button" onClick={addSubtarefa} style={{display:'flex',alignItems:'center',gap:6,fontSize:12,color:NB.azul,background:'none',border:'none',fontWeight:500}}>
+              <IPlus s={12}/> Adicionar subtarefa
             </button>
           </div>
+          <p style={{fontSize:11.5,color:NB.mut2,marginBottom:10}}>A ordem daqui é a ordem do checklist — cada uma só libera depois que a de cima for aprovada.</p>
           <div style={{display:'flex',flexDirection:'column',gap:9}}>
-            {form.tarefas.map((t,i)=>(
-              <TarefaRow key={i} tarefa={t} onChange={n=>updateTarefa(i,n)} onRemove={()=>removeTarefa(i)}/>
+            {form.subtarefas.map((s,i)=>(
+              <SubtarefaRow key={i} subtarefa={s} ordem={i} onChange={n=>updateSubtarefa(i,n)} onRemove={()=>removeSubtarefa(i)}/>
             ))}
-            {form.tarefas.length===0 && (
+            {form.subtarefas.length===0 && (
               <div style={{background:NB.col,border:'1px dashed '+NB.bd,borderRadius:10,padding:'18px',textAlign:'center'}}>
-                <p style={{fontSize:12.5,color:NB.mut2}}>Nenhuma tarefa ainda. Clica em "Adicionar tarefa".</p>
+                <p style={{fontSize:12.5,color:NB.mut2}}>Nenhuma subtarefa ainda. Clica em "Adicionar subtarefa".</p>
               </div>
             )}
           </div>
@@ -4999,7 +5039,6 @@ function PacoteEditModal({ id, pacote, onClose, onSaved }) {
     </Modal>
   );
 }
-
 
 function NewModal() {
   const { newOpen, setNewOpen, addDemand, user, area, pipes } = useApp();
