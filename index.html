@@ -2336,8 +2336,19 @@ function CampanhaEditModal({ camp, onClose }) {
     desconto: camp.desconto || '', jornada: camp.jornada || 'empresa',
     instagramLink: camp.instagramLink || '',
   });
+  const [pecas, setPecas] = useState(camp.pecasDemanda || []);
+  const [novaPeca, setNovaPeca] = useState({ nome:'', url:'' });
   const [err, setErr] = useState('');
   const set = (k,v) => { setForm(f=>({...f,[k]:v})); setErr(''); };
+
+  const adicionarPeca = () => {
+    if (!novaPeca.nome.trim() || !novaPeca.url.trim()) return setErr('Preencha nome e link da peça.');
+    let url = novaPeca.url.trim();
+    if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+    setPecas(p => [...p, { name: novaPeca.nome.trim(), url }]);
+    setNovaPeca({ nome:'', url:'' }); setErr('');
+  };
+  const removerPeca = i => setPecas(p => p.filter((_,ix)=>ix!==i));
 
   const salvar = () => {
     if (!form.titulo.trim()) return setErr('O título não pode ficar vazio.');
@@ -2346,6 +2357,7 @@ function CampanhaEditModal({ camp, onClose }) {
     updateCampanha(camp.id, {
       titulo: form.titulo.trim(), descricao: form.descricao.trim(),
       desconto: form.desconto.trim(), jornada: form.jornada, instagramLink: link,
+      pecasDemanda: pecas,
     });
     onClose();
   };
@@ -2381,6 +2393,29 @@ function CampanhaEditModal({ camp, onClose }) {
           <div style={{...lbl,marginBottom:6}}>Link do post no Instagram</div>
           <input value={form.instagramLink} onChange={e=>set('instagramLink',e.target.value)} placeholder="cole quando publicar lá" style={{...inp,padding:'9px 12px',fontSize:13.5}}/>
         </div>
+
+        <div>
+          <div style={{...lbl,marginBottom:8}}>Peças</div>
+          {pecas.length>0 && (
+            <div style={{display:'flex',flexDirection:'column',gap:7,marginBottom:10}}>
+              {pecas.map((p,i)=>(
+                <div key={i} style={{display:'flex',alignItems:'center',gap:9,background:NB.col,border:'1px solid '+NB.bd,borderRadius:9,padding:'8px 11px'}}>
+                  <span style={{color:NB.azul,display:'flex',flexShrink:0}}><ILink s={13}/></span>
+                  <a href={p.url} target="_blank" rel="noopener noreferrer" style={{fontSize:13,color:NB.txt,textDecoration:'none',flex:1,minWidth:0,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p.name}</a>
+                  <button type="button" onClick={()=>removerPeca(i)} style={{fontSize:11,color:'#B4232A',background:'none',border:'none',flexShrink:0}}>Remover</button>
+                </div>
+              ))}
+            </div>
+          )}
+          <div style={{display:'flex',gap:8}}>
+            <input value={novaPeca.nome} onChange={e=>{setNovaPeca(v=>({...v,nome:e.target.value})); setErr('');}} placeholder="Nome da peça" style={{...inp,padding:'8px 11px',fontSize:12.5,flex:1}}/>
+            <input value={novaPeca.url} onChange={e=>{setNovaPeca(v=>({...v,url:e.target.value})); setErr('');}} placeholder="Link" style={{...inp,padding:'8px 11px',fontSize:12.5,flex:1}}/>
+            <button type="button" onClick={adicionarPeca} style={{padding:'8px 13px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:8,fontSize:12,fontWeight:500,color:NB.azul,flexShrink:0}}>
+              <IPlus s={12}/> Adicionar
+            </button>
+          </div>
+        </div>
+
         {err && <p style={{fontSize:12.5,color:'#B4232A'}}>{err}</p>}
       </div>
       <div style={{padding:'16px 24px',borderTop:'1px solid '+NB.bdSoft,display:'flex',justifyContent:'flex-end',gap:10}}>
