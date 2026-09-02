@@ -207,6 +207,7 @@ function Provider({ children }) {
   const [reqFilter, setReqFilter] = useState([]);
   const [modal, setModal]   = useState(null);
   const [newOpen, setNewOpen] = useState(false);
+  const [pacoteOpen, setPacoteOpen] = useState(false);
   const [notifyPending, setNotifyPending] = useState(null);
   const [profileOpen, setProfileOpen] = useState(false);
   const [editStages, setEditStages] = useState(null);
@@ -734,7 +735,7 @@ function Provider({ children }) {
   window.__nbDem = demands;
   window.__nbPosts = posts;
 
-  return <Ctx.Provider value={{ demands, active, archived, filtered, slack, user, isTeamMember, authReady, authError, setAuthError, dbReady, dbErro, dbErroPublico, seed, pedidos, aceitarPedido, recusarPedido, posts, addPost, updatePost, deletePost, campanhas, updateCampanha, publicarCampanha, despublicarCampanha, deleteCampanha, enviarCampanhaDeDemanda, pecas, addPeca, removePeca, redesSociais, salvarRedesSociais, arquivos, addArquivo, removeArquivo, embaixadores, addEmbaixador, removeEmbaixador, view, setView, layout, setLayout, area, setArea, query, setQuery, priFilter, setPriFilter, reqFilter, setReqFilter, selDemand, setModal, newOpen, setNewOpen, notifyPending, setNotifyPending, profileOpen, setProfileOpen, editStages, setEditStages, dragging, setDragging, previewMember, setPreviewMember, photos, googlePhotos, profiles, pipes, salvarPipes, attach, comments, storageWarn, MAX_FILE, addAttachment, uploadFile, migrarLocal, carregarAnexo, removeAttachment, addComment, removeComment, logout, savePhoto, removePhoto, saveProfile, addDemand, moveStage, moveArea, setAssignees, updateDemand, archiveDemand, restoreDemand, delDemand }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ demands, active, archived, filtered, slack, user, isTeamMember, authReady, authError, setAuthError, dbReady, dbErro, dbErroPublico, seed, pedidos, aceitarPedido, recusarPedido, posts, addPost, updatePost, deletePost, campanhas, updateCampanha, publicarCampanha, despublicarCampanha, deleteCampanha, enviarCampanhaDeDemanda, pecas, addPeca, removePeca, redesSociais, salvarRedesSociais, arquivos, addArquivo, removeArquivo, embaixadores, addEmbaixador, removeEmbaixador, view, setView, layout, setLayout, area, setArea, query, setQuery, priFilter, setPriFilter, reqFilter, setReqFilter, selDemand, setModal, newOpen, setNewOpen, pacoteOpen, setPacoteOpen, notifyPending, setNotifyPending, profileOpen, setProfileOpen, editStages, setEditStages, dragging, setDragging, previewMember, setPreviewMember, photos, googlePhotos, profiles, pipes, salvarPipes, attach, comments, storageWarn, MAX_FILE, addAttachment, uploadFile, migrarLocal, carregarAnexo, removeAttachment, addComment, removeComment, logout, savePhoto, removePhoto, saveProfile, addDemand, moveStage, moveArea, setAssignees, updateDemand, archiveDemand, restoreDemand, delDemand }}>{children}</Ctx.Provider>;
 }
 
 const useApp = () => useContext(Ctx);
@@ -903,7 +904,7 @@ function NavItem({ label, Icon, iconColor, count, active, onClick, indent }) {
 
 /* =========== SIDEBAR =========== */
 function Sidebar() {
-  const { view, setView, area, setArea, user, active, slack, archived, pipes, pedidos, posts, campanhas, setNewOpen, setProfileOpen, logout, previewMember, setPreviewMember } = useApp();
+  const { view, setView, area, setArea, user, active, slack, archived, pipes, pedidos, posts, campanhas, setNewOpen, setPacoteOpen, setProfileOpen, logout, previewMember, setPreviewMember } = useApp();
   const areas = ['Social','Design','Mídia Paga','Produto','RevOps'];
   const vencidas = active.filter(d => { const s=getSla(d.deadline); return s && s.type!=='ok'; }).length;
   const emAprovacao = active.filter(d => {
@@ -935,6 +936,10 @@ function Sidebar() {
           onMouseEnter={e=>{e.currentTarget.style.background='#0082E8';}}
           onMouseLeave={e=>{e.currentTarget.style.background=NB.azul;}}>
           <IPlus s={16}/> Nova demanda
+        </button>
+        <button onClick={()=>setPacoteOpen(true)}
+          style={{width:'100%',display:'flex',alignItems:'center',justifyContent:'center',gap:8,padding:'10px 14px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:10,color:NB.mut,fontSize:12.5,fontWeight:500,marginBottom:14}}>
+          <ILayers s={13}/> Criar pacote de tarefas
         </button>
         <div style={{display:'flex',gap:9}}>
           <div style={{flex:1,background:NB.col,borderRadius:10,padding:'9px 11px'}}>
@@ -3608,6 +3613,27 @@ const PERSONAS = [
   { id:'bpo',      label:'BPO Financeiro', emoji:'💼' },
 ];
 
+/* Pacotes de tarefas pré-prontos — um clique cria todas as demandas de um
+   fluxo recorrente de uma vez, com prazo calculado a partir de uma data-base.
+   diasAntes: quantos dias antes da data-base a tarefa deve estar pronta. */
+const PACOTES_TAREFAS = {
+  webinar: {
+    label: 'Pacote Webinar',
+    descricao: 'Cria de uma vez as tarefas padrão pra organizar um webinar com embaixador.',
+    campoData: 'Data do webinar',
+    tarefas: [
+      { titulo: t => 'Roteiro e questionário pro embaixador — '+t, area:'Social',      assignees:['CA'],       priority:'Alta',  diasAntes:15 },
+      { titulo: t => 'Landing Page do webinar — '+t,               area:'Design',      assignees:['MB'],       priority:'Alta',  diasAntes:12 },
+      { titulo: t => 'Sequência de e-mails de convite — '+t,        area:'RevOps',      assignees:['JE'],       priority:'Média', diasAntes:10 },
+      { titulo: t => 'Peças estáticas (orgânico + Meta Ads) — '+t,  area:'Design',      assignees:['MK'],       priority:'Média', diasAntes:8 },
+      { titulo: t => 'Stories de divulgação — '+t,                  area:'Design',      assignees:['MK'],       priority:'Média', diasAntes:6 },
+      { titulo: t => 'Arte "Estamos ao vivo" — '+t,                 area:'Design',      assignees:['MB'],       priority:'Baixa', diasAntes:3 },
+      { titulo: t => 'Capa para YouTube — '+t,                      area:'Design',      assignees:['MB'],       priority:'Baixa', diasAntes:3 },
+      { titulo: t => 'Configurar links (YouTube/StreamYard) — '+t,  area:'RevOps',      assignees:['JE'],       priority:'Média', diasAntes:2 },
+    ],
+  },
+};
+
 /* Abordagens prontas por persona — SDR (primeiro contato) e CS (upsell/retenção). */
 function personaVariants(personaId, camp) {
   const nomeOferta = camp ? camp.titulo : null;
@@ -4516,6 +4542,106 @@ function AssigneePick({ member, checked, onToggle }) {
   );
 }
 
+/* =========== PACOTE DE TAREFAS =========== */
+function PacoteModal() {
+  const { pacoteOpen, setPacoteOpen, addDemand } = useApp();
+  const [pacoteId, setPacoteId] = useState('webinar');
+  const [tema, setTema] = useState('');
+  const [dataBase, setDataBase] = useState(dStr(20));
+  const [err, setErr] = useState('');
+  const [criando, setCriando] = useState(false);
+
+  useEffect(() => {
+    if (pacoteOpen) { setTema(''); setDataBase(dStr(20)); setErr(''); setCriando(false); }
+  }, [pacoteOpen]);
+
+  if (!pacoteOpen) return null;
+  const pacote = PACOTES_TAREFAS[pacoteId];
+
+  const somarDias = (isoBase, dias) => {
+    const d = new Date(isoBase+'T00:00:00');
+    d.setDate(d.getDate() - dias);
+    return d.toISOString().split('T')[0];
+  };
+
+  const criar = () => {
+    if (!tema.trim()) return setErr('Dê um nome pra esse webinar.');
+    setCriando(true);
+    pacote.tarefas.forEach(t => {
+      addDemand({
+        title: t.titulo(tema.trim()), area: t.area, priority: t.priority,
+        deadline: somarDias(dataBase, t.diasAntes), description: '',
+        requester: 'Pacote: '+pacote.label, assignees: t.assignees,
+      });
+    });
+    setTimeout(() => { setCriando(false); setPacoteOpen(false); }, 700);
+  };
+
+  return (
+    <Modal onClose={()=>setPacoteOpen(false)} width={560}>
+      <div style={{padding:'24px 28px 18px',borderBottom:'1px solid '+NB.bdSoft,display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:14}}>
+        <div>
+          <h2 style={{fontSize:20,fontWeight:600,color:NB.txt,marginBottom:5,letterSpacing:'-0.01em'}}>Criar pacote de tarefas</h2>
+          <p style={{fontSize:13.5,color:NB.mut}}>Um clique cria todas as tarefas padrão desse fluxo de uma vez.</p>
+        </div>
+        <button onClick={()=>setPacoteOpen(false)} style={{padding:8,background:'#fff',border:'1px solid '+NB.bd,borderRadius:9,color:NB.mut,display:'flex',flexShrink:0}}><IX/></button>
+      </div>
+
+      <div style={{padding:'22px 28px',display:'flex',flexDirection:'column',gap:18}}>
+        <div>
+          <div style={lbl}>Pacote</div>
+          <select value={pacoteId} onChange={e=>setPacoteId(e.target.value)} style={inp}>
+            {Object.entries(PACOTES_TAREFAS).map(([id,p])=><option key={id} value={id}>{p.label}</option>)}
+          </select>
+          <p style={{fontSize:12,color:NB.mut2,marginTop:6}}>{pacote.descricao}</p>
+        </div>
+
+        <div>
+          <div style={lbl}>Tema do webinar</div>
+          <input value={tema} onChange={e=>{setTema(e.target.value); setErr('');}} placeholder="ex: Reforma Tributária na prática" style={inp}
+            onFocus={e=>{e.target.style.borderColor=NB.azul;}} onBlur={e=>{e.target.style.borderColor=NB.bd;}}/>
+        </div>
+
+        <div>
+          <div style={lbl}>{pacote.campoData}</div>
+          <input type="date" value={dataBase} onChange={e=>setDataBase(e.target.value)} style={inp}/>
+        </div>
+
+        <div style={{background:NB.col,border:'1px solid '+NB.bd,borderRadius:11,padding:'14px 16px'}}>
+          <div style={{fontSize:12,fontWeight:600,color:NB.mut,marginBottom:9,textTransform:'uppercase',letterSpacing:'0.06em'}}>
+            {pacote.tarefas.length} tarefas vão ser criadas
+          </div>
+          <div style={{display:'flex',flexDirection:'column',gap:7}}>
+            {pacote.tarefas.map((t,i)=>{
+              const areaColor = AREA_CLR[t.area]||NB.azul;
+              return (
+                <div key={i} style={{display:'flex',alignItems:'center',gap:9,fontSize:12.5,color:NB.txt}}>
+                  <span style={{width:6,height:6,borderRadius:2,background:areaColor,flexShrink:0}}/>
+                  <span style={{flex:1,minWidth:0,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{t.titulo(tema.trim()||'—')}</span>
+                  <span style={{color:NB.mut2,flexShrink:0,fontSize:11.5}}>{dataBase?fmtDate(somarDias(dataBase,t.diasAntes)):''}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {err && <p style={{fontSize:12.5,color:'#B4232A'}}>{err}</p>}
+      </div>
+
+      <div style={{padding:'16px 28px',borderTop:'1px solid '+NB.bdSoft,display:'flex',justifyContent:'flex-end',gap:10}}>
+        <button onClick={()=>setPacoteOpen(false)}
+          style={{padding:'11px 18px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:9,fontSize:13,fontWeight:500,color:NB.mut}}>
+          Cancelar
+        </button>
+        <button onClick={criar} disabled={criando}
+          style={{padding:'11px 24px',background:criando?'#CFD8E6':NB.azul,border:'none',borderRadius:9,fontSize:13,fontWeight:500,color:'#fff',cursor:criando?'wait':'pointer'}}>
+          {criando?'Criando…':'Criar '+pacote.tarefas.length+' tarefas'}
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
 function NewModal() {
   const { newOpen, setNewOpen, addDemand, user, area, pipes } = useApp();
   const initArea = area!=='Todas' ? area : 'Social';
@@ -4842,6 +4968,7 @@ function AppContent() {
       </div>
       <CardModal/>
       <NewModal/>
+      <PacoteModal/>
       <NotifyModal/>
       <ProfileModal/>
       {editStages && <StageEditorModal areaName={editStages} onClose={()=>setEditStages(null)}/>}
