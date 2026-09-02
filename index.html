@@ -160,7 +160,6 @@ function Provider({ children }) {
   const [posts, setPosts] = useState([]);
   const [campanhasPublicas, setCampanhasPublicas] = useState([]);
   const [campanhasGestao, setCampanhasGestao] = useState([]);
-  const [lancamentos, setLancamentos] = useState([]);
   const [redesSociais, setRedesSociais] = useState({ instagramHandle:'', posts:[] });
   const [arquivosPublicos, setArquivosPublicos] = useState([]);
   const [arquivosGestao, setArquivosGestao] = useState([]);
@@ -265,9 +264,6 @@ function Provider({ children }) {
     }, erro);
     const up = db.collection('pecas').onSnapshot(snap => {
       setPecas(snap.docs.map(d => ({ id:d.id, ...d.data() })));
-    }, erro);
-    const ul = db.collection('lancamentos').onSnapshot(snap => {
-      setLancamentos(snap.docs.map(d => ({ id:d.id, ...d.data() })));
     }, erro);
     const ur = db.collection('redesSociais').doc('principal').onSnapshot(doc => {
       setRedesSociais(doc.exists ? doc.data() : { instagramHandle:'', posts:[] });
@@ -615,18 +611,6 @@ function Provider({ children }) {
   }, []);
 
   /* ---------- Campanhas: nasce como rascunho, só marketing gerencia; publicada = todo mundo do Nibo vê ---------- */
-  const addCampanha = useCallback((dados) => {
-    const db = dbRef.current; if (!db) return;
-    db.collection('campanhas').add({
-      ...dados, status:'rascunho', pecaIds: dados.pecaIds||[], instagramLink: dados.instagramLink||'',
-      criadaEm:new Date().toISOString(), criadaPor:(user&&user.name)||'',
-    }).then(() => {
-      feed({ code:'CAMP', area:'Gestão' }, 'Nova campanha criada',
-        (user&&user.name)+' criou a campanha "'+dados.titulo+'" (rascunho)',
-        'Publique quando estiver pronta para todos verem', 'new');
-    }).catch(e => setDbErro('Não foi possível criar a campanha: '+e.message));
-  }, [user]);
-
   const updateCampanha = useCallback((id, patch) => {
     const db = dbRef.current; if (!db) return;
     db.collection('campanhas').doc(id).update(patch)
@@ -649,6 +633,33 @@ function Provider({ children }) {
     db.collection('campanhas').doc(id).delete().catch(e=>setDbErro('Não foi possível excluir a campanha: '+e.message));
   }, []);
 
+  /* Publica direto a partir de uma demanda marcada como campanha, já
+     "Publicado" no pipeline — usa as peças já anexadas na própria demanda. */
+  const enviarCampanhaDeDemanda = useCallback((demand) => {
+    const db = dbRef.current; if (!db) return;
+    db.collection('campanhas').add({
+      titulo: demand.title,
+      descricao: demand.description || '',
+      desconto: demand.campanhaDesconto || '',
+      jornada: demand.campanhaJornada || '',
+      produtos: [],
+      pecaIds: [],
+      pecasDemanda: demand.links || [],
+      instagramLink: '',
+      status: 'publicada',
+      criadaEm: new Date().toISOString(),
+      criadaPor: (user&&user.name)||'',
+      publicadaEm: new Date().toISOString(),
+      publicadaPor: (user&&user.name)||'',
+      origemDemandaId: demand.id,
+    }).then(ref => {
+      db.collection('demandas').doc(demand.id).update({ campanhaId: ref.id }).catch(()=>{});
+      feed({ code:demand.code, area:demand.area }, 'Campanha enviada pra Central',
+        '"'+demand.title+'" está publicada — visível na Central de Informações para todo o Nibo',
+        demand.campanhaDesconto ? 'Desconto: '+demand.campanhaDesconto : 'Sem desconto informado', 'approval');
+    }).catch(e => setDbErro('Não foi possível enviar a campanha: '+e.message));
+  }, [user, feed]);
+
   /* ---------- Biblioteca de Peças: só link (sem upload) — evita estourar o documento e mantém tudo pesquisável ---------- */
   const addPeca = useCallback((dados) => {
     const db = dbRef.current; if (!db) return Promise.reject(new Error('Sem conexão.'));
@@ -661,23 +672,6 @@ function Provider({ children }) {
   const removePeca = useCallback((id) => {
     const db = dbRef.current; if (!db) return;
     db.collection('pecas').doc(id).delete().catch(e=>setDbErro('Não foi possível remover a peça: '+e.message));
-  }, []);
-
-  /* ---------- Calendário de Produto ---------- */
-  const addLancamento = useCallback((dados) => {
-    const db = dbRef.current; if (!db) return;
-    db.collection('lancamentos').add({ ...dados, criadoPor:(user&&user.name)||'', criadoEm:new Date().toISOString() })
-      .then(()=>feed({ code:'LANC', area:'Gestão' }, 'Novo lançamento no calendário',
-        (user&&user.name)+' cadastrou "'+dados.nome+'"', dados.data?('Previsto para '+fmtDate(dados.data)):'', 'new'))
-      .catch(e => setDbErro('Não foi possível salvar o lançamento: '+e.message));
-  }, [user]);
-  const updateLancamento = useCallback((id, patch) => {
-    const db = dbRef.current; if (!db) return;
-    db.collection('lancamentos').doc(id).update(patch).catch(e=>setDbErro('Não foi possível atualizar: '+e.message));
-  }, []);
-  const removeLancamento = useCallback((id) => {
-    const db = dbRef.current; if (!db) return;
-    db.collection('lancamentos').doc(id).delete().catch(e=>setDbErro('Não foi possível remover: '+e.message));
   }, []);
 
   /* ---------- Redes Sociais (documento único) ---------- */
@@ -740,7 +734,7 @@ function Provider({ children }) {
   window.__nbDem = demands;
   window.__nbPosts = posts;
 
-  return <Ctx.Provider value={{ demands, active, archived, filtered, slack, user, isTeamMember, authReady, authError, setAuthError, dbReady, dbErro, dbErroPublico, seed, pedidos, aceitarPedido, recusarPedido, posts, addPost, updatePost, deletePost, campanhas, addCampanha, updateCampanha, publicarCampanha, despublicarCampanha, deleteCampanha, pecas, addPeca, removePeca, lancamentos, addLancamento, updateLancamento, removeLancamento, redesSociais, salvarRedesSociais, arquivos, addArquivo, removeArquivo, embaixadores, addEmbaixador, removeEmbaixador, view, setView, layout, setLayout, area, setArea, query, setQuery, priFilter, setPriFilter, reqFilter, setReqFilter, selDemand, setModal, newOpen, setNewOpen, notifyPending, setNotifyPending, profileOpen, setProfileOpen, editStages, setEditStages, dragging, setDragging, previewMember, setPreviewMember, photos, googlePhotos, profiles, pipes, salvarPipes, attach, comments, storageWarn, MAX_FILE, addAttachment, uploadFile, migrarLocal, carregarAnexo, removeAttachment, addComment, removeComment, logout, savePhoto, removePhoto, saveProfile, addDemand, moveStage, moveArea, setAssignees, updateDemand, archiveDemand, restoreDemand, delDemand }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ demands, active, archived, filtered, slack, user, isTeamMember, authReady, authError, setAuthError, dbReady, dbErro, dbErroPublico, seed, pedidos, aceitarPedido, recusarPedido, posts, addPost, updatePost, deletePost, campanhas, updateCampanha, publicarCampanha, despublicarCampanha, deleteCampanha, enviarCampanhaDeDemanda, pecas, addPeca, removePeca, redesSociais, salvarRedesSociais, arquivos, addArquivo, removeArquivo, embaixadores, addEmbaixador, removeEmbaixador, view, setView, layout, setLayout, area, setArea, query, setQuery, priFilter, setPriFilter, reqFilter, setReqFilter, selDemand, setModal, newOpen, setNewOpen, notifyPending, setNotifyPending, profileOpen, setProfileOpen, editStages, setEditStages, dragging, setDragging, previewMember, setPreviewMember, photos, googlePhotos, profiles, pipes, salvarPipes, attach, comments, storageWarn, MAX_FILE, addAttachment, uploadFile, migrarLocal, carregarAnexo, removeAttachment, addComment, removeComment, logout, savePhoto, removePhoto, saveProfile, addDemand, moveStage, moveArea, setAssignees, updateDemand, archiveDemand, restoreDemand, delDemand }}>{children}</Ctx.Provider>;
 }
 
 const useApp = () => useContext(Ctx);
@@ -1837,6 +1831,8 @@ function WhatsAppPanel({ camp, onClose }) {
 
 function CampanhaPublicCard({ camp, pecasDaCampanha }) {
   const [whats, setWhats] = useState(false);
+  const jornada = PERSONAS.find(p=>p.id===camp.jornada);
+  const pecasLinks = camp.pecasDemanda || [];
   return (
     <div style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:14,padding:'18px 20px',boxShadow:'0 1px 3px rgba(11,42,92,0.04)'}}>
       <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:10,marginBottom:10}}>
@@ -1846,17 +1842,24 @@ function CampanhaPublicCard({ camp, pecasDaCampanha }) {
         )}
       </div>
       {camp.descricao && <p style={{fontSize:13,color:NB.mut,lineHeight:1.55,marginBottom:12}}>{camp.descricao}</p>}
-      {(camp.produtos||[]).length>0 && (
-        <div style={{display:'flex',flexWrap:'wrap',gap:6,marginBottom:12}}>
-          {camp.produtos.map(p=><span key={p} style={{fontSize:11.5,color:NB.txt,background:NB.col,border:'1px solid '+NB.bd,borderRadius:6,padding:'3px 9px'}}>{p}</span>)}
-        </div>
-      )}
-      {pecasDaCampanha.length>0 && (
+      <div style={{display:'flex',flexWrap:'wrap',gap:6,marginBottom:12}}>
+        {jornada && (
+          <span style={{fontSize:11.5,color:NB.azul,background:'#EAF3FD',border:'1px solid #BFDDF7',borderRadius:6,padding:'3px 9px'}}>{jornada.emoji} {jornada.label}</span>
+        )}
+        {(camp.produtos||[]).map(p=><span key={p} style={{fontSize:11.5,color:NB.txt,background:NB.col,border:'1px solid '+NB.bd,borderRadius:6,padding:'3px 9px'}}>{p}</span>)}
+      </div>
+      {(pecasDaCampanha.length>0 || pecasLinks.length>0) && (
         <div style={{display:'flex',gap:7,flexWrap:'wrap',marginBottom:12}}>
           {pecasDaCampanha.map(p=>(
             <a key={p.id} href={p.url} target="_blank" rel="noopener noreferrer"
               style={{display:'flex',alignItems:'center',gap:5,fontSize:11.5,color:NB.azul,background:'#EAF3FD',borderRadius:6,padding:'4px 9px',textDecoration:'none'}}>
               <IExt s={11}/> {p.nome}
+            </a>
+          ))}
+          {pecasLinks.map((p,i)=>(
+            <a key={'d'+i} href={p.url} target="_blank" rel="noopener noreferrer"
+              style={{display:'flex',alignItems:'center',gap:5,fontSize:11.5,color:NB.azul,background:'#EAF3FD',borderRadius:6,padding:'4px 9px',textDecoration:'none'}}>
+              <IExt s={11}/> {p.name}
             </a>
           ))}
         </div>
@@ -1886,7 +1889,6 @@ function InfoCentralView() {
 
   const abas = [
     { id:'campanhas',  label:'Campanhas',      Icon:ITarget },
-    { id:'calendario', label:'Calendário',      Icon:ICal },
     { id:'social',     label:'Redes Sociais',   Icon:IChat },
     { id:'arquivos',   label:'Pasta de Arquivos', Icon:IFile },
     { id:'embaixadores', label:'Embaixadores',  Icon:IStamp },
@@ -1910,7 +1912,6 @@ function InfoCentralView() {
       </div>
 
       {aba==='campanhas'   && <CampanhasBuscaTab/>}
-      {aba==='calendario'  && <CalendarioTab podeEditar={podeEditar}/>}
       {aba==='social'      && <RedesSociaisTab podeEditar={podeEditar}/>}
       {aba==='arquivos'    && <ArquivosTab podeEditar={podeEditarArquivos}/>}
       {aba==='embaixadores'&& <EmbaixadoresTab podeEditar={podeEditar}/>}
@@ -1972,126 +1973,6 @@ function CampanhasBuscaTab() {
   );
 }
 
-/* ---------- Calendário de Produto ---------- */
-const STATUS_LANC = {
-  planejado: { label:'Planejado', bg:'#EAF3FD', txt:NB.azul },
-  em_breve:  { label:'Em breve',  bg:'#FFF6DE', txt:'#8A6206' },
-  entregue:  { label:'Entregue',  bg:'#E1F5EE', txt:'#0F6E56' },
-};
-
-function LancamentoModal({ item, onClose }) {
-  const { addLancamento, updateLancamento } = useApp();
-  const editando = !!item;
-  const [f, setF] = useState(() => item ? {
-    nome:item.nome||'', data:item.data||'', descricao:item.descricao||'',
-    link:item.link||'', status:item.status||'planejado',
-  } : { nome:'', data:'', descricao:'', link:'', status:'planejado' });
-  const [err, setErr] = useState('');
-  const set = (k,v)=>setF(x=>({...x,[k]:v}));
-
-  const salvar = () => {
-    if (!f.nome.trim() || !f.data) return setErr('Preencha nome e data.');
-    if (editando) updateLancamento(item.id, f); else addLancamento(f);
-    onClose();
-  };
-
-  return (
-    <Modal onClose={onClose} width={480}>
-      <div style={{padding:'22px 24px 16px',borderBottom:'1px solid '+NB.bdSoft}}>
-        <h2 style={{fontSize:17,fontWeight:600,color:NB.txt}}>{editando?'Editar lançamento':'Novo lançamento'}</h2>
-      </div>
-      <div style={{padding:'20px 24px',display:'flex',flexDirection:'column',gap:13}}>
-        <div>
-          <div style={{...lbl,marginBottom:6}}>Nome</div>
-          <input value={f.nome} onChange={e=>set('nome',e.target.value)} placeholder="ex: Obrigações Plus v2" style={{...inp,padding:'9px 12px',fontSize:13.5}}/>
-        </div>
-        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
-          <div>
-            <div style={{...lbl,marginBottom:6}}>Data</div>
-            <input type="date" value={f.data} onChange={e=>set('data',e.target.value)} style={{...inp,padding:'9px 12px',fontSize:13.5}}/>
-          </div>
-          <div>
-            <div style={{...lbl,marginBottom:6}}>Status</div>
-            <select value={f.status} onChange={e=>set('status',e.target.value)} style={{...inp,padding:'9px 12px',fontSize:13.5}}>
-              {Object.entries(STATUS_LANC).map(([k,v])=><option key={k} value={k}>{v.label}</option>)}
-            </select>
-          </div>
-        </div>
-        <div>
-          <div style={{...lbl,marginBottom:6}}>Descrição</div>
-          <textarea value={f.descricao} onChange={e=>set('descricao',e.target.value)} rows={2} style={{...inp,padding:'9px 12px',fontSize:13.5,resize:'vertical'}}/>
-        </div>
-        <div>
-          <div style={{...lbl,marginBottom:6}}>Link do documento de campanha (opcional)</div>
-          <input value={f.link} onChange={e=>set('link',e.target.value)} style={{...inp,padding:'9px 12px',fontSize:13.5}}/>
-        </div>
-        {err && <p style={{fontSize:12.5,color:'#B4232A'}}>{err}</p>}
-      </div>
-      <div style={{padding:'16px 24px',borderTop:'1px solid '+NB.bdSoft,display:'flex',justifyContent:'flex-end',gap:10}}>
-        <button onClick={onClose} style={{padding:'10px 16px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:9,fontSize:13,fontWeight:500,color:NB.mut}}>Cancelar</button>
-        <button onClick={salvar} style={{padding:'10px 20px',background:NB.azul,border:'none',borderRadius:9,fontSize:13,fontWeight:500,color:'#fff'}}>Salvar</button>
-      </div>
-    </Modal>
-  );
-}
-
-function CalendarioTab({ podeEditar }) {
-  const { lancamentos, removeLancamento } = useApp();
-  const [editar, setEditar] = useState(null);
-  const [novo, setNovo] = useState(false);
-  const ordenados = lancamentos.slice().sort((a,b)=>(a.data||'').localeCompare(b.data||''));
-
-  return (
-    <div>
-      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:16,gap:12}}>
-        <p style={{fontSize:13,color:NB.mut}}>Lançamentos e atualizações de produto, organizados por data.</p>
-        {podeEditar && (
-          <button onClick={()=>setNovo(true)}
-            style={{display:'flex',alignItems:'center',gap:7,padding:'9px 15px',background:NB.azul,border:'none',borderRadius:9,fontSize:13,fontWeight:500,color:'#fff',flexShrink:0}}>
-            <IPlus s={13}/> Adicionar
-          </button>
-        )}
-      </div>
-      {ordenados.length===0 ? (
-        <div style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:14,padding:'34px 22px',textAlign:'center',color:NB.mut,fontSize:13.5}}>
-          Nenhum lançamento cadastrado ainda.
-        </div>
-      ) : (
-        <div style={{display:'flex',flexDirection:'column',gap:9}}>
-          {ordenados.map(l=>{
-            const st = STATUS_LANC[l.status]||STATUS_LANC.planejado;
-            return (
-              <div key={l.id} style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:12,padding:'14px 16px',display:'flex',alignItems:'center',gap:14,flexWrap:'wrap'}}>
-                <div style={{textAlign:'center',flexShrink:0,minWidth:52}}>
-                  <div style={{fontSize:17,fontWeight:700,color:NB.txt,lineHeight:1}}>{l.data?l.data.split('-')[2]:'—'}</div>
-                  <div style={{fontSize:10.5,color:NB.mut2,textTransform:'uppercase'}}>{l.data?['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'][parseInt(l.data.split('-')[1],10)-1]:''}</div>
-                </div>
-                <div style={{flex:1,minWidth:180}}>
-                  <div style={{display:'flex',alignItems:'center',gap:9,marginBottom:3,flexWrap:'wrap'}}>
-                    <span style={{fontSize:14,fontWeight:600,color:NB.txt}}>{l.nome}</span>
-                    <span style={{fontSize:10.5,fontWeight:600,padding:'2px 8px',borderRadius:6,background:st.bg,color:st.txt}}>{st.label}</span>
-                  </div>
-                  {l.descricao && <p style={{fontSize:12.5,color:NB.mut,lineHeight:1.5}}>{l.descricao}</p>}
-                  {l.link && <a href={l.link} target="_blank" rel="noopener noreferrer" style={{fontSize:12,color:NB.azul,textDecoration:'none'}}>Ver documento</a>}
-                </div>
-                {podeEditar && (
-                  <div style={{display:'flex',gap:6,flexShrink:0}}>
-                    <button onClick={()=>setEditar(l)} style={{padding:'6px 10px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:7,fontSize:11.5,color:NB.mut}}>Editar</button>
-                    <button onClick={()=>removeLancamento(l.id)} style={{padding:'6px 10px',background:'#fff',border:'1px solid #FBD5D5',borderRadius:7,fontSize:11.5,color:'#B4232A'}}>Remover</button>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
-      {novo && <LancamentoModal item={null} onClose={()=>setNovo(false)}/>}
-      {editar && <LancamentoModal item={editar} onClose={()=>setEditar(null)}/>}
-    </div>
-  );
-}
-
-/* ---------- Redes Sociais ---------- */
 function RedesSociaisTab({ podeEditar }) {
   const { redesSociais, salvarRedesSociais } = useApp();
   const [editandoHandle, setEditandoHandle] = useState(false);
@@ -2451,94 +2332,27 @@ function AbordagemTab() {
 
 /* =========== CAMPANHAS — gestão, só quem tem permissão ============ */
 function CampanhaEditModal({ camp, onClose }) {
-  const { addCampanha, updateCampanha, pecas, addPeca, user } = useApp();
-  const editando = !!camp;
-  const [form, setForm] = useState(() => camp ? {
-    titulo:camp.titulo||'', descricao:camp.descricao||'', desconto:camp.desconto||'',
-    produtos:(camp.produtos||[]).join(', '), instagramLink:camp.instagramLink||'', pecaIds:camp.pecaIds||[],
-  } : { titulo:'', descricao:'', desconto:'', produtos:'', instagramLink:'', pecaIds:[] });
-  const [novaPeca, setNovaPeca] = useState({ nome:'', url:'', tags:'' });
+  const { updateCampanha } = useApp();
+  const [link, setLink] = useState(camp.instagramLink || '');
   const [err, setErr] = useState('');
 
-  const set = (k,v) => setForm(f=>({...f,[k]:v}));
-  const togglePeca = id => setForm(f=>({...f, pecaIds: f.pecaIds.includes(id) ? f.pecaIds.filter(x=>x!==id) : [...f.pecaIds, id]}));
-
-  const salvarPecaNova = () => {
-    if (!novaPeca.nome.trim() || !novaPeca.url.trim()) return setErr('Preencha nome e link da peça.');
-    addPeca({ nome:novaPeca.nome.trim(), url:novaPeca.url.trim(), tags:novaPeca.tags.split(',').map(t=>t.trim()).filter(Boolean), tipo:'banner' })
-      .then(ref => { setForm(f=>({...f, pecaIds:[...f.pecaIds, ref.id]})); setNovaPeca({nome:'',url:'',tags:''}); setErr(''); })
-      .catch(()=>{});
-  };
-
   const salvar = () => {
-    if (!form.titulo.trim()) return setErr('Dê um título pra campanha.');
-    const dados = {
-      titulo:form.titulo.trim(), descricao:form.descricao.trim(), desconto:form.desconto.trim(),
-      produtos:form.produtos.split(',').map(p=>p.trim()).filter(Boolean),
-      instagramLink:form.instagramLink.trim(), pecaIds:form.pecaIds,
-    };
-    if (editando) updateCampanha(camp.id, dados); else addCampanha(dados);
+    let v = link.trim();
+    if (v && !/^https?:\/\//i.test(v)) v = 'https://' + v;
+    updateCampanha(camp.id, { instagramLink: v });
     onClose();
   };
 
   return (
-    <Modal onClose={onClose} width={600}>
+    <Modal onClose={onClose} width={460}>
       <div style={{padding:'22px 24px 16px',borderBottom:'1px solid '+NB.bdSoft}}>
-        <h2 style={{fontSize:18,fontWeight:600,color:NB.txt}}>{editando?'Editar campanha':'Nova campanha'}</h2>
+        <h2 style={{fontSize:17,fontWeight:600,color:NB.txt,marginBottom:5}}>{camp.titulo}</h2>
+        <p style={{fontSize:12.5,color:NB.mut}}>O conteúdo dessa campanha veio da demanda que gerou ela — aqui só dá pra atualizar o link do post no Instagram.</p>
       </div>
-      <div style={{padding:'20px 24px',display:'flex',flexDirection:'column',gap:14,maxHeight:'60vh',overflowY:'auto'}}>
-        <div>
-          <div style={{...lbl,marginBottom:6}}>Título</div>
-          <input value={form.titulo} onChange={e=>set('titulo',e.target.value)} placeholder="ex: Black Friday Nibo 2026" style={{...inp,padding:'9px 12px',fontSize:13.5}}/>
-        </div>
-        <div>
-          <div style={{...lbl,marginBottom:6}}>Descrição</div>
-          <textarea value={form.descricao} onChange={e=>set('descricao',e.target.value)} rows={2} placeholder="Contexto curto pra quem vai ler na Central de Informações" style={{...inp,padding:'9px 12px',fontSize:13.5,resize:'vertical'}}/>
-        </div>
-        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
-          <div>
-            <div style={{...lbl,marginBottom:6}}>Desconto</div>
-            <input value={form.desconto} onChange={e=>set('desconto',e.target.value)} placeholder="ex: 20% OFF" style={{...inp,padding:'9px 12px',fontSize:13.5}}/>
-          </div>
-          <div>
-            <div style={{...lbl,marginBottom:6}}>Produtos válidos</div>
-            <input value={form.produtos} onChange={e=>set('produtos',e.target.value)} placeholder="separados por vírgula" style={{...inp,padding:'9px 12px',fontSize:13.5}}/>
-          </div>
-        </div>
-        <div>
-          <div style={{...lbl,marginBottom:6}}>Link do post no Instagram (opcional)</div>
-          <input value={form.instagramLink} onChange={e=>set('instagramLink',e.target.value)} placeholder="cole quando publicar lá" style={{...inp,padding:'9px 12px',fontSize:13.5}}/>
-        </div>
-
-        <div>
-          <div style={{...lbl,marginBottom:8}}>Peças vinculadas</div>
-          {pecas.length>0 && (
-            <div style={{display:'flex',flexWrap:'wrap',gap:7,marginBottom:10}}>
-              {pecas.map(p=>{
-                const on = form.pecaIds.includes(p.id);
-                return (
-                  <button key={p.id} type="button" onClick={()=>togglePeca(p.id)}
-                    style={{padding:'6px 12px',borderRadius:20,border:'1px solid '+(on?NB.azul:NB.bd),background:on?'#EAF3FD':'#fff',fontSize:12,fontWeight:500,color:on?NB.azul:NB.mut}}>
-                    {p.nome}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-          <div style={{background:NB.col,border:'1px dashed '+NB.bd,borderRadius:10,padding:'12px 13px',display:'flex',flexDirection:'column',gap:8}}>
-            <div style={{fontSize:11.5,color:NB.mut,fontWeight:500}}>Adicionar peça nova (fica na biblioteca pra buscar depois)</div>
-            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
-              <input value={novaPeca.nome} onChange={e=>setNovaPeca(v=>({...v,nome:e.target.value}))} placeholder="Nome" style={{...inp,padding:'8px 11px',fontSize:12.5}}/>
-              <input value={novaPeca.url} onChange={e=>setNovaPeca(v=>({...v,url:e.target.value}))} placeholder="Link (Drive, Canva...)" style={{...inp,padding:'8px 11px',fontSize:12.5}}/>
-            </div>
-            <input value={novaPeca.tags} onChange={e=>setNovaPeca(v=>({...v,tags:e.target.value}))} placeholder="Tags separadas por vírgula" style={{...inp,padding:'8px 11px',fontSize:12.5}}/>
-            <button type="button" onClick={salvarPecaNova} style={{alignSelf:'flex-start',padding:'7px 13px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:8,fontSize:12,fontWeight:500,color:NB.azul}}>
-              <IPlus s={12}/> Adicionar à biblioteca
-            </button>
-          </div>
-        </div>
-
-        {err && <p style={{fontSize:12.5,color:'#B4232A'}}>{err}</p>}
+      <div style={{padding:'20px 24px'}}>
+        <div style={{...lbl,marginBottom:6}}>Link do post no Instagram</div>
+        <input value={link} onChange={e=>{setLink(e.target.value); setErr('');}} placeholder="cole quando publicar lá" style={{...inp,padding:'9px 12px',fontSize:13.5}}/>
+        {err && <p style={{fontSize:12.5,color:'#B4232A',marginTop:8}}>{err}</p>}
       </div>
       <div style={{padding:'16px 24px',borderTop:'1px solid '+NB.bdSoft,display:'flex',justifyContent:'flex-end',gap:10}}>
         <button onClick={onClose} style={{padding:'10px 16px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:9,fontSize:13,fontWeight:500,color:NB.mut}}>Cancelar</button>
@@ -2549,25 +2363,33 @@ function CampanhaEditModal({ camp, onClose }) {
 }
 
 function CampanhaManagerCard({ camp }) {
-  const { publicarCampanha, despublicarCampanha, deleteCampanha, pecas } = useApp();
+  const { publicarCampanha, despublicarCampanha, deleteCampanha } = useApp();
   const [editar, setEditar] = useState(false);
   const [confirmar, setConfirmar] = useState(false);
   const publicada = camp.status === 'publicada';
+  const nPecas = (camp.pecaIds||[]).length + (camp.pecasDemanda||[]).length;
 
   return (
     <div style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:13,padding:'16px 18px'}}>
       <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:10,marginBottom:9}}>
         <div>
-          <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:5}}>
+          <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:5,flexWrap:'wrap'}}>
             <span style={{fontSize:15,fontWeight:600,color:NB.txt}}>{camp.titulo}</span>
             <span style={{fontSize:10.5,fontWeight:600,padding:'2px 8px',borderRadius:6,background:publicada?'#E1F5EE':'#FFF6DE',color:publicada?'#0F6E56':'#8A6206'}}>
               {publicada?'Publicada':'Rascunho'}
             </span>
+            {camp.origemDemandaId && (
+              <span style={{fontSize:10.5,fontWeight:500,padding:'2px 8px',borderRadius:6,background:NB.col,color:NB.mut2}}>vinda de demanda</span>
+            )}
           </div>
-          {camp.desconto && <span style={{fontSize:12.5,color:NB.mut}}>{camp.desconto}</span>}
+          <span style={{fontSize:12.5,color:NB.mut}}>
+            {camp.desconto || 'sem desconto'}{camp.jornada ? ' · '+(PERSONAS.find(p=>p.id===camp.jornada)?.label||camp.jornada) : ''}
+          </span>
         </div>
         <div style={{display:'flex',gap:7,flexShrink:0}}>
-          <button onClick={()=>setEditar(true)} style={{padding:'7px 11px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:8,fontSize:12,fontWeight:500,color:NB.mut}}>Editar</button>
+          <button onClick={()=>setEditar(true)} style={{padding:'7px 11px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:8,fontSize:12,fontWeight:500,color:NB.mut}}>
+            {camp.instagramLink ? 'Editar link' : 'Adicionar link'}
+          </button>
           {publicada
             ? <button onClick={()=>despublicarCampanha(camp)} style={{padding:'7px 11px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:8,fontSize:12,fontWeight:500,color:NB.mut}}>Despublicar</button>
             : <button onClick={()=>publicarCampanha(camp)} style={{padding:'7px 13px',background:'#0F6E56',border:'none',borderRadius:8,fontSize:12,fontWeight:500,color:'#fff'}}>Publicar</button>}
@@ -2575,7 +2397,7 @@ function CampanhaManagerCard({ camp }) {
       </div>
       {camp.descricao && <p style={{fontSize:12.5,color:NB.mut,lineHeight:1.55,marginBottom:8}}>{camp.descricao}</p>}
       <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:10}}>
-        <span style={{fontSize:11.5,color:NB.mut2}}>{(camp.pecaIds||[]).length} peça(s) · {camp.instagramLink?'link do Insta ok':'sem link do Insta ainda'}</span>
+        <span style={{fontSize:11.5,color:NB.mut2}}>{nPecas} peça(s) · {camp.instagramLink?'link do Insta ok':'sem link do Insta ainda'}</span>
         {confirmar ? (
           <span style={{display:'flex',gap:7}}>
             <button onClick={()=>deleteCampanha(camp.id)} style={{padding:'5px 10px',background:'#B4232A',border:'none',borderRadius:7,fontSize:11.5,color:'#fff'}}>Confirmar</button>
@@ -2592,7 +2414,6 @@ function CampanhaManagerCard({ camp }) {
 
 function CampanhasManagerView() {
   const { user, campanhas } = useApp();
-  const [nova, setNova] = useState(false);
 
   if (!user.canPublishCampaigns) {
     return (
@@ -2606,27 +2427,26 @@ function CampanhasManagerView() {
 
   return (
     <div style={{padding:'22px 30px 30px',overflowY:'auto',overflowX:'hidden',height:'100%'}}>
-      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:18,gap:12}}>
+      <div style={{marginBottom:18}}>
         <span style={{fontSize:13.5,color:NB.mut}}>{campanhas.length} campanha(s) no total</span>
-        <button onClick={()=>setNova(true)}
-          style={{display:'flex',alignItems:'center',gap:7,padding:'9px 16px',background:NB.azul,border:'none',borderRadius:9,fontSize:13,fontWeight:500,color:'#fff'}}>
-          <IPlus s={14}/> Nova campanha
-        </button>
+        <p style={{fontSize:12.5,color:NB.mut2,marginTop:3}}>
+          Campanha nasce numa demanda — marque "essa demanda é uma campanha" na criação, e quando ela chegar em "Publicado" vai ter o botão de enviar pra cá.
+        </p>
       </div>
       {campanhas.length===0 ? (
         <div style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:14,padding:'40px 22px',textAlign:'center',color:NB.mut,fontSize:13.5}}>
-          Nenhuma campanha ainda. Crie uma e publique quando estiver pronta.
+          Nenhuma campanha ainda. Assim que uma demanda marcada como campanha for enviada, ela aparece aqui.
         </div>
       ) : (
         <div style={{display:'flex',flexDirection:'column',gap:11}}>
           {campanhas.slice().sort((a,b)=> (b.criadaEm||'').localeCompare(a.criadaEm||'')).map(c=><CampanhaManagerCard key={c.id} camp={c}/>)}
         </div>
       )}
-      {nova && <CampanhaEditModal camp={null} onClose={()=>setNova(false)}/>}
     </div>
   );
 }
 
+/* =========== GESTÃO — fila de aprovação =========== */
 /* =========== GESTÃO — fila de aprovação =========== */
 function ApprovalCard({ demand }) {
   const { moveStage, setNotifyPending, addComment, user, previewMember, setModal, attach, comments, pipes } = useApp();
@@ -4190,19 +4010,20 @@ function AssigneeChip({ initials, onRemove }) {
 }
 
 function CardModal() {
-  const { selDemand, setModal, moveStage, moveArea, delDemand, archiveDemand, setNotifyPending, setAssignees, updateDemand, attach, comments, pipes } = useApp();
+  const { selDemand, setModal, moveStage, moveArea, delDemand, archiveDemand, setNotifyPending, setAssignees, updateDemand, attach, comments, pipes, enviarCampanhaDeDemanda } = useApp();
   const [picker, setPicker] = useState(false);
   const [confirmDel, setConfirmDel] = useState(false);
   const [tab, setTab] = useState('anexos');
   const [areaPick, setAreaPick] = useState(false);
   const [tgtArea, setTgtArea]   = useState(null);
   const [tgtStage, setTgtStage] = useState(null);
+  const [enviando, setEnviando] = useState(false);
   const openId = selDemand ? selDemand.id : null;
 
   /* Reabrir outro card não pode herdar o estado do anterior */
   useEffect(() => {
     setPicker(false); setConfirmDel(false); setTab('anexos');
-    setAreaPick(false); setTgtArea(null); setTgtStage(null);
+    setAreaPick(false); setTgtArea(null); setTgtStage(null); setEnviando(false);
   }, [openId]);
 
   if (!selDemand) return null;
@@ -4212,10 +4033,18 @@ function CardModal() {
 
   const d = selDemand;
   const stages = pipes[d.area]||[];
+  const stage = stages.find(s=>s.id===d.stageId);
   const ps  = PRI_STL[d.priority]||PRI_STL.Baixa;
   const ac  = AREA_CLR[d.area]||NB.azul;
   const sla = getSla(d.deadline);
   const Icon = AREA_ICON[d.area];
+  const podeEnviarCampanha = d.ehCampanha && stage && stage.isDone;
+
+  const enviarCampanha = () => {
+    setEnviando(true);
+    enviarCampanhaDeDemanda(d);
+    setTimeout(()=>setEnviando(false), 900);
+  };
 
   const toggle = init => {
     const has = d.assignees.includes(init);
@@ -4240,6 +4069,29 @@ function CardModal() {
       </div>
 
       <div style={{padding:'22px 26px'}}>
+        {(podeEnviarCampanha || d.campanhaId) && (
+          <div style={{marginBottom:20,background:d.campanhaId?'#E1F5EE':'#EAF3FD',border:'1px solid '+(d.campanhaId?'#A7E8CC':'#BBD8F5'),borderRadius:12,padding:'14px 16px',display:'flex',alignItems:'center',justifyContent:'space-between',gap:14,flexWrap:'wrap'}}>
+            <div style={{display:'flex',alignItems:'center',gap:11,minWidth:0}}>
+              <span style={{color:d.campanhaId?'#0F6E56':NB.azul,display:'flex',flexShrink:0}}>{d.campanhaId?<ICheck s={18}/>:<ITarget s={18}/>}</span>
+              <div>
+                <div style={{fontSize:13.5,fontWeight:600,color:NB.txt}}>
+                  {d.campanhaId ? 'Já está na Central de Informações' : 'Pronta pra ir pra Central de Informações'}
+                </div>
+                <div style={{fontSize:12,color:NB.mut}}>
+                  {d.campanhaId
+                    ? 'Todo o Nibo já pode ver essa campanha, com as peças anexadas aqui.'
+                    : (d.campanhaDesconto ? d.campanhaDesconto+' · ' : '')+'Jornada: '+(PERSONAS.find(p=>p.id===d.campanhaJornada)?.label||d.campanhaJornada)}
+                </div>
+              </div>
+            </div>
+            {!d.campanhaId && (
+              <button onClick={enviarCampanha} disabled={enviando}
+                style={{padding:'9px 16px',background:NB.azul,border:'none',borderRadius:9,fontSize:12.5,fontWeight:500,color:'#fff',flexShrink:0,opacity:enviando?0.7:1,cursor:enviando?'wait':'pointer'}}>
+                {enviando?'Enviando…':'Enviar campanha para Central de Informações'}
+              </button>
+            )}
+          </div>
+        )}
         <div style={{marginBottom:22}}>
           <div style={lbl}>Descrição</div>
           <EditableText value={d.description} multiline rows={3}
@@ -4609,10 +4461,12 @@ function AssigneePick({ member, checked, onToggle }) {
 function NewModal() {
   const { newOpen, setNewOpen, addDemand, user, area, pipes } = useApp();
   const initArea = area!=='Todas' ? area : 'Social';
-  const [form, setForm] = useState({ title:'', area:initArea, priority:'Média', deadline:dStr(7), description:'', requester:user.name, assignees:[] });
+  const [form, setForm] = useState({ title:'', area:initArea, priority:'Média', deadline:dStr(7), description:'', requester:user.name, assignees:[],
+    ehCampanha:false, campanhaDesconto:'', campanhaJornada:'empresa' });
 
   useEffect(() => {
-    if (newOpen) setForm(f=>({ ...f, title:'', area:area!=='Todas'?area:'Social', requester:user.name, assignees:[], description:'' }));
+    if (newOpen) setForm(f=>({ ...f, title:'', area:area!=='Todas'?area:'Social', requester:user.name, assignees:[], description:'',
+      ehCampanha:false, campanhaDesconto:'', campanhaJornada:'empresa' }));
   }, [newOpen, area, user]);
 
   if (!newOpen) return null;
@@ -4623,7 +4477,8 @@ function NewModal() {
 
   const submit = () => {
     if (!valid) return;
-    addDemand({ title:form.title, area:form.area, priority:form.priority, deadline:form.deadline, description:form.description, requester:form.requester, assignees:form.assignees });
+    addDemand({ title:form.title, area:form.area, priority:form.priority, deadline:form.deadline, description:form.description, requester:form.requester, assignees:form.assignees,
+      ehCampanha:form.ehCampanha, campanhaDesconto:form.ehCampanha?form.campanhaDesconto:'', campanhaJornada:form.ehCampanha?form.campanhaJornada:'' });
     setNewOpen(false);
   };
 
@@ -4678,6 +4533,30 @@ function NewModal() {
             <div style={lbl}>Prazo</div>
             <input type="date" value={form.deadline} onChange={e=>set('deadline',e.target.value)} style={inp}/>
           </div>
+        </div>
+
+        <div style={{background:form.ehCampanha?'#EAF3FD':NB.col,border:'1px solid '+(form.ehCampanha?NB.azul:NB.bd),borderRadius:11,padding:'14px 15px'}}>
+          <label style={{display:'flex',alignItems:'center',gap:10,cursor:'pointer'}}>
+            <input type="checkbox" checked={form.ehCampanha} onChange={e=>set('ehCampanha',e.target.checked)} style={{width:16,height:16,accentColor:NB.azul}}/>
+            <span style={{fontSize:13.5,fontWeight:500,color:NB.txt}}>Essa demanda é uma campanha</span>
+          </label>
+          {form.ehCampanha && (
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginTop:13}}>
+              <div>
+                <div style={lbl}>Desconto</div>
+                <input value={form.campanhaDesconto} onChange={e=>set('campanhaDesconto',e.target.value)} placeholder="ex: 20% OFF" style={{...inp,padding:'9px 12px',fontSize:13.5}}/>
+              </div>
+              <div>
+                <div style={lbl}>Jornada</div>
+                <select value={form.campanhaJornada} onChange={e=>set('campanhaJornada',e.target.value)} style={{...inp,padding:'9px 12px',fontSize:13.5}}>
+                  {PERSONAS.map(p=><option key={p.id} value={p.id}>{p.emoji} {p.label}</option>)}
+                </select>
+              </div>
+              <p style={{gridColumn:'1 / -1',fontSize:12,color:NB.mut,lineHeight:1.55,margin:0}}>
+                Quando essa demanda chegar em "Publicado", vai aparecer um botão pra enviar ela pra Central de Informações, junto com as peças anexadas.
+              </p>
+            </div>
+          )}
         </div>
 
         <div>
