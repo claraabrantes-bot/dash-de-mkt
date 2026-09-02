@@ -2753,6 +2753,119 @@ function drawVariant(img, w, h, bg, mode) {
   return cv.toDataURL('image/png');
 }
 
+/* Espera a Poppins carregar antes de desenhar texto no canvas — sem isso o
+   navegador às vezes cai pra uma fonte serifada padrão no primeiro uso. */
+function ensurePoppins() {
+  if (!(window.document && document.fonts)) return Promise.resolve();
+  return Promise.all([
+    document.fonts.load('800 60px Poppins'),
+    document.fonts.load('600 30px Poppins'),
+  ]).catch(()=>{});
+}
+
+/* Quebra de linha manual — canvas não quebra texto sozinho. */
+function wrapLines(ctx, text, maxWidth) {
+  const palavras = (text||'').trim().split(/\s+/).filter(Boolean);
+  const linhas = []; let atual = '';
+  palavras.forEach(p => {
+    const teste = atual ? atual+' '+p : p;
+    if (ctx.measureText(teste).width > maxWidth && atual) { linhas.push(atual); atual = p; }
+    else atual = teste;
+  });
+  if (atual) linhas.push(atual);
+  return linhas;
+}
+
+/* Desenha o símbolo do Nibo direto no canvas, com a MESMA geometria do
+   NiboSymbol em SVG (três círculos + conector), pra ficar idêntico ao logo do app. */
+function drawNiboMarkOnCanvas(ctx, x, y, size, color) {
+  const s = size/100;
+  ctx.save();
+  ctx.translate(x - size/2, y - size/2);
+  ctx.scale(s, s);
+  ctx.fillStyle = color;
+  ctx.beginPath(); ctx.arc(50, 36.8, 8.85, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(67.65, 63.2, 8.85, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(32.35, 63.2, 8.85, 0, Math.PI*2); ctx.fill();
+  ctx.fill(new Path2D('M48.978 45.591 A12 12 0 0 1 59.136 60.785 L68.672 54.409 A12 12 0 0 1 58.514 39.215 Z'));
+  ctx.restore();
+}
+
+/* Capa: peça (opcional) com degradê escuro embaixo pra legibilidade, título
+   grande, subtítulo, marca do Nibo no canto — igual uma thumbnail de vídeo. */
+async function drawCapa(bgImg, w, h, titulo, subtitulo) {
+  await ensurePoppins();
+  const cv = document.createElement('canvas'); cv.width=w; cv.height=h;
+  const ctx = cv.getContext('2d');
+  ctx.imageSmoothingQuality = 'high';
+
+  if (bgImg) {
+    const s = Math.max(w/bgImg.naturalWidth, h/bgImg.naturalHeight);
+    const dw = bgImg.naturalWidth*s, dh = bgImg.naturalHeight*s;
+    ctx.drawImage(bgImg, (w-dw)/2, (h-dh)/2, dw, dh);
+  } else {
+    const grad = ctx.createLinearGradient(0,0,w,h);
+    grad.addColorStop(0, NB.navy1); grad.addColorStop(1, NB.roxo);
+    ctx.fillStyle = grad; ctx.fillRect(0,0,w,h);
+  }
+
+  const overlay = ctx.createLinearGradient(0, h*0.42, 0, h);
+  overlay.addColorStop(0, 'rgba(0,20,50,0)'); overlay.addColorStop(1, 'rgba(0,17,42,0.86)');
+  ctx.fillStyle = overlay; ctx.fillRect(0, h*0.42, w, h*0.58);
+
+  const pad = w*0.08;
+  let cursorY = h - pad - (subtitulo ? h*0.05 : 0);
+
+  if (subtitulo) {
+    ctx.font = '600 '+Math.round(w*0.032)+'px Poppins, sans-serif';
+    ctx.fillStyle = '#B8CCEA';
+    const subLinhas = wrapLines(ctx, subtitulo, w - pad*2);
+    subLinhas.slice(0,2).reverse().forEach(l => { ctx.fillText(l, pad, cursorY); cursorY -= w*0.045; });
+    cursorY -= w*0.015;
+  }
+
+  ctx.font = '800 '+Math.round(w*0.068)+'px Poppins, sans-serif';
+  ctx.fillStyle = '#fff';
+  const linhas = wrapLines(ctx, titulo || 'Título da capa', w - pad*2).slice(0,3);
+  const linhaAltura = w*0.082;
+  [...linhas].reverse().forEach(l => { ctx.fillText(l, pad, cursorY); cursorY -= linhaAltura; });
+
+  drawNiboMarkOnCanvas(ctx, pad + w*0.035, h*0.42 - h*0.055, w*0.075, '#fff');
+
+  return cv.toDataURL('image/png');
+}
+
+/* Encerramento: card final padronizado — degradê Nibo, marca grande centralizada
+   e uma frase opcional. Pensado pra ser o último frame de um vídeo simples. */
+async function drawEncerramento(w, h, frase) {
+  await ensurePoppins();
+  const cv = document.createElement('canvas'); cv.width=w; cv.height=h;
+  const ctx = cv.getContext('2d');
+
+  const grad = ctx.createLinearGradient(0,0,w,h);
+  grad.addColorStop(0, '#001B45'); grad.addColorStop(0.55, NB.navy1); grad.addColorStop(1, '#0A3F94');
+  ctx.fillStyle = grad; ctx.fillRect(0,0,w,h);
+
+  const cx = w/2, cy = h*0.44;
+  drawNiboMarkOnCanvas(ctx, cx, cy, Math.min(w,h)*0.22, '#B8CCEA');
+
+  ctx.textAlign = 'center';
+  ctx.font = '800 '+Math.round(Math.min(w,h)*0.09)+'px Poppins, sans-serif';
+  ctx.fillStyle = '#fff';
+  ctx.fillText('nibo', cx, cy + Math.min(w,h)*0.135);
+
+  if (frase && frase.trim()) {
+    ctx.font = '500 '+Math.round(Math.min(w,h)*0.032)+'px Poppins, sans-serif';
+    ctx.fillStyle = '#B8CCEA';
+    const linhas = wrapLines(ctx, frase.trim(), w*0.78);
+    let ly = cy + Math.min(w,h)*0.21;
+    linhas.slice(0,2).forEach(l => { ctx.fillText(l, cx, ly); ly += Math.min(w,h)*0.045; });
+  }
+  ctx.textAlign = 'left';
+
+  return cv.toDataURL('image/png');
+}
+
 function briefing(tema, publico) {
   return {
     'Ângulos de headline (3 versões pra testar)': [
@@ -2794,9 +2907,20 @@ function VariationsView() {
   const [alvo, setAlvo]   = useState('');
   const [err, setErr]     = useState('');
   const [okMsg, setOk]    = useState('');
+  const [gerando, setGerando] = useState(false);
   const fileRef = useRef(null);
 
+  /* Capa: fundo é opcional — se não subir nada, usa o degradê Nibo. */
+  const [capaImg, setCapaImg]   = useState(null);
+  const [capaTitulo, setCapaTitulo] = useState('');
+  const [capaSub, setCapaSub]       = useState('');
+  const capaFileRef = useRef(null);
+
+  /* Encerramento: nunca precisa de imagem — é sempre o card padrão da marca. */
+  const [fraseFinal, setFraseFinal] = useState('');
+
   const designs = active.filter(d => d.area === 'Design');
+  const modoPrecisaPeca = modo === 'formatos' || modo === 'fundos';
 
   const load = f => {
     if (!f) return;
@@ -2805,6 +2929,19 @@ function VariationsView() {
     rd.onload = () => {
       const im = new Image();
       im.onload = () => { setImg(im); setName(f.name.replace(/\.[^.]+$/,'')); setTema(t=>t||f.name.replace(/\.[^.]+$/,'').replace(/[-_]+/g,' ')); setErr(''); setOuts([]); };
+      im.onerror = () => setErr('Não consegui abrir essa imagem.');
+      im.src = rd.result;
+    };
+    rd.readAsDataURL(f);
+  };
+
+  const loadCapaFundo = f => {
+    if (!f) return;
+    if (!f.type.startsWith('image/')) return setErr('Envie uma imagem (PNG ou JPG).');
+    const rd = new FileReader();
+    rd.onload = () => {
+      const im = new Image();
+      im.onload = () => { setCapaImg(im); setErr(''); };
       im.onerror = () => setErr('Não consegui abrir essa imagem.');
       im.src = rd.result;
     };
@@ -2821,9 +2958,26 @@ function VariationsView() {
     }
   };
 
+  const gerarCapa = async () => {
+    if (!capaTitulo.trim()) return setErr('Escreva o título que vai aparecer na capa.');
+    setErr(''); setGerando(true);
+    const f = FORMATS.find(x=>x.id===fmt);
+    const url = await drawCapa(capaImg, f.w, f.h, capaTitulo.trim(), capaSub.trim());
+    setOuts([{ key:'capa', label:'Capa', w:f.w, h:f.h, url }]);
+    setGerando(false);
+  };
+
+  const gerarEncerramento = async () => {
+    setErr(''); setGerando(true);
+    const f = FORMATS.find(x=>x.id===fmt);
+    const url = await drawEncerramento(f.w, f.h, fraseFinal);
+    setOuts([{ key:'encerramento', label:'Encerramento', w:f.w, h:f.h, url }]);
+    setGerando(false);
+  };
+
   const baixar = o => {
     const a = document.createElement('a');
-    a.href = o.url; a.download = imgName + '-' + o.key + '.png';
+    a.href = o.url; a.download = (imgName||modo) + '-' + o.key + '.png';
     document.body.appendChild(a); a.click(); a.remove();
   };
 
@@ -2831,7 +2985,7 @@ function VariationsView() {
   const salvar = o => {
     const dem = designs.find(d => d.id === alvo);
     if (!dem) return setErr('Escolha em qual demanda salvar, no seletor acima.');
-    const nome = imgName + '-' + o.key + '.png';
+    const nome = (imgName||modo) + '-' + o.key + '.png';
     setErr(''); setOk('Enviando ' + o.label + '…');
     fetch(o.url).then(r => r.blob()).then(blob => {
       const file = new File([blob], nome, { type:'image/png' });
@@ -2846,11 +3000,22 @@ function VariationsView() {
     border:'1px solid '+(on?NB.azul:NB.bd), background:on?'#EAF3FD':'#fff',
     fontSize:13,fontWeight:500,color:on?NB.azul:NB.mut});
 
+  const trocarModo = m => { setModo(m); setOuts([]); setErr(''); };
+
   return (
     <div style={{padding:'22px 30px 30px',overflowY:'auto',overflowX:'hidden',height:'100%'}}>
       <div style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:16,padding:'20px 22px',marginBottom:18,boxShadow:'0 1px 3px rgba(11,42,92,0.04)'}}>
 
-        {!img ? (
+        <div style={{display:'flex',gap:8,flexWrap:'wrap',marginBottom:18}}>
+          <button onClick={()=>trocarModo('formatos')} style={btn(modo==='formatos')}>Cortes de formato</button>
+          <button onClick={()=>trocarModo('fundos')}   style={btn(modo==='fundos')}>Versões de fundo</button>
+          <button onClick={()=>trocarModo('capa')}     style={btn(modo==='capa')}>Capa</button>
+          <button onClick={()=>trocarModo('encerramento')} style={btn(modo==='encerramento')}>Encerramento</button>
+          <button onClick={()=>trocarModo('briefing')} style={btn(modo==='briefing')}>Briefing do que testar</button>
+        </div>
+
+        {/* ---- Cortes de formato / Versões de fundo: precisam da peça ---- */}
+        {modoPrecisaPeca && !img && (
           <React.Fragment>
             <div
               onClick={()=>fileRef.current && fileRef.current.click()}
@@ -2862,13 +3027,15 @@ function VariationsView() {
               <div style={{color:NB.mut2,display:'flex',justifyContent:'center',marginBottom:12}}><IClip s={30}/></div>
               <div style={{fontSize:15,fontWeight:500,color:NB.txt,marginBottom:6}}>Suba a peça já criada</div>
               <p style={{fontSize:13,color:NB.mut,lineHeight:1.6,maxWidth:440,margin:'0 auto'}}>
-                Arraste aqui ou clique. A partir dela saem os cortes de formato adaptados, versões de fundo na paleta Nibo e o briefing do que testar.
+                Arraste aqui ou clique. A partir dela saem os cortes de formato adaptados e as versões de fundo na paleta Nibo.
               </p>
             </div>
             <input ref={fileRef} type="file" accept="image/*" onChange={e=>{const f=e.target.files&&e.target.files[0]; e.target.value=''; load(f);}} style={{display:'none'}}/>
             {err && <p style={{fontSize:12.5,color:'#B4232A',marginTop:10}}>{err}</p>}
           </React.Fragment>
-        ) : (
+        )}
+
+        {modoPrecisaPeca && img && (
           <React.Fragment>
             <div style={{display:'flex',alignItems:'center',gap:13,marginBottom:18,flexWrap:'wrap'}}>
               <img src={img.src} alt="" style={{width:52,height:52,borderRadius:9,objectFit:'cover',border:'1px solid '+NB.bd}}/>
@@ -2882,91 +3049,155 @@ function VariationsView() {
               </button>
             </div>
 
-            <div style={{display:'flex',gap:8,flexWrap:'wrap',marginBottom:16}}>
-              <button onClick={()=>{setModo('formatos');setOuts([]);}} style={btn(modo==='formatos')}>Cortes de formato</button>
-              <button onClick={()=>{setModo('fundos');setOuts([]);}}   style={btn(modo==='fundos')}>Versões de fundo</button>
-              <button onClick={()=>{setModo('briefing');setOuts([]);}} style={btn(modo==='briefing')}>Briefing do que testar</button>
-            </div>
-
-            {modo!=='briefing' && (
-              <div style={{background:NB.col,border:'1px solid '+NB.bd,borderRadius:11,padding:'15px 16px'}}>
-                <div style={{display:'flex',gap:20,flexWrap:'wrap',alignItems:'flex-end'}}>
-                  {modo==='formatos' ? (
-                    <React.Fragment>
+            <div style={{background:NB.col,border:'1px solid '+NB.bd,borderRadius:11,padding:'15px 16px'}}>
+              <div style={{display:'flex',gap:20,flexWrap:'wrap',alignItems:'flex-end'}}>
+                {modo==='formatos' ? (
+                  <React.Fragment>
+                    <div>
+                      <div style={{...lbl,marginBottom:7}}>Como preencher o que sobra</div>
+                      <div style={{display:'flex',gap:7,flexWrap:'wrap'}}>
+                        <button onClick={()=>setFit('blur')}    style={{...btn(fit==='blur'),padding:'8px 13px',fontSize:12.5}}>Estender a peça</button>
+                        <button onClick={()=>setFit('cor')}     style={{...btn(fit==='cor'),padding:'8px 13px',fontSize:12.5}}>Cor sólida</button>
+                        <button onClick={()=>setFit('cover')}   style={{...btn(fit==='cover'),padding:'8px 13px',fontSize:12.5}}>Cortar</button>
+                      </div>
+                    </div>
+                    {fit==='cor' && (
                       <div>
-                        <div style={{...lbl,marginBottom:7}}>Como preencher o que sobra</div>
-                        <div style={{display:'flex',gap:7,flexWrap:'wrap'}}>
-                          <button onClick={()=>setFit('blur')}    style={{...btn(fit==='blur'),padding:'8px 13px',fontSize:12.5}}>Estender a peça</button>
-                          <button onClick={()=>setFit('cor')}     style={{...btn(fit==='cor'),padding:'8px 13px',fontSize:12.5}}>Cor sólida</button>
-                          <button onClick={()=>setFit('cover')}   style={{...btn(fit==='cover'),padding:'8px 13px',fontSize:12.5}}>Cortar</button>
+                        <div style={{...lbl,marginBottom:7}}>Cor</div>
+                        <div style={{display:'flex',gap:7}}>
+                          {BGS.map(b=>(
+                            <button key={b.id} onClick={()=>setBg(b.hex)} title={b.label}
+                              style={{width:30,height:30,borderRadius:8,background:b.hex,border:bg===b.hex?'2.5px solid '+NB.azul:'1px solid '+NB.bd,cursor:'pointer'}}/>
+                          ))}
                         </div>
                       </div>
-                      {fit==='cor' && (
-                        <div>
-                          <div style={{...lbl,marginBottom:7}}>Cor</div>
-                          <div style={{display:'flex',gap:7}}>
-                            {BGS.map(b=>(
-                              <button key={b.id} onClick={()=>setBg(b.hex)} title={b.label}
-                                style={{width:30,height:30,borderRadius:8,background:b.hex,border:bg===b.hex?'2.5px solid '+NB.azul:'1px solid '+NB.bd,cursor:'pointer'}}/>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </React.Fragment>
-                  ) : (
-                    <div>
-                      <div style={{...lbl,marginBottom:7}}>Formato</div>
-                      <select value={fmt} onChange={e=>setFmt(e.target.value)} style={{...inp,padding:'8px 11px',fontSize:13,width:'auto'}}>
-                        {FORMATS.map(f=><option key={f.id} value={f.id}>{f.label}</option>)}
-                      </select>
-                    </div>
-                  )}
-                  <button onClick={gerar}
-                    style={{padding:'10px 20px',background:NB.azul,border:'none',borderRadius:9,fontSize:13,fontWeight:500,color:'#fff'}}>
-                    Gerar variações
-                  </button>
-                </div>
-                {modo==='formatos' && fit==='blur' && (
-                  <p style={{fontSize:12,color:NB.mut2,marginTop:11,lineHeight:1.55}}>
-                    A própria peça vira o fundo, ampliada e desfocada — é assim que o Meta adapta um criativo pra outro formato sem deixar tarja.
-                  </p>
-                )}
-              </div>
-            )}
-
-            {modo==='briefing' && (
-              <div>
-                <div style={{display:'flex',alignItems:'flex-end',gap:12,marginBottom:16,flexWrap:'wrap'}}>
-                  <div style={{flex:'1 1 260px'}}>
-                    <div style={{...lbl,marginBottom:6}}>Tema da peça</div>
-                    <input value={tema} onChange={e=>setTema(e.target.value)} placeholder="ex: Radar e-CAC na Reforma Tributária" style={{...inp,padding:'9px 12px',fontSize:13.5}}/>
-                  </div>
+                    )}
+                  </React.Fragment>
+                ) : (
                   <div>
-                    <div style={{...lbl,marginBottom:6}}>Público na peça</div>
-                    <select value={pub} onChange={e=>setPub(e.target.value)} style={{...inp,padding:'9px 12px',fontSize:13.5,width:'auto'}}>
-                      {PUBLICOS.map(p=><option key={p}>{p}</option>)}
+                    <div style={{...lbl,marginBottom:7}}>Formato</div>
+                    <select value={fmt} onChange={e=>setFmt(e.target.value)} style={{...inp,padding:'8px 11px',fontSize:13,width:'auto'}}>
+                      {FORMATS.map(f=><option key={f.id} value={f.id}>{f.label}</option>)}
                     </select>
                   </div>
-                </div>
-                {Object.entries(briefing(tema||imgName, pub)).map(([sec,itens])=>(
-                  <div key={sec} style={{marginBottom:16}}>
-                    <div style={{fontSize:12.5,fontWeight:600,color:NB.txt,marginBottom:7}}>{sec}</div>
-                    <ul style={{margin:0,paddingLeft:18,display:'flex',flexDirection:'column',gap:5}}>
-                      {itens.map((it,i)=><li key={i} style={{fontSize:13,color:'#3D4B63',lineHeight:1.6}}>{it}</li>)}
-                    </ul>
-                  </div>
-                ))}
-                <button onClick={()=>{
-                  const b = briefing(tema||imgName, pub);
-                  const txt = Object.entries(b).map(([s,i])=>s+'\n'+i.map(x=>'- '+x).join('\n')).join('\n\n');
-                  navigator.clipboard && navigator.clipboard.writeText((tema||imgName)+' — variações\n\n'+txt);
-                }}
-                  style={{padding:'9px 16px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:9,fontSize:13,fontWeight:500,color:NB.mut}}>
-                  Copiar briefing
+                )}
+                <button onClick={gerar}
+                  style={{padding:'10px 20px',background:NB.azul,border:'none',borderRadius:9,fontSize:13,fontWeight:500,color:'#fff'}}>
+                  Gerar variações
                 </button>
               </div>
-            )}
+              {modo==='formatos' && fit==='blur' && (
+                <p style={{fontSize:12,color:NB.mut2,marginTop:11,lineHeight:1.55}}>
+                  A própria peça vira o fundo, ampliada e desfocada — é assim que o Meta adapta um criativo pra outro formato sem deixar tarja.
+                </p>
+              )}
+            </div>
           </React.Fragment>
+        )}
+
+        {/* ---- Capa: fundo opcional, título obrigatório ---- */}
+        {modo==='capa' && (
+          <div>
+            <p style={{fontSize:13,color:NB.mut,lineHeight:1.6,marginBottom:16}}>
+              Gera uma capa/thumbnail pronta — com foto de fundo se você subir uma, ou no degradê do Nibo se não subir nada.
+            </p>
+            <div style={{display:'flex',alignItems:'center',gap:11,marginBottom:16}}>
+              <button onClick={()=>capaFileRef.current && capaFileRef.current.click()}
+                style={{display:'flex',alignItems:'center',gap:7,padding:'9px 14px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:9,fontSize:12.5,fontWeight:500,color:NB.mut}}>
+                <IClip s={14}/> {capaImg?'Trocar fundo':'Fundo (opcional)'}
+              </button>
+              <input ref={capaFileRef} type="file" accept="image/*" onChange={e=>{const f=e.target.files&&e.target.files[0]; e.target.value=''; loadCapaFundo(f);}} style={{display:'none'}}/>
+              {capaImg && (
+                <React.Fragment>
+                  <img src={capaImg.src} alt="" style={{width:36,height:36,borderRadius:7,objectFit:'cover',border:'1px solid '+NB.bd}}/>
+                  <button onClick={()=>setCapaImg(null)} style={{background:'none',border:'none',color:NB.mut2,padding:2,display:'flex'}}><IX s={14}/></button>
+                </React.Fragment>
+              )}
+            </div>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:13,marginBottom:14}}>
+              <div>
+                <div style={{...lbl,marginBottom:7}}>Título</div>
+                <input value={capaTitulo} onChange={e=>setCapaTitulo(e.target.value)} placeholder="ex: Reforma Tributária explicada" style={{...inp,padding:'9px 12px',fontSize:13.5}}/>
+              </div>
+              <div>
+                <div style={{...lbl,marginBottom:7}}>Subtítulo (opcional)</div>
+                <input value={capaSub} onChange={e=>setCapaSub(e.target.value)} placeholder="ex: o que muda pro seu escritório" style={{...inp,padding:'9px 12px',fontSize:13.5}}/>
+              </div>
+            </div>
+            <div style={{display:'flex',gap:16,alignItems:'flex-end',flexWrap:'wrap'}}>
+              <div>
+                <div style={{...lbl,marginBottom:7}}>Formato</div>
+                <select value={fmt} onChange={e=>setFmt(e.target.value)} style={{...inp,padding:'8px 11px',fontSize:13,width:'auto'}}>
+                  {FORMATS.map(f=><option key={f.id} value={f.id}>{f.label}</option>)}
+                </select>
+              </div>
+              <button onClick={gerarCapa} disabled={gerando}
+                style={{padding:'10px 20px',background:gerando?'#CFD8E6':NB.azul,border:'none',borderRadius:9,fontSize:13,fontWeight:500,color:'#fff',cursor:gerando?'wait':'pointer'}}>
+                {gerando?'Gerando…':'Gerar capa'}
+              </button>
+            </div>
+            {err && <p style={{fontSize:12.5,color:'#B4232A',marginTop:12}}>{err}</p>}
+          </div>
+        )}
+
+        {/* ---- Encerramento: card padrão da marca, nunca precisa de imagem ---- */}
+        {modo==='encerramento' && (
+          <div>
+            <p style={{fontSize:13,color:NB.mut,lineHeight:1.6,marginBottom:16}}>
+              Card final padronizado — logo do Nibo no degradê da marca. Cole como o último frame de vídeos simples, sem precisar editar do zero cada vez.
+            </p>
+            <div style={{marginBottom:14}}>
+              <div style={{...lbl,marginBottom:7}}>Frase de encerramento (opcional)</div>
+              <input value={fraseFinal} onChange={e=>setFraseFinal(e.target.value)} placeholder="ex: Siga @nibo pra mais conteúdo assim" style={{...inp,padding:'9px 12px',fontSize:13.5}}/>
+            </div>
+            <div style={{display:'flex',gap:16,alignItems:'flex-end',flexWrap:'wrap'}}>
+              <div>
+                <div style={{...lbl,marginBottom:7}}>Formato</div>
+                <select value={fmt} onChange={e=>setFmt(e.target.value)} style={{...inp,padding:'8px 11px',fontSize:13,width:'auto'}}>
+                  {FORMATS.map(f=><option key={f.id} value={f.id}>{f.label}</option>)}
+                </select>
+              </div>
+              <button onClick={gerarEncerramento} disabled={gerando}
+                style={{padding:'10px 20px',background:gerando?'#CFD8E6':NB.azul,border:'none',borderRadius:9,fontSize:13,fontWeight:500,color:'#fff',cursor:gerando?'wait':'pointer'}}>
+                {gerando?'Gerando…':'Gerar encerramento'}
+              </button>
+            </div>
+            {err && <p style={{fontSize:12.5,color:'#B4232A',marginTop:12}}>{err}</p>}
+          </div>
+        )}
+
+        {/* ---- Briefing: nunca precisou de imagem de verdade ---- */}
+        {modo==='briefing' && (
+          <div>
+            <div style={{display:'flex',alignItems:'flex-end',gap:12,marginBottom:16,flexWrap:'wrap'}}>
+              <div style={{flex:'1 1 260px'}}>
+                <div style={{...lbl,marginBottom:6}}>Tema da peça</div>
+                <input value={tema} onChange={e=>setTema(e.target.value)} placeholder="ex: Radar e-CAC na Reforma Tributária" style={{...inp,padding:'9px 12px',fontSize:13.5}}/>
+              </div>
+              <div>
+                <div style={{...lbl,marginBottom:6}}>Público na peça</div>
+                <select value={pub} onChange={e=>setPub(e.target.value)} style={{...inp,padding:'9px 12px',fontSize:13.5,width:'auto'}}>
+                  {PUBLICOS.map(p=><option key={p}>{p}</option>)}
+                </select>
+              </div>
+            </div>
+            {Object.entries(briefing(tema||imgName, pub)).map(([sec,itens])=>(
+              <div key={sec} style={{marginBottom:16}}>
+                <div style={{fontSize:12.5,fontWeight:600,color:NB.txt,marginBottom:7}}>{sec}</div>
+                <ul style={{margin:0,paddingLeft:18,display:'flex',flexDirection:'column',gap:5}}>
+                  {itens.map((it,i)=><li key={i} style={{fontSize:13,color:'#3D4B63',lineHeight:1.6}}>{it}</li>)}
+                </ul>
+              </div>
+            ))}
+            <button onClick={()=>{
+              const b = briefing(tema||imgName, pub);
+              const txt = Object.entries(b).map(([s,i])=>s+'\n'+i.map(x=>'- '+x).join('\n')).join('\n\n');
+              navigator.clipboard && navigator.clipboard.writeText((tema||imgName)+' — variações\n\n'+txt);
+            }}
+              style={{padding:'9px 16px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:9,fontSize:13,fontWeight:500,color:NB.mut}}>
+              Copiar briefing
+            </button>
+          </div>
         )}
       </div>
 
