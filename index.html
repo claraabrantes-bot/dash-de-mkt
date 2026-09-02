@@ -4650,7 +4650,8 @@ function NewModal() {
 /* =========== APP =========== */
 /* =========== APP DE VISITANTE — qualquer conta do Nibo fora do marketing ============ */
 /* =========== PORTA DE ENTRADA — pública, sem login. "Gestão" pede login. ============ */
-function GestaoLoginButton() {
+/* Lógica de login isolada, reaproveitada pelo card de Gestão. */
+function useLoginGestao() {
   const { setAuthError } = useApp();
   const [busy, setBusy] = useState(false);
   const [erro, setErro] = useState('');
@@ -4673,14 +4674,57 @@ function GestaoLoginButton() {
     setBusy(false);
   };
 
+  return { entrar, busy, erro };
+}
+
+/* =========== TELA DE ESCOLHA — Central de Informações ou Gestão ============ */
+function EntryChooser({ onEscolherCentral }) {
+  const { entrar, busy, erro } = useLoginGestao();
+
+  const cardStyle = {
+    flex:'1 1 280px', maxWidth:340, background:'#fff', border:'1px solid '+NB.bd, borderRadius:18,
+    padding:'32px 28px', display:'flex', flexDirection:'column', alignItems:'flex-start', gap:14,
+    cursor:'pointer', textAlign:'left', transition:'box-shadow 0.15s, border-color 0.15s',
+  };
+
   return (
-    <div style={{position:'relative'}}>
-      <button onClick={entrar} disabled={busy}
-        style={{display:'flex',alignItems:'center',gap:8,padding:'9px 16px',background:NB.navy1,border:'none',borderRadius:10,color:'#fff',fontSize:13,fontWeight:600,opacity:busy?0.7:1,cursor:busy?'wait':'pointer'}}>
-        <IStamp s={14}/> {busy?'Entrando…':'Gestão (Marketing)'}
-      </button>
+    <div style={{height:'100vh',width:'100%',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',background:NB.bg,padding:24,overflow:'auto'}}>
+      <div style={{display:'flex',alignItems:'center',gap:14,marginBottom:44}}>
+        <NiboSymbol size={42} color={NB.navy1}/>
+        <div>
+          <div style={{fontSize:24,fontWeight:700,color:NB.navy1,letterSpacing:'-0.015em'}}>Central</div>
+          <div style={{fontSize:12.5,color:NB.mut,fontWeight:500,letterSpacing:'0.03em'}}>NIBO MARKETING</div>
+        </div>
+      </div>
+
+      <div style={{display:'flex',gap:20,flexWrap:'wrap',justifyContent:'center',width:'100%',maxWidth:720}}>
+        <button onClick={onEscolherCentral} style={cardStyle}
+          onMouseEnter={e=>{e.currentTarget.style.boxShadow='0 10px 30px rgba(11,42,92,0.10)'; e.currentTarget.style.borderColor='#C9D6EA';}}
+          onMouseLeave={e=>{e.currentTarget.style.boxShadow='none'; e.currentTarget.style.borderColor=NB.bd;}}>
+          <div style={{width:46,height:46,borderRadius:12,background:'#EAF3FD',color:NB.azul,display:'flex',alignItems:'center',justifyContent:'center'}}>
+            <IGlobe s={22}/>
+          </div>
+          <div>
+            <div style={{fontSize:17,fontWeight:600,color:NB.txt,marginBottom:5}}>Central de Informações</div>
+            <p style={{fontSize:13,color:NB.mut,lineHeight:1.55}}>Campanhas ativas, peças, calendário e mais — aberta pra qualquer pessoa do Nibo, sem login.</p>
+          </div>
+        </button>
+
+        <button onClick={entrar} disabled={busy} style={{...cardStyle, opacity:busy?0.75:1, cursor:busy?'wait':'pointer'}}
+          onMouseEnter={e=>{ if(!busy){ e.currentTarget.style.boxShadow='0 10px 30px rgba(11,42,92,0.10)'; e.currentTarget.style.borderColor='#C9D6EA'; }}}
+          onMouseLeave={e=>{e.currentTarget.style.boxShadow='none'; e.currentTarget.style.borderColor=NB.bd;}}>
+          <div style={{width:46,height:46,borderRadius:12,background:NB.navy1,color:'#fff',display:'flex',alignItems:'center',justifyContent:'center'}}>
+            <IStamp s={22}/>
+          </div>
+          <div>
+            <div style={{fontSize:17,fontWeight:600,color:NB.txt,marginBottom:5}}>{busy?'Entrando…':'Gestão (Marketing)'}</div>
+            <p style={{fontSize:13,color:NB.mut,lineHeight:1.55}}>Painel completo do time — pede login com conta @nibo.com.br do marketing.</p>
+          </div>
+        </button>
+      </div>
+
       {erro && (
-        <div style={{position:'absolute',top:'calc(100% + 8px)',right:0,width:260,background:'#fff',border:'1px solid #FECACA',borderRadius:10,padding:'10px 12px',fontSize:12,color:'#B4232A',boxShadow:'0 10px 30px rgba(4,18,48,0.16)',zIndex:20}}>
+        <div style={{marginTop:20,maxWidth:600,background:'#fff',border:'1px solid #FECACA',borderRadius:10,padding:'12px 15px',fontSize:12.5,color:'#B4232A'}}>
           {erro}
         </div>
       )}
@@ -4688,17 +4732,22 @@ function GestaoLoginButton() {
   );
 }
 
-function PublicCentralPage() {
+function PublicCentralPage({ onVoltar }) {
   const { dbErroPublico } = useApp();
   return (
     <div style={{height:'100vh',width:'100%',display:'flex',flexDirection:'column',background:NB.bg,overflow:'hidden'}}>
       <header style={{background:'#fff',borderBottom:'1px solid '+NB.bd,padding:'16px 30px',display:'flex',alignItems:'center',gap:14,flexShrink:0}}>
-        <NiboSymbol size={32} color={NB.navy1}/>
-        <div style={{flex:1,minWidth:0}}>
-          <div style={{fontSize:16,fontWeight:700,color:NB.navy1,letterSpacing:'-0.01em'}}>Central de Informações de Marketing</div>
-          <div style={{fontSize:12,color:NB.mut}}>Nibo · aberta pra todo mundo, sem login</div>
-        </div>
-        <GestaoLoginButton/>
+        <button onClick={onVoltar} style={{background:'none',border:'none',display:'flex',alignItems:'center',gap:14,cursor:'pointer',padding:0}}>
+          <NiboSymbol size={32} color={NB.navy1}/>
+          <div style={{textAlign:'left'}}>
+            <div style={{fontSize:16,fontWeight:700,color:NB.navy1,letterSpacing:'-0.01em'}}>Central de Informações de Marketing</div>
+            <div style={{fontSize:12,color:NB.mut}}>Nibo · aberta pra todo mundo, sem login</div>
+          </div>
+        </button>
+        <div style={{flex:1}}/>
+        <button onClick={onVoltar} style={{fontSize:12.5,color:NB.mut,background:'none',border:'1px solid '+NB.bd,borderRadius:9,padding:'8px 13px',display:'flex',alignItems:'center',gap:6}}>
+          <IArrowL s={13}/> Voltar
+        </button>
       </header>
       {dbErroPublico && (
         <div style={{background:'#FEF2F2',borderBottom:'1px solid #FECACA',padding:'11px 28px',fontSize:13,color:'#B4232A',display:'flex',alignItems:'center',gap:9,flexShrink:0}}>
@@ -4751,8 +4800,11 @@ function VisitorApp() {
 
 function AppContent() {
   const { view, user, isTeamMember, authReady, setDragging, editStages, setEditStages, dbReady, dbErro, previewMember, setPreviewMember } = useApp();
+  const [mostrarCentral, setMostrarCentral] = useState(false);
   if (!authReady) return <Splash/>;
-  if (!user)      return <PublicCentralPage/>;
+  if (!user) return mostrarCentral
+    ? <PublicCentralPage onVoltar={()=>setMostrarCentral(false)}/>
+    : <EntryChooser onEscolherCentral={()=>setMostrarCentral(true)}/>;
   if (!isTeamMember) return <VisitorApp/>;
   return (
     <div style={{display:'flex',height:'100vh',width:'100%',overflow:'hidden',background:NB.bg}}
