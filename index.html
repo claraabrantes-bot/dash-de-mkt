@@ -2033,8 +2033,12 @@ function CampanhasBuscaTab() {
       </div>
 
       {publicadas.length===0 ? (
-        <div style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:14,padding:'26px 22px',fontSize:13.5,color:NB.mut,lineHeight:1.6}}>
-          Nenhuma campanha publicada no momento. Assim que o marketing publicar uma, ela aparece aqui pra todo mundo do Nibo ver.
+        <div style={{background:'#fff',border:'1px dashed '+NB.bd,borderRadius:16,padding:'48px 24px',textAlign:'center'}}>
+          <div style={{width:52,height:52,borderRadius:14,background:NB.col,color:NB.mut2,display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 16px'}}>
+            <ITarget s={23}/>
+          </div>
+          <p style={{fontSize:14,fontWeight:600,color:NB.txt,marginBottom:6}}>Nenhuma campanha publicada ainda</p>
+          <p style={{fontSize:13,color:NB.mut,lineHeight:1.6,maxWidth:380,margin:'0 auto'}}>Assim que o marketing publicar uma, ela aparece aqui em destaque pra todo mundo do Nibo ver.</p>
         </div>
       ) : resto.length===0 ? (
         !destaque && (
@@ -2265,8 +2269,11 @@ function ArquivosTab({ podeEditar }) {
         );
       })}
       {arquivos.length===0 && (
-        <div style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:14,padding:'34px 22px',textAlign:'center',color:NB.mut,fontSize:13.5}}>
-          Nenhum arquivo cadastrado ainda.
+        <div style={{background:'#fff',border:'1px dashed '+NB.bd,borderRadius:16,padding:'48px 24px',textAlign:'center'}}>
+          <div style={{width:52,height:52,borderRadius:14,background:NB.col,color:NB.mut2,display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 16px'}}>
+            <IFile s={23}/>
+          </div>
+          <p style={{fontSize:14,fontWeight:600,color:NB.txt,marginBottom:6}}>Nenhum arquivo cadastrado ainda</p>
         </div>
       )}
       {novo && <ArquivoModal onClose={()=>setNovo(false)}/>}
@@ -2327,8 +2334,11 @@ function EmbaixadoresTab({ podeEditar }) {
         )}
       </div>
       {embaixadores.length===0 ? (
-        <div style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:14,padding:'34px 22px',textAlign:'center',color:NB.mut,fontSize:13.5}}>
-          Nenhum embaixador cadastrado ainda.
+        <div style={{background:'#fff',border:'1px dashed '+NB.bd,borderRadius:16,padding:'48px 24px',textAlign:'center'}}>
+          <div style={{width:52,height:52,borderRadius:14,background:NB.col,color:NB.mut2,display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 16px'}}>
+            <IStamp s={23}/>
+          </div>
+          <p style={{fontSize:14,fontWeight:600,color:NB.txt,marginBottom:6}}>Nenhum embaixador cadastrado ainda</p>
         </div>
       ) : (
         <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(190px,1fr))',gap:18}}>
