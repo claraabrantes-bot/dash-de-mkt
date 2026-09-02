@@ -164,6 +164,7 @@ function Provider({ children }) {
   const [arquivosPublicos, setArquivosPublicos] = useState([]);
   const [arquivosGestao, setArquivosGestao] = useState([]);
   const [embaixadores, setEmbaixadores] = useState([]);
+  const [pacotes, setPacotes] = useState([]);
   const [pecas, setPecas] = useState([]);
   const [slack, setSlack]     = useState([]);
   const [pipes, setPipes]     = useState(DEFAULT_PIPELINES);
@@ -323,7 +324,11 @@ function Provider({ children }) {
       setArquivosGestao(snap.docs.map(d => ({ id:d.id, ...d.data() })));
     }, erro);
 
-    return () => { u1(); u2(); u3(); u4(); u5(); u6(); u7(); };
+    const u8 = db.collection('pacotes').onSnapshot(snap => {
+      setPacotes(snap.docs.map(d => ({ id:d.id, ...d.data() })));
+    }, erro);
+
+    return () => { u1(); u2(); u3(); u4(); u5(); u6(); u7(); u8(); };
   }, [fbUser]);
 
   /* Logada, a gestão precisa ver tudo (rascunho + publicada, restrito + não).
@@ -704,6 +709,21 @@ function Provider({ children }) {
     db.collection('embaixadores').doc(id).delete().catch(e=>setDbErro('Não foi possível remover: '+e.message));
   }, []);
 
+  /* ---------- Pacotes de tarefas ---------- */
+  /* Um método só: id existente = atualiza (inclusive "assumir" um pacote
+     padrão embutido, tipo 'webinar', que ainda não é um doc de verdade);
+     sem id = cria um pacote novo, com id gerado pelo Firestore. */
+  const salvarPacote = useCallback((id, dados) => {
+    const db = dbRef.current; if (!db) return;
+    const ref = id ? db.collection('pacotes').doc(id) : db.collection('pacotes').doc();
+    ref.set({ ...dados, criadoPor:(user&&user.name)||'', criadoEm:new Date().toISOString() }, { merge:true })
+      .catch(e => setDbErro('Não foi possível salvar o pacote: '+e.message));
+  }, [user]);
+  const removePacote = useCallback((id) => {
+    const db = dbRef.current; if (!db) return;
+    db.collection('pacotes').doc(id).delete().catch(e=>setDbErro('Não foi possível remover o pacote: '+e.message));
+  }, []);
+
   const seed = useCallback(() => {
     const db = dbRef.current; if (!db) return;
     const lote = db.batch();
@@ -735,7 +755,7 @@ function Provider({ children }) {
   window.__nbDem = demands;
   window.__nbPosts = posts;
 
-  return <Ctx.Provider value={{ demands, active, archived, filtered, slack, user, isTeamMember, authReady, authError, setAuthError, dbReady, dbErro, dbErroPublico, seed, pedidos, aceitarPedido, recusarPedido, posts, addPost, updatePost, deletePost, campanhas, updateCampanha, publicarCampanha, despublicarCampanha, deleteCampanha, enviarCampanhaDeDemanda, pecas, addPeca, removePeca, redesSociais, salvarRedesSociais, arquivos, addArquivo, removeArquivo, embaixadores, addEmbaixador, removeEmbaixador, view, setView, layout, setLayout, area, setArea, query, setQuery, priFilter, setPriFilter, reqFilter, setReqFilter, selDemand, setModal, newOpen, setNewOpen, pacoteOpen, setPacoteOpen, notifyPending, setNotifyPending, profileOpen, setProfileOpen, editStages, setEditStages, dragging, setDragging, previewMember, setPreviewMember, photos, googlePhotos, profiles, pipes, salvarPipes, attach, comments, storageWarn, MAX_FILE, addAttachment, uploadFile, migrarLocal, carregarAnexo, removeAttachment, addComment, removeComment, logout, savePhoto, removePhoto, saveProfile, addDemand, moveStage, moveArea, setAssignees, updateDemand, archiveDemand, restoreDemand, delDemand }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ demands, active, archived, filtered, slack, user, isTeamMember, authReady, authError, setAuthError, dbReady, dbErro, dbErroPublico, seed, pedidos, aceitarPedido, recusarPedido, posts, addPost, updatePost, deletePost, campanhas, updateCampanha, publicarCampanha, despublicarCampanha, deleteCampanha, enviarCampanhaDeDemanda, pecas, addPeca, removePeca, redesSociais, salvarRedesSociais, arquivos, addArquivo, removeArquivo, embaixadores, addEmbaixador, removeEmbaixador, pacotes, salvarPacote, removePacote, view, setView, layout, setLayout, area, setArea, query, setQuery, priFilter, setPriFilter, reqFilter, setReqFilter, selDemand, setModal, newOpen, setNewOpen, pacoteOpen, setPacoteOpen, notifyPending, setNotifyPending, profileOpen, setProfileOpen, editStages, setEditStages, dragging, setDragging, previewMember, setPreviewMember, photos, googlePhotos, profiles, pipes, salvarPipes, attach, comments, storageWarn, MAX_FILE, addAttachment, uploadFile, migrarLocal, carregarAnexo, removeAttachment, addComment, removeComment, logout, savePhoto, removePhoto, saveProfile, addDemand, moveStage, moveArea, setAssignees, updateDemand, archiveDemand, restoreDemand, delDemand }}>{children}</Ctx.Provider>;
 }
 
 const useApp = () => useContext(Ctx);
@@ -3616,23 +3636,25 @@ const PERSONAS = [
 /* Pacotes de tarefas pré-prontos — um clique cria todas as demandas de um
    fluxo recorrente de uma vez, com prazo calculado a partir de uma data-base.
    diasAntes: quantos dias antes da data-base a tarefa deve estar pronta. */
-const PACOTES_TAREFAS = {
+/* Título usa {tema} como marcador — vira texto puro pra poder salvar no Firestore. */
+const PACOTES_TAREFAS_PADRAO = {
   webinar: {
-    label: 'Pacote Webinar',
+    nome: 'Pacote Webinar',
     descricao: 'Cria de uma vez as tarefas padrão pra organizar um webinar com embaixador.',
     campoData: 'Data do webinar',
     tarefas: [
-      { titulo: t => 'Roteiro e questionário pro embaixador — '+t, area:'Social',      assignees:['CA'],       priority:'Alta',  diasAntes:15 },
-      { titulo: t => 'Landing Page do webinar — '+t,               area:'Design',      assignees:['MB'],       priority:'Alta',  diasAntes:12 },
-      { titulo: t => 'Sequência de e-mails de convite — '+t,        area:'RevOps',      assignees:['JE'],       priority:'Média', diasAntes:10 },
-      { titulo: t => 'Peças estáticas (orgânico + Meta Ads) — '+t,  area:'Design',      assignees:['MK'],       priority:'Média', diasAntes:8 },
-      { titulo: t => 'Stories de divulgação — '+t,                  area:'Design',      assignees:['MK'],       priority:'Média', diasAntes:6 },
-      { titulo: t => 'Arte "Estamos ao vivo" — '+t,                 area:'Design',      assignees:['MB'],       priority:'Baixa', diasAntes:3 },
-      { titulo: t => 'Capa para YouTube — '+t,                      area:'Design',      assignees:['MB'],       priority:'Baixa', diasAntes:3 },
-      { titulo: t => 'Configurar links (YouTube/StreamYard) — '+t,  area:'RevOps',      assignees:['JE'],       priority:'Média', diasAntes:2 },
+      { titulo:'Roteiro e questionário pro embaixador — {tema}', area:'Social',      assignees:['CA'],       priority:'Alta',  diasAntes:15 },
+      { titulo:'Landing Page do webinar — {tema}',               area:'Design',      assignees:['MB'],       priority:'Alta',  diasAntes:12 },
+      { titulo:'Sequência de e-mails de convite — {tema}',        area:'RevOps',      assignees:['JE'],       priority:'Média', diasAntes:10 },
+      { titulo:'Peças estáticas (orgânico + Meta Ads) — {tema}',  area:'Design',      assignees:['MK'],       priority:'Média', diasAntes:8 },
+      { titulo:'Stories de divulgação — {tema}',                  area:'Design',      assignees:['MK'],       priority:'Média', diasAntes:6 },
+      { titulo:'Arte "Estamos ao vivo" — {tema}',                 area:'Design',      assignees:['MB'],       priority:'Baixa', diasAntes:3 },
+      { titulo:'Capa para YouTube — {tema}',                      area:'Design',      assignees:['MB'],       priority:'Baixa', diasAntes:3 },
+      { titulo:'Configurar links (YouTube/StreamYard) — {tema}',  area:'RevOps',      assignees:['JE'],       priority:'Média', diasAntes:2 },
     ],
   },
 };
+const resolverTitulo = (template, tema) => (template||'').replace('{tema}', tema||'—');
 
 /* Abordagens prontas por persona — SDR (primeiro contato) e CS (upsell/retenção). */
 function personaVariants(personaId, camp) {
@@ -4544,19 +4566,29 @@ function AssigneePick({ member, checked, onToggle }) {
 
 /* =========== PACOTE DE TAREFAS =========== */
 function PacoteModal() {
-  const { pacoteOpen, setPacoteOpen, addDemand } = useApp();
+  const { pacoteOpen, setPacoteOpen, addDemand, pacotes } = useApp();
   const [pacoteId, setPacoteId] = useState('webinar');
   const [tema, setTema] = useState('');
   const [dataBase, setDataBase] = useState(dStr(20));
   const [err, setErr] = useState('');
   const [criando, setCriando] = useState(false);
+  const [editando, setEditando] = useState(null); // null | 'novo' | id do pacote
+
+  /* Junta o pacote embutido com os que o time já salvou — um pacote salvo
+     com o mesmo id (ex: 'webinar') substitui o embutido. */
+  const todos = { ...PACOTES_TAREFAS_PADRAO, ...Object.fromEntries(pacotes.map(p=>[p.id,p])) };
+  const lista = Object.entries(todos);
 
   useEffect(() => {
-    if (pacoteOpen) { setTema(''); setDataBase(dStr(20)); setErr(''); setCriando(false); }
+    if (pacoteOpen) { setTema(''); setDataBase(dStr(20)); setErr(''); setCriando(false); setEditando(null); }
   }, [pacoteOpen]);
 
+  useEffect(() => {
+    if (!todos[pacoteId] && lista.length>0) setPacoteId(lista[0][0]);
+  }, [pacotes]);
+
   if (!pacoteOpen) return null;
-  const pacote = PACOTES_TAREFAS[pacoteId];
+  const pacote = todos[pacoteId];
 
   const somarDias = (isoBase, dias) => {
     const d = new Date(isoBase+'T00:00:00');
@@ -4565,17 +4597,22 @@ function PacoteModal() {
   };
 
   const criar = () => {
-    if (!tema.trim()) return setErr('Dê um nome pra esse webinar.');
+    if (!tema.trim()) return setErr('Dê um nome pra esse fluxo.');
     setCriando(true);
     pacote.tarefas.forEach(t => {
       addDemand({
-        title: t.titulo(tema.trim()), area: t.area, priority: t.priority,
+        title: resolverTitulo(t.titulo, tema.trim()), area: t.area, priority: t.priority,
         deadline: somarDias(dataBase, t.diasAntes), description: '',
-        requester: 'Pacote: '+pacote.label, assignees: t.assignees,
+        requester: 'Pacote: '+pacote.nome, assignees: t.assignees,
       });
     });
     setTimeout(() => { setCriando(false); setPacoteOpen(false); }, 700);
   };
+
+  if (editando) {
+    return <PacoteEditModal id={editando==='novo'?null:editando} pacote={editando==='novo'?null:pacote}
+      onClose={()=>setEditando(null)} onSaved={novoId=>{ setEditando(null); if(novoId) setPacoteId(novoId); }}/>;
+  }
 
   return (
     <Modal onClose={()=>setPacoteOpen(false)} width={560}>
@@ -4589,39 +4626,46 @@ function PacoteModal() {
 
       <div style={{padding:'22px 28px',display:'flex',flexDirection:'column',gap:18}}>
         <div>
-          <div style={lbl}>Pacote</div>
+          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:7}}>
+            <div style={{...lbl,marginBottom:0}}>Pacote</div>
+            <div style={{display:'flex',gap:12}}>
+              <button onClick={()=>setEditando(pacoteId)} style={{fontSize:12,color:NB.azul,background:'none',border:'none',fontWeight:500}}>Editar este</button>
+              <button onClick={()=>setEditando('novo')} style={{fontSize:12,color:NB.azul,background:'none',border:'none',fontWeight:500}}>+ Novo pacote</button>
+            </div>
+          </div>
           <select value={pacoteId} onChange={e=>setPacoteId(e.target.value)} style={inp}>
-            {Object.entries(PACOTES_TAREFAS).map(([id,p])=><option key={id} value={id}>{p.label}</option>)}
+            {lista.map(([id,p])=><option key={id} value={id}>{p.nome}</option>)}
           </select>
-          <p style={{fontSize:12,color:NB.mut2,marginTop:6}}>{pacote.descricao}</p>
+          {pacote.descricao && <p style={{fontSize:12,color:NB.mut2,marginTop:6}}>{pacote.descricao}</p>}
         </div>
 
         <div>
-          <div style={lbl}>Tema do webinar</div>
+          <div style={lbl}>Tema desse fluxo</div>
           <input value={tema} onChange={e=>{setTema(e.target.value); setErr('');}} placeholder="ex: Reforma Tributária na prática" style={inp}
             onFocus={e=>{e.target.style.borderColor=NB.azul;}} onBlur={e=>{e.target.style.borderColor=NB.bd;}}/>
         </div>
 
         <div>
-          <div style={lbl}>{pacote.campoData}</div>
+          <div style={lbl}>{pacote.campoData || 'Data-base'}</div>
           <input type="date" value={dataBase} onChange={e=>setDataBase(e.target.value)} style={inp}/>
         </div>
 
         <div style={{background:NB.col,border:'1px solid '+NB.bd,borderRadius:11,padding:'14px 16px'}}>
           <div style={{fontSize:12,fontWeight:600,color:NB.mut,marginBottom:9,textTransform:'uppercase',letterSpacing:'0.06em'}}>
-            {pacote.tarefas.length} tarefas vão ser criadas
+            {(pacote.tarefas||[]).length} tarefas vão ser criadas
           </div>
           <div style={{display:'flex',flexDirection:'column',gap:7}}>
-            {pacote.tarefas.map((t,i)=>{
+            {(pacote.tarefas||[]).map((t,i)=>{
               const areaColor = AREA_CLR[t.area]||NB.azul;
               return (
                 <div key={i} style={{display:'flex',alignItems:'center',gap:9,fontSize:12.5,color:NB.txt}}>
                   <span style={{width:6,height:6,borderRadius:2,background:areaColor,flexShrink:0}}/>
-                  <span style={{flex:1,minWidth:0,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{t.titulo(tema.trim()||'—')}</span>
+                  <span style={{flex:1,minWidth:0,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{resolverTitulo(t.titulo, tema.trim())}</span>
                   <span style={{color:NB.mut2,flexShrink:0,fontSize:11.5}}>{dataBase?fmtDate(somarDias(dataBase,t.diasAntes)):''}</span>
                 </div>
               );
             })}
+            {(pacote.tarefas||[]).length===0 && <p style={{fontSize:12.5,color:NB.mut2}}>Esse pacote ainda não tem tarefas — clica em "Editar este" pra adicionar.</p>}
           </div>
         </div>
 
@@ -4633,14 +4677,152 @@ function PacoteModal() {
           style={{padding:'11px 18px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:9,fontSize:13,fontWeight:500,color:NB.mut}}>
           Cancelar
         </button>
-        <button onClick={criar} disabled={criando}
-          style={{padding:'11px 24px',background:criando?'#CFD8E6':NB.azul,border:'none',borderRadius:9,fontSize:13,fontWeight:500,color:'#fff',cursor:criando?'wait':'pointer'}}>
-          {criando?'Criando…':'Criar '+pacote.tarefas.length+' tarefas'}
+        <button onClick={criar} disabled={criando || (pacote.tarefas||[]).length===0}
+          style={{padding:'11px 24px',background:(criando||(pacote.tarefas||[]).length===0)?'#CFD8E6':NB.azul,border:'none',borderRadius:9,fontSize:13,fontWeight:500,color:'#fff',cursor:criando?'wait':'pointer'}}>
+          {criando?'Criando…':'Criar '+(pacote.tarefas||[]).length+' tarefas'}
         </button>
       </div>
     </Modal>
   );
 }
+
+/* =========== EDITOR DE PACOTE ============ */
+function TarefaRow({ tarefa, onChange, onRemove }) {
+  const set = (k,v) => onChange({ ...tarefa, [k]:v });
+  const toggleResp = init => {
+    const has = tarefa.assignees.includes(init);
+    set('assignees', has ? tarefa.assignees.filter(i=>i!==init) : [...tarefa.assignees, init]);
+  };
+
+  return (
+    <div style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:10,padding:'12px 13px',display:'flex',flexDirection:'column',gap:9}}>
+      <div style={{display:'flex',gap:8,alignItems:'center'}}>
+        <input value={tarefa.titulo} onChange={e=>set('titulo',e.target.value)} placeholder="Título — use {tema} pra puxar o nome do fluxo"
+          style={{...inp,padding:'8px 11px',fontSize:12.5,flex:1}}/>
+        <button type="button" onClick={onRemove} style={{padding:8,background:'#fff',border:'1px solid '+NB.bd,borderRadius:8,color:'#B4232A',display:'flex',flexShrink:0}}><ITrash s={13}/></button>
+      </div>
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8}}>
+        <select value={tarefa.area} onChange={e=>set('area',e.target.value)} style={{...inp,padding:'7px 9px',fontSize:12}}>
+          {['Social','Design','Mídia Paga','Produto','RevOps'].map(a=><option key={a}>{a}</option>)}
+        </select>
+        <select value={tarefa.priority} onChange={e=>set('priority',e.target.value)} style={{...inp,padding:'7px 9px',fontSize:12}}>
+          {PRIORITIES.map(p=><option key={p}>{p}</option>)}
+        </select>
+        <div style={{display:'flex',alignItems:'center',gap:6}}>
+          <input type="number" min="0" value={tarefa.diasAntes} onChange={e=>set('diasAntes',parseInt(e.target.value,10)||0)}
+            style={{...inp,padding:'7px 9px',fontSize:12,width:60}}/>
+          <span style={{fontSize:11,color:NB.mut2,whiteSpace:'nowrap'}}>dias antes</span>
+        </div>
+      </div>
+      <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
+        {ACTIVE_TEAM.map(m=>{
+          const on = tarefa.assignees.includes(m.initials);
+          return (
+            <button key={m.id} type="button" onClick={()=>toggleResp(m.initials)}
+              style={{padding:'4px 10px',borderRadius:20,border:'1px solid '+(on?NB.azul:NB.bd),background:on?'#EAF3FD':'#fff',fontSize:11.5,fontWeight:500,color:on?NB.azul:NB.mut}}>
+              {m.initials}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function PacoteEditModal({ id, pacote, onClose, onSaved }) {
+  const { salvarPacote, removePacote } = useApp();
+  const editando = !!pacote;
+  const [form, setForm] = useState(() => pacote ? {
+    nome: pacote.nome||'', descricao: pacote.descricao||'', campoData: pacote.campoData||'Data-base',
+    tarefas: (pacote.tarefas||[]).map(t=>({...t})),
+  } : { nome:'', descricao:'', campoData:'Data-base', tarefas:[] });
+  const [err, setErr] = useState('');
+  const [confirmarExcluir, setConfirmarExcluir] = useState(false);
+  const set = (k,v) => { setForm(f=>({...f,[k]:v})); setErr(''); };
+
+  const addTarefa = () => setForm(f=>({...f, tarefas:[...f.tarefas, { titulo:'', area:'Social', assignees:[], priority:'Média', diasAntes:5 }]}));
+  const updateTarefa = (i, nova) => setForm(f=>({...f, tarefas: f.tarefas.map((t,ix)=>ix===i?nova:t)}));
+  const removeTarefa = i => setForm(f=>({...f, tarefas: f.tarefas.filter((_,ix)=>ix!==i)}));
+
+  const salvar = () => {
+    if (!form.nome.trim()) return setErr('Dê um nome pro pacote.');
+    if (form.tarefas.length===0) return setErr('Adicione pelo menos uma tarefa.');
+    if (form.tarefas.some(t=>!t.titulo.trim())) return setErr('Toda tarefa precisa de um título.');
+    salvarPacote(id, {
+      nome: form.nome.trim(), descricao: form.descricao.trim(), campoData: form.campoData.trim()||'Data-base',
+      tarefas: form.tarefas,
+    });
+    onSaved(id);
+  };
+
+  const excluir = () => {
+    if (id) removePacote(id);
+    onSaved(null);
+  };
+
+  const ehEmbutido = id && !!PACOTES_TAREFAS_PADRAO[id] && !pacote.criadoPor;
+
+  return (
+    <Modal onClose={onClose} width={620}>
+      <div style={{padding:'22px 24px 16px',borderBottom:'1px solid '+NB.bdSoft}}>
+        <h2 style={{fontSize:18,fontWeight:600,color:NB.txt}}>{editando?'Editar pacote':'Novo pacote'}</h2>
+        {ehEmbutido && <p style={{fontSize:12,color:NB.mut,marginTop:4}}>Esse é um pacote padrão do sistema — salvar aqui cria a sua própria versão editável dele.</p>}
+      </div>
+      <div style={{padding:'20px 24px',display:'flex',flexDirection:'column',gap:14,maxHeight:'62vh',overflowY:'auto'}}>
+        <div>
+          <div style={{...lbl,marginBottom:6}}>Nome do pacote</div>
+          <input value={form.nome} onChange={e=>set('nome',e.target.value)} placeholder="ex: Pacote Cadastro de Embaixador" style={{...inp,padding:'9px 12px',fontSize:13.5}}/>
+        </div>
+        <div>
+          <div style={{...lbl,marginBottom:6}}>Descrição</div>
+          <input value={form.descricao} onChange={e=>set('descricao',e.target.value)} placeholder="Uma linha explicando pra que serve" style={{...inp,padding:'9px 12px',fontSize:13.5}}/>
+        </div>
+        <div>
+          <div style={{...lbl,marginBottom:6}}>Rótulo do campo de data</div>
+          <input value={form.campoData} onChange={e=>set('campoData',e.target.value)} placeholder="ex: Data do webinar, Data de início..." style={{...inp,padding:'9px 12px',fontSize:13.5}}/>
+        </div>
+
+        <div>
+          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:9}}>
+            <div style={{...lbl,marginBottom:0}}>Tarefas ({form.tarefas.length})</div>
+            <button type="button" onClick={addTarefa} style={{display:'flex',alignItems:'center',gap:6,fontSize:12,color:NB.azul,background:'none',border:'none',fontWeight:500}}>
+              <IPlus s={12}/> Adicionar tarefa
+            </button>
+          </div>
+          <div style={{display:'flex',flexDirection:'column',gap:9}}>
+            {form.tarefas.map((t,i)=>(
+              <TarefaRow key={i} tarefa={t} onChange={n=>updateTarefa(i,n)} onRemove={()=>removeTarefa(i)}/>
+            ))}
+            {form.tarefas.length===0 && (
+              <div style={{background:NB.col,border:'1px dashed '+NB.bd,borderRadius:10,padding:'18px',textAlign:'center'}}>
+                <p style={{fontSize:12.5,color:NB.mut2}}>Nenhuma tarefa ainda. Clica em "Adicionar tarefa".</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {err && <p style={{fontSize:12.5,color:'#B4232A'}}>{err}</p>}
+      </div>
+      <div style={{padding:'16px 24px',borderTop:'1px solid '+NB.bdSoft,display:'flex',justifyContent:'space-between',alignItems:'center',gap:10}}>
+        {editando && !ehEmbutido ? (
+          confirmarExcluir ? (
+            <div style={{display:'flex',gap:8}}>
+              <button onClick={excluir} style={{padding:'9px 14px',background:'#B4232A',border:'none',borderRadius:8,fontSize:12.5,color:'#fff'}}>Confirmar exclusão</button>
+              <button onClick={()=>setConfirmarExcluir(false)} style={{padding:'9px 14px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:8,fontSize:12.5,color:NB.mut}}>Cancelar</button>
+            </div>
+          ) : (
+            <button onClick={()=>setConfirmarExcluir(true)} style={{fontSize:12.5,color:'#B4232A',background:'none',border:'none',fontWeight:500}}>Excluir pacote</button>
+          )
+        ) : <span/>}
+        <div style={{display:'flex',gap:10}}>
+          <button onClick={onClose} style={{padding:'10px 16px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:9,fontSize:13,fontWeight:500,color:NB.mut}}>Cancelar</button>
+          <button onClick={salvar} style={{padding:'10px 20px',background:NB.azul,border:'none',borderRadius:9,fontSize:13,fontWeight:500,color:'#fff'}}>Salvar</button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
 
 function NewModal() {
   const { newOpen, setNewOpen, addDemand, user, area, pipes } = useApp();
