@@ -54,8 +54,8 @@ const NIBO_DOMAIN = '@nibo.com.br';
    Trocar de endereço é mudar só esta linha. */
 
 const TEAM = [
-  { id: 'u1', name: 'Mariana Araújo',    initials: 'MA', area: 'Gestão',     isApprover: true,  email: 'mariana.araujo'+NIBO_DOMAIN,    color: '#0072CE' },
-  { id: 'u2', name: 'Clara Abrantes',    initials: 'CA', area: 'Social',     isApprover: false, email: 'clara.abrantes'+NIBO_DOMAIN,    color: '#6431E2' },
+  { id: 'u1', name: 'Mariana Araújo',    initials: 'MA', area: 'Gestão',     isApprover: true,  canPublishCampaigns:true,  email: 'mariana.araujo'+NIBO_DOMAIN,    color: '#0072CE' },
+  { id: 'u2', name: 'Clara Abrantes',    initials: 'CA', area: 'Social',     isApprover: false, canPublishCampaigns:true,  email: 'clara.abrantes'+NIBO_DOMAIN,    color: '#6431E2' },
   { id: 'u3', name: 'Millena Barros',    initials: 'MB', area: 'Design',     isApprover: false, email: 'millena.barros'+NIBO_DOMAIN,    color: '#0EA5E9' },
   { id: 'u4', name: 'Roberta Rocha',     initials: 'RO', area: 'Produto',    isApprover: false, email: 'roberta.rocha'+NIBO_DOMAIN,     color: '#D97706' },
   { id: 'u5', name: 'Mikaella Nicomedes',initials: 'MK', area: 'Design',     isApprover: false, email: 'mikaella.nicomedes'+NIBO_DOMAIN,color: '#059669' },
@@ -158,6 +158,8 @@ function Provider({ children }) {
   const [demands, setDemands] = useState([]);
   const [pedidos, setPedidos] = useState([]);
   const [posts, setPosts] = useState([]);
+  const [campanhas, setCampanhas] = useState([]);
+  const [pecas, setPecas] = useState([]);
   const [slack, setSlack]     = useState([]);
   const [pipes, setPipes]     = useState(DEFAULT_PIPELINES);
   const [dbReady, setDbReady] = useState(false);
@@ -215,14 +217,11 @@ function Provider({ children }) {
         firebase.auth().signOut();
         return;
       }
-      const found = ACTIVE_TEAM.find(m => m.email === mail);
-      if (!found) {
-        setAuthError('A conta ' + mail + ' não está na lista da equipe de Marketing. Peça para adicionarem seu e-mail.');
-        firebase.auth().signOut();
-        return;
-      }
+      /* Qualquer conta do Nibo entra — quem não é do marketing só vê a
+         Central de Informações (decidido lá embaixo em AppContent). */
       setAuthError('');
-      if (u.photoURL) setGooglePhotos(p => p[found.id]===u.photoURL ? p : {...p, [found.id]:u.photoURL});
+      const found = ACTIVE_TEAM.find(m => m.email === mail);
+      if (found && u.photoURL) setGooglePhotos(p => p[found.id]===u.photoURL ? p : {...p, [found.id]:u.photoURL});
       setFbUser({ email: mail, photoURL: u.photoURL || null, displayName: u.displayName || '' });
       setAuthReady(true);
     });
@@ -230,13 +229,19 @@ function Provider({ children }) {
   }, []);
 
   const baseUser = fbUser ? ACTIVE_TEAM.find(m => m.email === fbUser.email) : null;
-  const user = baseUser
-    ? { ...baseUser, googlePhoto: fbUser.photoURL, ...(profiles[baseUser.id] || {}) }
+  const isTeamMember = !!baseUser;
+  const user = fbUser
+    ? baseUser
+      ? { ...baseUser, googlePhoto: fbUser.photoURL, ...(profiles[baseUser.id] || {}) }
+      : { id:'visitante', name: fbUser.displayName || fbUser.email.split('@')[0], email: fbUser.email,
+          initials: (fbUser.displayName||fbUser.email).split(/\s+/).filter(Boolean).map(s=>s[0]).slice(0,2).join('').toUpperCase() || 'VI',
+          color: NB.mut2, area: null, isApprover:false, canPublishCampaigns:false, isVisitor:true,
+          googlePhoto: fbUser.photoURL }
     : null;
 
   /* Escutas do Firestore só depois do login — as regras exigem usuária autenticada. */
   useEffect(() => {
-    if (!baseUser) { dbRef.current = null; setDbReady(false); return; }
+    if (!fbUser) { dbRef.current = null; setDbReady(false); return; }
     let db;
     try { db = firebase.firestore(); dbRef.current = db; }
     catch (e) { setDbErro('Não foi possível abrir o banco: ' + e.message); return; }
@@ -269,8 +274,16 @@ function Provider({ children }) {
       setPipes(d && d.data ? d.data : DEFAULT_PIPELINES);
     }, erro);
 
-    return () => { u1(); u2(); u3(); u4(); u5(); };
-  }, [baseUser]);
+    const u6 = db.collection('campanhas').onSnapshot(snap => {
+      setCampanhas(snap.docs.map(d => ({ id:d.id, ...d.data() })));
+    }, erro);
+
+    const u7 = db.collection('pecas').onSnapshot(snap => {
+      setPecas(snap.docs.map(d => ({ id:d.id, ...d.data() })));
+    }, erro);
+
+    return () => { u1(); u2(); u3(); u4(); u5(); u6(); u7(); };
+  }, [fbUser]);
 
   /* Ao entrar, cai direto no próprio setor. Quem aprova cai na fila de Gestão. */
   useEffect(() => {
@@ -552,6 +565,55 @@ function Provider({ children }) {
     db.collection('posts').doc(id).delete().catch(e=>setDbErro('Não foi possível excluir: '+e.message));
   }, []);
 
+  /* ---------- Campanhas: nasce como rascunho, só marketing gerencia; publicada = todo mundo do Nibo vê ---------- */
+  const addCampanha = useCallback((dados) => {
+    const db = dbRef.current; if (!db) return;
+    db.collection('campanhas').add({
+      ...dados, status:'rascunho', pecaIds: dados.pecaIds||[], instagramLink: dados.instagramLink||'',
+      criadaEm:new Date().toISOString(), criadaPor:(user&&user.name)||'',
+    }).then(() => {
+      feed({ code:'CAMP', area:'Gestão' }, 'Nova campanha criada',
+        (user&&user.name)+' criou a campanha "'+dados.titulo+'" (rascunho)',
+        'Publique quando estiver pronta para todos verem', 'new');
+    }).catch(e => setDbErro('Não foi possível criar a campanha: '+e.message));
+  }, [user]);
+
+  const updateCampanha = useCallback((id, patch) => {
+    const db = dbRef.current; if (!db) return;
+    db.collection('campanhas').doc(id).update(patch)
+      .catch(e => setDbErro('Não foi possível atualizar a campanha: '+e.message));
+  }, []);
+
+  const publicarCampanha = useCallback((camp) => {
+    updateCampanha(camp.id, { status:'publicada', publicadaEm:new Date().toISOString(), publicadaPor:(user&&user.name)||'' });
+    feed({ code:'CAMP', area:'Gestão' }, 'Campanha publicada',
+      '"'+camp.titulo+'" está publicada — visível na Central de Informações para todo o Nibo',
+      camp.desconto ? 'Desconto: '+camp.desconto : 'Sem desconto informado', 'approval');
+  }, [updateCampanha, user]);
+
+  const despublicarCampanha = useCallback((camp) => {
+    updateCampanha(camp.id, { status:'rascunho' });
+  }, [updateCampanha]);
+
+  const deleteCampanha = useCallback((id) => {
+    const db = dbRef.current; if (!db) return;
+    db.collection('campanhas').doc(id).delete().catch(e=>setDbErro('Não foi possível excluir a campanha: '+e.message));
+  }, []);
+
+  /* ---------- Biblioteca de Peças: só link (sem upload) — evita estourar o documento e mantém tudo pesquisável ---------- */
+  const addPeca = useCallback((dados) => {
+    const db = dbRef.current; if (!db) return Promise.reject(new Error('Sem conexão.'));
+    return db.collection('pecas').add({
+      ...dados, tags: dados.tags||[], campanhaId: dados.campanhaId||null,
+      criadoEm:new Date().toISOString(), criadoPor:(user&&user.name)||'',
+    }).catch(e => { setDbErro('Não foi possível salvar a peça: '+e.message); throw e; });
+  }, [user]);
+
+  const removePeca = useCallback((id) => {
+    const db = dbRef.current; if (!db) return;
+    db.collection('pecas').doc(id).delete().catch(e=>setDbErro('Não foi possível remover a peça: '+e.message));
+  }, []);
+
   const seed = useCallback(() => {
     const db = dbRef.current; if (!db) return;
     const lote = db.batch();
@@ -583,7 +645,7 @@ function Provider({ children }) {
   window.__nbDem = demands;
   window.__nbPosts = posts;
 
-  return <Ctx.Provider value={{ demands, active, archived, filtered, slack, user, authReady, authError, setAuthError, dbReady, dbErro, seed, pedidos, aceitarPedido, recusarPedido, posts, addPost, updatePost, deletePost, view, setView, layout, setLayout, area, setArea, query, setQuery, priFilter, setPriFilter, reqFilter, setReqFilter, selDemand, setModal, newOpen, setNewOpen, notifyPending, setNotifyPending, profileOpen, setProfileOpen, editStages, setEditStages, dragging, setDragging, previewMember, setPreviewMember, photos, googlePhotos, profiles, pipes, salvarPipes, attach, comments, storageWarn, MAX_FILE, addAttachment, uploadFile, migrarLocal, carregarAnexo, removeAttachment, addComment, removeComment, logout, savePhoto, removePhoto, saveProfile, addDemand, moveStage, moveArea, setAssignees, updateDemand, archiveDemand, restoreDemand, delDemand }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ demands, active, archived, filtered, slack, user, isTeamMember, authReady, authError, setAuthError, dbReady, dbErro, seed, pedidos, aceitarPedido, recusarPedido, posts, addPost, updatePost, deletePost, campanhas, addCampanha, updateCampanha, publicarCampanha, despublicarCampanha, deleteCampanha, pecas, addPeca, removePeca, view, setView, layout, setLayout, area, setArea, query, setQuery, priFilter, setPriFilter, reqFilter, setReqFilter, selDemand, setModal, newOpen, setNewOpen, notifyPending, setNotifyPending, profileOpen, setProfileOpen, editStages, setEditStages, dragging, setDragging, previewMember, setPreviewMember, photos, googlePhotos, profiles, pipes, salvarPipes, attach, comments, storageWarn, MAX_FILE, addAttachment, uploadFile, migrarLocal, carregarAnexo, removeAttachment, addComment, removeComment, logout, savePhoto, removePhoto, saveProfile, addDemand, moveStage, moveArea, setAssignees, updateDemand, archiveDemand, restoreDemand, delDemand }}>{children}</Ctx.Provider>;
 }
 
 const useApp = () => useContext(Ctx);
@@ -847,7 +909,7 @@ function NavItem({ label, Icon, iconColor, count, active, onClick, indent }) {
 
 /* =========== SIDEBAR =========== */
 function Sidebar() {
-  const { view, setView, area, setArea, user, active, slack, archived, pipes, pedidos, posts, setNewOpen, setProfileOpen, logout, previewMember, setPreviewMember } = useApp();
+  const { view, setView, area, setArea, user, active, slack, archived, pipes, pedidos, posts, campanhas, setNewOpen, setProfileOpen, logout, previewMember, setPreviewMember } = useApp();
   const areas = ['Social','Design','Mídia Paga','Produto','RevOps'];
   const vencidas = active.filter(d => { const s=getSla(d.deadline); return s && s.type!=='ok'; }).length;
   const emAprovacao = active.filter(d => {
@@ -921,6 +983,16 @@ function Sidebar() {
         <div style={{marginBottom:20}}>
           <NavItem label="Aprovações e pedidos" Icon={IStamp} iconColor={emAprovacao?'#C98A00':NB.mut}
             count={emAprovacao||undefined} active={view==='gestao'} onClick={()=>setView('gestao')}/>
+        </div>
+
+        <div style={secLbl}>Central</div>
+        <div style={{marginBottom:20}}>
+          <NavItem label="Central de Informações" Icon={IGlobe} iconColor={NB.mut}
+            active={view==='central'} onClick={()=>setView('central')}/>
+          {user.canPublishCampaigns && (
+            <NavItem label="Campanhas" Icon={ITarget} iconColor={NB.mut}
+              count={campanhas.length||undefined} active={view==='campanhas'} onClick={()=>setView('campanhas')}/>
+          )}
         </div>
 
         <div style={secLbl}>Módulos</div>
@@ -1019,6 +1091,8 @@ function ContentHeader() {
     variacoes:  ['Variações de peça', 'Suba uma peça e gere os cortes de formato, versões de fundo e o briefing do que testar.'],
     publicacoes:['Fila de Publicação', 'Monte o post, deixe pronto e publique — por enquanto manualmente no Meta Business Suite.'],
     gestao:     ['Gestão', 'Aprovações pendentes e pedidos de outros setores em um só lugar.'],
+    central:    ['Central de Informações', 'Busque peças, veja campanhas ativas e gere mensagens para WhatsApp.'],
+    campanhas:  ['Campanhas', 'Crie e publique campanhas — o que estiver "Publicada" aparece pra todo o Nibo na Central de Informações.'],
   };
   const [title, sub] = titles[view] || [
     area==='Todas' ? 'Todos os Pipelines' : 'Pipeline — '+area,
@@ -1710,6 +1784,327 @@ function PublishQueueView() {
   );
 }
 
+
+/* =========== CENTRAL DE INFORMAÇÕES — todo o Nibo vê ============ */
+function PecaResultCard({ peca }) {
+  return (
+    <div style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:12,padding:'14px 15px',display:'flex',flexDirection:'column',gap:8}}>
+      <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:8}}>
+        <span style={{fontSize:14,fontWeight:600,color:NB.txt,lineHeight:1.35}}>{peca.nome}</span>
+        <span style={{fontSize:10.5,fontWeight:600,color:NB.mut2,background:NB.col,borderRadius:6,padding:'2px 7px',flexShrink:0,textTransform:'uppercase',letterSpacing:'0.04em'}}>{peca.tipo||'peça'}</span>
+      </div>
+      {peca.descricao && <p style={{fontSize:12.5,color:NB.mut,lineHeight:1.55}}>{peca.descricao}</p>}
+      {(peca.tags||[]).length>0 && (
+        <div style={{display:'flex',flexWrap:'wrap',gap:5}}>
+          {peca.tags.map(t=><span key={t} style={{fontSize:11,color:NB.azul,background:'#EAF3FD',borderRadius:5,padding:'2px 8px'}}>#{t}</span>)}
+        </div>
+      )}
+      {peca.url && (
+        <a href={peca.url} target="_blank" rel="noopener noreferrer"
+          style={{display:'inline-flex',alignItems:'center',gap:6,fontSize:12.5,color:NB.azul,fontWeight:500,textDecoration:'none',marginTop:2}}>
+          <IExt s={13}/> Abrir peça
+        </a>
+      )}
+    </div>
+  );
+}
+
+function WhatsAppPanel({ camp, onClose }) {
+  const [copiado, setCopiado] = useState(null);
+  const variantes = whatsappVariants(camp);
+  const copiar = (txt, i) => { navigator.clipboard && navigator.clipboard.writeText(txt); setCopiado(i); setTimeout(()=>setCopiado(null),1800); };
+  return (
+    <Modal onClose={onClose} width={520}>
+      <div style={{padding:'22px 24px 16px'}}>
+        <h2 style={{fontSize:16.5,fontWeight:600,color:NB.txt,marginBottom:5}}>Mensagens pra WhatsApp</h2>
+        <p style={{fontSize:13,color:NB.mut}}>Baseadas na campanha <strong style={{fontWeight:600,color:NB.txt}}>{camp.titulo}</strong>. Escolha uma e copie.</p>
+      </div>
+      <div style={{padding:'0 24px 20px',display:'flex',flexDirection:'column',gap:10}}>
+        {variantes.map((v,i)=>(
+          <div key={i} style={{background:NB.col,border:'1px solid '+NB.bd,borderRadius:11,padding:'13px 14px'}}>
+            <div style={{fontSize:10.5,fontWeight:600,color:NB.mut2,textTransform:'uppercase',letterSpacing:'0.05em',marginBottom:6}}>{v.rotulo}</div>
+            <p style={{fontSize:13.5,color:NB.txt,lineHeight:1.6,marginBottom:10,whiteSpace:'pre-wrap'}}>{v.texto}</p>
+            <button onClick={()=>copiar(v.texto,i)}
+              style={{padding:'7px 13px',background:copiado===i?'#E1F5EE':'#fff',border:'1px solid '+(copiado===i?'#0F6E56':NB.bd),borderRadius:8,fontSize:12,fontWeight:500,color:copiado===i?'#0F6E56':NB.mut}}>
+              {copiado===i?'Copiado ✓':'Copiar'}
+            </button>
+          </div>
+        ))}
+      </div>
+    </Modal>
+  );
+}
+
+function CampanhaPublicCard({ camp, pecasDaCampanha }) {
+  const [whats, setWhats] = useState(false);
+  return (
+    <div style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:14,padding:'18px 20px',boxShadow:'0 1px 3px rgba(11,42,92,0.04)'}}>
+      <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:10,marginBottom:10}}>
+        <h3 style={{fontSize:16,fontWeight:600,color:NB.txt}}>{camp.titulo}</h3>
+        {camp.desconto && (
+          <span style={{fontSize:12,fontWeight:700,color:'#0F6E56',background:'#E1F5EE',borderRadius:7,padding:'4px 10px',flexShrink:0,whiteSpace:'nowrap'}}>{camp.desconto}</span>
+        )}
+      </div>
+      {camp.descricao && <p style={{fontSize:13,color:NB.mut,lineHeight:1.55,marginBottom:12}}>{camp.descricao}</p>}
+      {(camp.produtos||[]).length>0 && (
+        <div style={{display:'flex',flexWrap:'wrap',gap:6,marginBottom:12}}>
+          {camp.produtos.map(p=><span key={p} style={{fontSize:11.5,color:NB.txt,background:NB.col,border:'1px solid '+NB.bd,borderRadius:6,padding:'3px 9px'}}>{p}</span>)}
+        </div>
+      )}
+      {pecasDaCampanha.length>0 && (
+        <div style={{display:'flex',gap:7,flexWrap:'wrap',marginBottom:12}}>
+          {pecasDaCampanha.map(p=>(
+            <a key={p.id} href={p.url} target="_blank" rel="noopener noreferrer"
+              style={{display:'flex',alignItems:'center',gap:5,fontSize:11.5,color:NB.azul,background:'#EAF3FD',borderRadius:6,padding:'4px 9px',textDecoration:'none'}}>
+              <IExt s={11}/> {p.nome}
+            </a>
+          ))}
+        </div>
+      )}
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:10,paddingTop:12,borderTop:'1px solid '+NB.bdSoft,flexWrap:'wrap'}}>
+        {camp.instagramLink
+          ? <a href={camp.instagramLink} target="_blank" rel="noopener noreferrer"
+              style={{display:'flex',alignItems:'center',gap:6,fontSize:12.5,color:NB.azul,fontWeight:500,textDecoration:'none'}}><IExt s={13}/> Ver post no Instagram</a>
+          : <span style={{fontSize:12,color:NB.mut2}}>Link do Instagram ainda não disponível</span>}
+        <button onClick={()=>setWhats(true)}
+          style={{display:'flex',alignItems:'center',gap:7,padding:'8px 14px',background:NB.azul,border:'none',borderRadius:9,fontSize:12.5,fontWeight:500,color:'#fff'}}>
+          <IChatBox s={14}/> Mensagem pra WhatsApp
+        </button>
+      </div>
+      {whats && <WhatsAppPanel camp={camp} onClose={()=>setWhats(false)}/>}
+    </div>
+  );
+}
+
+function InfoCentralView() {
+  const { campanhas, pecas } = useApp();
+  const [busca, setBusca] = useState('');
+  const publicadas = campanhas.filter(c=>c.status==='publicada');
+
+  const resultados = busca.trim() ? pecas.filter(p => {
+    const q = busca.toLowerCase();
+    return (p.nome||'').toLowerCase().includes(q)
+      || (p.descricao||'').toLowerCase().includes(q)
+      || (p.tags||[]).some(t=>t.toLowerCase().includes(q));
+  }) : [];
+
+  return (
+    <div style={{padding:'22px 30px 30px',overflowY:'auto',overflowX:'hidden',height:'100%'}}>
+      <div style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:16,padding:'20px 22px',marginBottom:22,boxShadow:'0 1px 3px rgba(11,42,92,0.04)'}}>
+        <div style={{...lbl,marginBottom:9}}>Buscar peças e banners</div>
+        <div style={{position:'relative'}}>
+          <span style={{position:'absolute',left:14,top:'50%',transform:'translateY(-50%)',color:NB.mut2,display:'flex'}}><ISearch s={16}/></span>
+          <input value={busca} onChange={e=>setBusca(e.target.value)} placeholder="Busque por nome, descrição ou tag — ex: black friday, webinar, banner"
+            style={{...inp,padding:'11px 14px 11px 40px',fontSize:14}}/>
+        </div>
+        {busca.trim() && (
+          resultados.length===0 ? (
+            <p style={{fontSize:13,color:NB.mut2,marginTop:14}}>Nada encontrado pra "{busca}". Tente outra palavra ou peça pro marketing cadastrar essa peça.</p>
+          ) : (
+            <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(230px,1fr))',gap:12,marginTop:16}}>
+              {resultados.map(p=><PecaResultCard key={p.id} peca={p}/>)}
+            </div>
+          )
+        )}
+      </div>
+
+      <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:14}}>
+        <span style={{fontSize:16,fontWeight:600,color:NB.txt}}>Campanhas ativas</span>
+        <span style={{fontSize:13,color:NB.mut}}>{publicadas.length===0?'nenhuma no momento':publicadas.length+(publicadas.length===1?' campanha':' campanhas')}</span>
+      </div>
+
+      {publicadas.length===0 ? (
+        <div style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:14,padding:'26px 22px',fontSize:13.5,color:NB.mut,lineHeight:1.6}}>
+          Nenhuma campanha publicada no momento. Assim que o marketing publicar uma, ela aparece aqui pra todo mundo do Nibo ver.
+        </div>
+      ) : (
+        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(340px,1fr))',gap:14}}>
+          {publicadas.map(c=>(
+            <CampanhaPublicCard key={c.id} camp={c} pecasDaCampanha={pecas.filter(p=>(c.pecaIds||[]).includes(p.id))}/>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* =========== CAMPANHAS — gestão, só quem tem permissão ============ */
+function CampanhaEditModal({ camp, onClose }) {
+  const { addCampanha, updateCampanha, pecas, addPeca, user } = useApp();
+  const editando = !!camp;
+  const [form, setForm] = useState(() => camp ? {
+    titulo:camp.titulo||'', descricao:camp.descricao||'', desconto:camp.desconto||'',
+    produtos:(camp.produtos||[]).join(', '), instagramLink:camp.instagramLink||'', pecaIds:camp.pecaIds||[],
+  } : { titulo:'', descricao:'', desconto:'', produtos:'', instagramLink:'', pecaIds:[] });
+  const [novaPeca, setNovaPeca] = useState({ nome:'', url:'', tags:'' });
+  const [err, setErr] = useState('');
+
+  const set = (k,v) => setForm(f=>({...f,[k]:v}));
+  const togglePeca = id => setForm(f=>({...f, pecaIds: f.pecaIds.includes(id) ? f.pecaIds.filter(x=>x!==id) : [...f.pecaIds, id]}));
+
+  const salvarPecaNova = () => {
+    if (!novaPeca.nome.trim() || !novaPeca.url.trim()) return setErr('Preencha nome e link da peça.');
+    addPeca({ nome:novaPeca.nome.trim(), url:novaPeca.url.trim(), tags:novaPeca.tags.split(',').map(t=>t.trim()).filter(Boolean), tipo:'banner' })
+      .then(ref => { setForm(f=>({...f, pecaIds:[...f.pecaIds, ref.id]})); setNovaPeca({nome:'',url:'',tags:''}); setErr(''); })
+      .catch(()=>{});
+  };
+
+  const salvar = () => {
+    if (!form.titulo.trim()) return setErr('Dê um título pra campanha.');
+    const dados = {
+      titulo:form.titulo.trim(), descricao:form.descricao.trim(), desconto:form.desconto.trim(),
+      produtos:form.produtos.split(',').map(p=>p.trim()).filter(Boolean),
+      instagramLink:form.instagramLink.trim(), pecaIds:form.pecaIds,
+    };
+    if (editando) updateCampanha(camp.id, dados); else addCampanha(dados);
+    onClose();
+  };
+
+  return (
+    <Modal onClose={onClose} width={600}>
+      <div style={{padding:'22px 24px 16px',borderBottom:'1px solid '+NB.bdSoft}}>
+        <h2 style={{fontSize:18,fontWeight:600,color:NB.txt}}>{editando?'Editar campanha':'Nova campanha'}</h2>
+      </div>
+      <div style={{padding:'20px 24px',display:'flex',flexDirection:'column',gap:14,maxHeight:'60vh',overflowY:'auto'}}>
+        <div>
+          <div style={{...lbl,marginBottom:6}}>Título</div>
+          <input value={form.titulo} onChange={e=>set('titulo',e.target.value)} placeholder="ex: Black Friday Nibo 2026" style={{...inp,padding:'9px 12px',fontSize:13.5}}/>
+        </div>
+        <div>
+          <div style={{...lbl,marginBottom:6}}>Descrição</div>
+          <textarea value={form.descricao} onChange={e=>set('descricao',e.target.value)} rows={2} placeholder="Contexto curto pra quem vai ler na Central de Informações" style={{...inp,padding:'9px 12px',fontSize:13.5,resize:'vertical'}}/>
+        </div>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+          <div>
+            <div style={{...lbl,marginBottom:6}}>Desconto</div>
+            <input value={form.desconto} onChange={e=>set('desconto',e.target.value)} placeholder="ex: 20% OFF" style={{...inp,padding:'9px 12px',fontSize:13.5}}/>
+          </div>
+          <div>
+            <div style={{...lbl,marginBottom:6}}>Produtos válidos</div>
+            <input value={form.produtos} onChange={e=>set('produtos',e.target.value)} placeholder="separados por vírgula" style={{...inp,padding:'9px 12px',fontSize:13.5}}/>
+          </div>
+        </div>
+        <div>
+          <div style={{...lbl,marginBottom:6}}>Link do post no Instagram (opcional)</div>
+          <input value={form.instagramLink} onChange={e=>set('instagramLink',e.target.value)} placeholder="cole quando publicar lá" style={{...inp,padding:'9px 12px',fontSize:13.5}}/>
+        </div>
+
+        <div>
+          <div style={{...lbl,marginBottom:8}}>Peças vinculadas</div>
+          {pecas.length>0 && (
+            <div style={{display:'flex',flexWrap:'wrap',gap:7,marginBottom:10}}>
+              {pecas.map(p=>{
+                const on = form.pecaIds.includes(p.id);
+                return (
+                  <button key={p.id} type="button" onClick={()=>togglePeca(p.id)}
+                    style={{padding:'6px 12px',borderRadius:20,border:'1px solid '+(on?NB.azul:NB.bd),background:on?'#EAF3FD':'#fff',fontSize:12,fontWeight:500,color:on?NB.azul:NB.mut}}>
+                    {p.nome}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          <div style={{background:NB.col,border:'1px dashed '+NB.bd,borderRadius:10,padding:'12px 13px',display:'flex',flexDirection:'column',gap:8}}>
+            <div style={{fontSize:11.5,color:NB.mut,fontWeight:500}}>Adicionar peça nova (fica na biblioteca pra buscar depois)</div>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+              <input value={novaPeca.nome} onChange={e=>setNovaPeca(v=>({...v,nome:e.target.value}))} placeholder="Nome" style={{...inp,padding:'8px 11px',fontSize:12.5}}/>
+              <input value={novaPeca.url} onChange={e=>setNovaPeca(v=>({...v,url:e.target.value}))} placeholder="Link (Drive, Canva...)" style={{...inp,padding:'8px 11px',fontSize:12.5}}/>
+            </div>
+            <input value={novaPeca.tags} onChange={e=>setNovaPeca(v=>({...v,tags:e.target.value}))} placeholder="Tags separadas por vírgula" style={{...inp,padding:'8px 11px',fontSize:12.5}}/>
+            <button type="button" onClick={salvarPecaNova} style={{alignSelf:'flex-start',padding:'7px 13px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:8,fontSize:12,fontWeight:500,color:NB.azul}}>
+              <IPlus s={12}/> Adicionar à biblioteca
+            </button>
+          </div>
+        </div>
+
+        {err && <p style={{fontSize:12.5,color:'#B4232A'}}>{err}</p>}
+      </div>
+      <div style={{padding:'16px 24px',borderTop:'1px solid '+NB.bdSoft,display:'flex',justifyContent:'flex-end',gap:10}}>
+        <button onClick={onClose} style={{padding:'10px 16px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:9,fontSize:13,fontWeight:500,color:NB.mut}}>Cancelar</button>
+        <button onClick={salvar} style={{padding:'10px 20px',background:NB.azul,border:'none',borderRadius:9,fontSize:13,fontWeight:500,color:'#fff'}}>Salvar</button>
+      </div>
+    </Modal>
+  );
+}
+
+function CampanhaManagerCard({ camp }) {
+  const { publicarCampanha, despublicarCampanha, deleteCampanha, pecas } = useApp();
+  const [editar, setEditar] = useState(false);
+  const [confirmar, setConfirmar] = useState(false);
+  const publicada = camp.status === 'publicada';
+
+  return (
+    <div style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:13,padding:'16px 18px'}}>
+      <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:10,marginBottom:9}}>
+        <div>
+          <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:5}}>
+            <span style={{fontSize:15,fontWeight:600,color:NB.txt}}>{camp.titulo}</span>
+            <span style={{fontSize:10.5,fontWeight:600,padding:'2px 8px',borderRadius:6,background:publicada?'#E1F5EE':'#FFF6DE',color:publicada?'#0F6E56':'#8A6206'}}>
+              {publicada?'Publicada':'Rascunho'}
+            </span>
+          </div>
+          {camp.desconto && <span style={{fontSize:12.5,color:NB.mut}}>{camp.desconto}</span>}
+        </div>
+        <div style={{display:'flex',gap:7,flexShrink:0}}>
+          <button onClick={()=>setEditar(true)} style={{padding:'7px 11px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:8,fontSize:12,fontWeight:500,color:NB.mut}}>Editar</button>
+          {publicada
+            ? <button onClick={()=>despublicarCampanha(camp)} style={{padding:'7px 11px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:8,fontSize:12,fontWeight:500,color:NB.mut}}>Despublicar</button>
+            : <button onClick={()=>publicarCampanha(camp)} style={{padding:'7px 13px',background:'#0F6E56',border:'none',borderRadius:8,fontSize:12,fontWeight:500,color:'#fff'}}>Publicar</button>}
+        </div>
+      </div>
+      {camp.descricao && <p style={{fontSize:12.5,color:NB.mut,lineHeight:1.55,marginBottom:8}}>{camp.descricao}</p>}
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:10}}>
+        <span style={{fontSize:11.5,color:NB.mut2}}>{(camp.pecaIds||[]).length} peça(s) · {camp.instagramLink?'link do Insta ok':'sem link do Insta ainda'}</span>
+        {confirmar ? (
+          <span style={{display:'flex',gap:7}}>
+            <button onClick={()=>deleteCampanha(camp.id)} style={{padding:'5px 10px',background:'#B4232A',border:'none',borderRadius:7,fontSize:11.5,color:'#fff'}}>Confirmar</button>
+            <button onClick={()=>setConfirmar(false)} style={{padding:'5px 10px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:7,fontSize:11.5,color:NB.mut}}>Cancelar</button>
+          </span>
+        ) : (
+          <button onClick={()=>setConfirmar(true)} style={{fontSize:11.5,color:'#B4232A',background:'none',border:'none',fontWeight:500}}>Excluir</button>
+        )}
+      </div>
+      {editar && <CampanhaEditModal camp={camp} onClose={()=>setEditar(false)}/>}
+    </div>
+  );
+}
+
+function CampanhasManagerView() {
+  const { user, campanhas } = useApp();
+  const [nova, setNova] = useState(false);
+
+  if (!user.canPublishCampaigns) {
+    return (
+      <div style={{padding:30}}>
+        <div style={{background:'#FFF6DE',border:'1px solid #F3D98A',borderRadius:12,padding:'16px 18px',fontSize:13.5,color:'#8A6206'}}>
+          Só quem publica campanhas acessa essa tela.
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{padding:'22px 30px 30px',overflowY:'auto',overflowX:'hidden',height:'100%'}}>
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:18,gap:12}}>
+        <span style={{fontSize:13.5,color:NB.mut}}>{campanhas.length} campanha(s) no total</span>
+        <button onClick={()=>setNova(true)}
+          style={{display:'flex',alignItems:'center',gap:7,padding:'9px 16px',background:NB.azul,border:'none',borderRadius:9,fontSize:13,fontWeight:500,color:'#fff'}}>
+          <IPlus s={14}/> Nova campanha
+        </button>
+      </div>
+      {campanhas.length===0 ? (
+        <div style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:14,padding:'40px 22px',textAlign:'center',color:NB.mut,fontSize:13.5}}>
+          Nenhuma campanha ainda. Crie uma e publique quando estiver pronta.
+        </div>
+      ) : (
+        <div style={{display:'flex',flexDirection:'column',gap:11}}>
+          {campanhas.slice().sort((a,b)=> (b.criadaEm||'').localeCompare(a.criadaEm||'')).map(c=><CampanhaManagerCard key={c.id} camp={c}/>)}
+        </div>
+      )}
+      {nova && <CampanhaEditModal camp={null} onClose={()=>setNova(false)}/>}
+    </div>
+  );
+}
 
 /* =========== GESTÃO — fila de aprovação =========== */
 function ApprovalCard({ demand }) {
@@ -2805,6 +3200,20 @@ async function drawEncerramento(w, h, frase) {
   return cv.toDataURL('image/png');
 }
 
+/* Variações de texto pra WhatsApp — pré-vendas usa uma dessas na campanha ativa. */
+function whatsappVariants(camp) {
+  const produtos = (camp.produtos||[]).join(', ');
+  const desc = camp.desconto ? camp.desconto : '';
+  return [
+    { rotulo:'Direto', texto:
+      'Oi! Vi que você usa o Nibo e queria te contar sobre '+camp.titulo+(desc?' — '+desc:'')+(produtos?', válido pra '+produtos:'')+'. Posso te explicar como funciona?' },
+    { rotulo:'Contextual', texto:
+      'Oi! Passando pra avisar de uma condição especial que abrimos'+(desc?': '+desc:'')+' em '+camp.titulo+(produtos?' ('+produtos+')':'')+'. Faz sentido pra você agora?' },
+    { rotulo:'Curto', texto:
+      camp.titulo+(desc?' — '+desc:'')+'. Quer que eu te mande os detalhes?' },
+  ];
+}
+
 function briefing(tema, publico) {
   return {
     'Ângulos de headline (3 versões pra testar)': [
@@ -3734,10 +4143,49 @@ function NewModal() {
 }
 
 /* =========== APP =========== */
+/* =========== APP DE VISITANTE — qualquer conta do Nibo fora do marketing ============ */
+function VisitorApp() {
+  const { user, logout, dbReady, dbErro } = useApp();
+  return (
+    <div style={{height:'100vh',width:'100%',display:'flex',flexDirection:'column',background:NB.bg,overflow:'hidden'}}>
+      <header style={{background:'#fff',borderBottom:'1px solid '+NB.bd,padding:'16px 30px',display:'flex',alignItems:'center',gap:14,flexShrink:0}}>
+        <NiboSymbol size={32} color={NB.navy1}/>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontSize:16,fontWeight:700,color:NB.navy1,letterSpacing:'-0.01em'}}>Central de Informações de Marketing</div>
+          <div style={{fontSize:12,color:NB.mut}}>Nibo · aberta pra todo mundo do time</div>
+        </div>
+        <div style={{display:'flex',alignItems:'center',gap:10,flexShrink:0}}>
+          <div style={{textAlign:'right'}}>
+            <div style={{fontSize:12.5,fontWeight:600,color:NB.txt}}>{user.name}</div>
+            <div style={{fontSize:11,color:NB.mut2}}>{user.email}</div>
+          </div>
+          <Avatar member={user} size={32} ring={false}/>
+          <button onClick={logout} title="Sair"
+            style={{padding:9,background:'#fff',border:'1px solid '+NB.bd,borderRadius:9,color:NB.mut,display:'flex'}}><ILogout s={15}/></button>
+        </div>
+      </header>
+      {dbErro && (
+        <div style={{background:'#FEF2F2',borderBottom:'1px solid #FECACA',padding:'11px 28px',fontSize:13,color:'#B4232A',display:'flex',alignItems:'center',gap:9,flexShrink:0}}>
+          <IAlert s={15}/> {dbErro}
+        </div>
+      )}
+      <main style={{flex:1,overflow:'hidden',minHeight:0}}>
+        {!dbReady && !dbErro ? (
+          <div style={{height:'100%',display:'flex',alignItems:'center',justifyContent:'center',flexDirection:'column',gap:13,color:NB.mut}}>
+            <div style={{width:32,height:32,border:'2.5px solid '+NB.bd,borderTopColor:NB.azul,borderRadius:'50%',animation:'nb-spin 0.8s linear infinite'}}/>
+            <span style={{fontSize:13.5}}>Carregando…</span>
+          </div>
+        ) : <InfoCentralView/>}
+      </main>
+    </div>
+  );
+}
+
 function AppContent() {
-  const { view, user, authReady, setDragging, editStages, setEditStages, dbReady, dbErro, previewMember, setPreviewMember } = useApp();
+  const { view, user, isTeamMember, authReady, setDragging, editStages, setEditStages, dbReady, dbErro, previewMember, setPreviewMember } = useApp();
   if (!authReady) return <Splash/>;
   if (!user)      return <LoginScreen/>;
+  if (!isTeamMember) return <VisitorApp/>;
   return (
     <div style={{display:'flex',height:'100vh',width:'100%',overflow:'hidden',background:NB.bg}}
       onDragOver={e=>e.preventDefault()}
@@ -3774,6 +4222,8 @@ function AppContent() {
               {view==='variacoes'  && <VariationsView/>}
               {view==='publicacoes'&& <PublishQueueView/>}
               {view==='gestao'     && <GestaoView/>}
+              {view==='central'    && <InfoCentralView/>}
+              {view==='campanhas'  && <CampanhasManagerView/>}
             </React.Fragment>
           )}
         </main>
