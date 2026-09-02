@@ -2331,26 +2331,57 @@ function AbordagemTab() {
 /* =========== CAMPANHAS — gestão, só quem tem permissão ============ */
 function CampanhaEditModal({ camp, onClose }) {
   const { updateCampanha } = useApp();
-  const [link, setLink] = useState(camp.instagramLink || '');
+  const [form, setForm] = useState({
+    titulo: camp.titulo || '', descricao: camp.descricao || '',
+    desconto: camp.desconto || '', jornada: camp.jornada || 'empresa',
+    instagramLink: camp.instagramLink || '',
+  });
   const [err, setErr] = useState('');
+  const set = (k,v) => { setForm(f=>({...f,[k]:v})); setErr(''); };
 
   const salvar = () => {
-    let v = link.trim();
-    if (v && !/^https?:\/\//i.test(v)) v = 'https://' + v;
-    updateCampanha(camp.id, { instagramLink: v });
+    if (!form.titulo.trim()) return setErr('O título não pode ficar vazio.');
+    let link = form.instagramLink.trim();
+    if (link && !/^https?:\/\//i.test(link)) link = 'https://' + link;
+    updateCampanha(camp.id, {
+      titulo: form.titulo.trim(), descricao: form.descricao.trim(),
+      desconto: form.desconto.trim(), jornada: form.jornada, instagramLink: link,
+    });
     onClose();
   };
 
   return (
-    <Modal onClose={onClose} width={460}>
+    <Modal onClose={onClose} width={520}>
       <div style={{padding:'22px 24px 16px',borderBottom:'1px solid '+NB.bdSoft}}>
-        <h2 style={{fontSize:17,fontWeight:600,color:NB.txt,marginBottom:5}}>{camp.titulo}</h2>
-        <p style={{fontSize:12.5,color:NB.mut}}>O conteúdo dessa campanha veio da demanda que gerou ela — aqui só dá pra atualizar o link do post no Instagram.</p>
+        <h2 style={{fontSize:17,fontWeight:600,color:NB.txt,marginBottom:5}}>Editar campanha</h2>
+        <p style={{fontSize:12.5,color:NB.mut}}>Pra corrigir algo que veio errado da demanda — não recria, só ajusta.</p>
       </div>
-      <div style={{padding:'20px 24px'}}>
-        <div style={{...lbl,marginBottom:6}}>Link do post no Instagram</div>
-        <input value={link} onChange={e=>{setLink(e.target.value); setErr('');}} placeholder="cole quando publicar lá" style={{...inp,padding:'9px 12px',fontSize:13.5}}/>
-        {err && <p style={{fontSize:12.5,color:'#B4232A',marginTop:8}}>{err}</p>}
+      <div style={{padding:'20px 24px',display:'flex',flexDirection:'column',gap:14,maxHeight:'60vh',overflowY:'auto'}}>
+        <div>
+          <div style={{...lbl,marginBottom:6}}>Título</div>
+          <input value={form.titulo} onChange={e=>set('titulo',e.target.value)} style={{...inp,padding:'9px 12px',fontSize:13.5}}/>
+        </div>
+        <div>
+          <div style={{...lbl,marginBottom:6}}>Descrição</div>
+          <textarea value={form.descricao} onChange={e=>set('descricao',e.target.value)} rows={2} style={{...inp,padding:'9px 12px',fontSize:13.5,resize:'vertical'}}/>
+        </div>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+          <div>
+            <div style={{...lbl,marginBottom:6}}>Desconto</div>
+            <input value={form.desconto} onChange={e=>set('desconto',e.target.value)} placeholder="ex: 20% OFF" style={{...inp,padding:'9px 12px',fontSize:13.5}}/>
+          </div>
+          <div>
+            <div style={{...lbl,marginBottom:6}}>Jornada</div>
+            <select value={form.jornada} onChange={e=>set('jornada',e.target.value)} style={{...inp,padding:'9px 12px',fontSize:13.5}}>
+              {PERSONAS.map(p=><option key={p.id} value={p.id}>{p.emoji} {p.label}</option>)}
+            </select>
+          </div>
+        </div>
+        <div>
+          <div style={{...lbl,marginBottom:6}}>Link do post no Instagram</div>
+          <input value={form.instagramLink} onChange={e=>set('instagramLink',e.target.value)} placeholder="cole quando publicar lá" style={{...inp,padding:'9px 12px',fontSize:13.5}}/>
+        </div>
+        {err && <p style={{fontSize:12.5,color:'#B4232A'}}>{err}</p>}
       </div>
       <div style={{padding:'16px 24px',borderTop:'1px solid '+NB.bdSoft,display:'flex',justifyContent:'flex-end',gap:10}}>
         <button onClick={onClose} style={{padding:'10px 16px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:9,fontSize:13,fontWeight:500,color:NB.mut}}>Cancelar</button>
@@ -2388,7 +2419,7 @@ function CampanhaManagerCard({ camp }) {
         {podeGerenciar && (
           <div style={{display:'flex',gap:7,flexShrink:0}}>
             <button onClick={()=>setEditar(true)} style={{padding:'7px 11px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:8,fontSize:12,fontWeight:500,color:NB.mut}}>
-              {camp.instagramLink ? 'Editar link' : 'Adicionar link'}
+              Editar
             </button>
             {publicada
               ? <button onClick={()=>despublicarCampanha(camp)} style={{padding:'7px 11px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:8,fontSize:12,fontWeight:500,color:NB.mut}}>Despublicar</button>
