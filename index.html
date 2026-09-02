@@ -816,6 +816,7 @@ const IPen     = ({s=16})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}
 const IRocket  = ({s=16})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="M12 15l-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></svg>;
 const IEye     = ({s=15})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}><path d="M1.5 12S5 4.5 12 4.5 22.5 12 22.5 12 19 19.5 12 19.5 1.5 12 1.5 12z"/><circle cx="12" cy="12" r="3.2"/></svg>;
 const IEyeOff  = ({s=15})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}><path d="M3 3l18 18"/><path d="M10.6 5.1A11.5 11.5 0 0 1 12 5c7 0 10.5 7 10.5 7a17.3 17.3 0 0 1-3.4 4.4M6.3 6.9C3.5 8.8 1.5 12 1.5 12S5 19 12 19a10.6 10.6 0 0 0 3.2-.5"/><path d="M9.5 9.9a3.2 3.2 0 0 0 4.5 4.5"/></svg>;
+const ILock    = ({s=15})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>;
 const IPhoto   = ({s=15})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}><rect x="2.5" y="4.5" width="19" height="15" rx="2.5"/><circle cx="8.5" cy="10" r="1.7"/><path d="M21.5 16l-5.5-5.5-4 4-2-2-6 6"/></svg>;
 const IPlay    = ({s=15})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}><circle cx="12" cy="12" r="9.5"/><polygon points="10 8.5 16 12 10 15.5" fill="currentColor" stroke="none"/></svg>;
 const IGlobe   = ({s=15})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}><circle cx="12" cy="12" r="9.5"/><ellipse cx="12" cy="12" rx="4" ry="9.5"/><line x1="2.5" y1="12" x2="21.5" y2="12"/></svg>;
@@ -4333,6 +4334,27 @@ function CardModal() {
     setTimeout(()=>setEnviando(false), 900);
   };
 
+  /* Subtarefas: quem está na vez marca a sua como feita (pede aprovação);
+     quem é dono da tarefa principal aprova, o que libera a próxima da fila. */
+  const concluirSubtarefa = subId => {
+    const novas = (d.subtarefas||[]).map(s => s.id===subId ? {...s, status:'aguardando_aprovacao'} : s);
+    updateDemand(d.id, { subtarefas: novas });
+  };
+  const aprovarSubtarefa = subId => {
+    const lista = d.subtarefas||[];
+    const idx = lista.findIndex(s=>s.id===subId);
+    const novas = lista.map((s,i) => {
+      if (i===idx) return { ...s, status:'aprovada' };
+      if (i===idx+1 && s.status==='bloqueada') return { ...s, status:'pendente' };
+      return s;
+    });
+    updateDemand(d.id, { subtarefas: novas });
+  };
+  const reabrirSubtarefa = subId => {
+    const novas = (d.subtarefas||[]).map(s => s.id===subId ? {...s, status:'pendente'} : s);
+    updateDemand(d.id, { subtarefas: novas });
+  };
+
   const toggle = init => {
     const has = d.assignees.includes(init);
     if (has && d.assignees.length === 1) return;   // nunca deixar sem ninguém
@@ -4379,6 +4401,63 @@ function CardModal() {
             )}
           </div>
         )}
+
+        {(d.subtarefas||[]).length>0 && (
+          <div style={{marginBottom:24}}>
+            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10}}>
+              <span style={lbl}>Subtarefas</span>
+              <span style={{fontSize:11.5,color:NB.mut2}}>{d.subtarefas.filter(s=>s.status==='aprovada').length}/{d.subtarefas.length} concluídas</span>
+            </div>
+            <div style={{display:'flex',flexDirection:'column',gap:8}}>
+              {d.subtarefas.map((s,i)=>{
+                const resp = ACTIVE_TEAM.find(m=>m.initials===s.responsavel);
+                if (s.status==='aprovada') return (
+                  <div key={s.id} style={{display:'flex',alignItems:'center',gap:10,padding:'10px 13px',background:'#E1F5EE',border:'1px solid #A7E8CC',borderRadius:9}}>
+                    <span style={{color:'#0F6E56',display:'flex',flexShrink:0}}><ICheck s={15}/></span>
+                    <span style={{fontSize:13,color:'#0F6E56',textDecoration:'line-through',flex:1}}>{s.titulo}</span>
+                    <span style={{fontSize:11,color:'#0F6E56',flexShrink:0}}>{resp?resp.initials:s.responsavel}</span>
+                  </div>
+                );
+                if (s.status==='aguardando_aprovacao') return (
+                  <div key={s.id} style={{padding:'10px 13px',background:'#FFF6DE',border:'1px solid #F3D98A',borderRadius:9}}>
+                    <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:6}}>
+                      <span style={{color:'#8A6206',display:'flex',flexShrink:0}}><IClock s={14}/></span>
+                      <span style={{fontSize:13,color:NB.txt,flex:1}}>{s.titulo}</span>
+                      <span style={{fontSize:11,color:'#8A6206',flexShrink:0}}>{resp?resp.initials:s.responsavel}</span>
+                    </div>
+                    <div style={{display:'flex',alignItems:'center',gap:12,paddingLeft:24}}>
+                      <button onClick={()=>aprovarSubtarefa(s.id)}
+                        style={{padding:'5px 12px',background:'#8A6206',border:'none',borderRadius:7,fontSize:11.5,fontWeight:500,color:'#fff'}}>
+                        Aprovar
+                      </button>
+                      <button onClick={()=>reabrirSubtarefa(s.id)} style={{fontSize:11.5,color:NB.mut2,background:'none',border:'none'}}>Desfazer</button>
+                    </div>
+                  </div>
+                );
+                if (s.status==='bloqueada') return (
+                  <div key={s.id} style={{display:'flex',alignItems:'center',gap:10,padding:'10px 13px',background:NB.col,border:'1px solid '+NB.bd,borderRadius:9,opacity:0.65}}>
+                    <span style={{color:NB.mut2,display:'flex',flexShrink:0}}><ILock s={13}/></span>
+                    <span style={{fontSize:13,color:NB.mut,flex:1}}>{s.titulo}</span>
+                    <span style={{fontSize:11,color:NB.mut2,flexShrink:0}}>{resp?resp.initials:s.responsavel}</span>
+                  </div>
+                );
+                /* 'pendente' — a atual, liberada */
+                return (
+                  <div key={s.id} style={{display:'flex',alignItems:'center',gap:10,padding:'10px 13px',background:'#EAF3FD',border:'1px solid #BFDDF7',borderRadius:9}}>
+                    <span style={{width:20,height:20,borderRadius:'50%',background:NB.azul,color:'#fff',fontSize:10,fontWeight:700,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>{i+1}</span>
+                    <span style={{fontSize:13,color:NB.txt,flex:1}}>{s.titulo}</span>
+                    <span style={{fontSize:11,color:NB.azul,fontWeight:600,flexShrink:0}}>{resp?resp.initials:s.responsavel}</span>
+                    <button onClick={()=>concluirSubtarefa(s.id)}
+                      style={{padding:'6px 12px',background:NB.azul,border:'none',borderRadius:7,fontSize:11.5,fontWeight:500,color:'#fff',flexShrink:0}}>
+                      Concluí minha parte
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         <div style={{marginBottom:22}}>
           <div style={lbl}>Descrição</div>
           <EditableText value={d.description} multiline rows={3}
