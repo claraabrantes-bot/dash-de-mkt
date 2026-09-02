@@ -158,10 +158,12 @@ function Provider({ children }) {
   const [demands, setDemands] = useState([]);
   const [pedidos, setPedidos] = useState([]);
   const [posts, setPosts] = useState([]);
-  const [campanhas, setCampanhas] = useState([]);
+  const [campanhasPublicas, setCampanhasPublicas] = useState([]);
+  const [campanhasGestao, setCampanhasGestao] = useState([]);
   const [lancamentos, setLancamentos] = useState([]);
   const [redesSociais, setRedesSociais] = useState({ instagramHandle:'', posts:[] });
-  const [arquivos, setArquivos] = useState([]);
+  const [arquivosPublicos, setArquivosPublicos] = useState([]);
+  const [arquivosGestao, setArquivosGestao] = useState([]);
   const [embaixadores, setEmbaixadores] = useState([]);
   const [pecas, setPecas] = useState([]);
   const [slack, setSlack]     = useState([]);
@@ -258,8 +260,8 @@ function Provider({ children }) {
         : 'Falha de conexão: ' + (e && e.message ? e.message : 'desconhecida')
     );
 
-    const uc = db.collection('campanhas').onSnapshot(snap => {
-      setCampanhas(snap.docs.map(d => ({ id:d.id, ...d.data() })));
+    const uc = db.collection('campanhas').where('status','==','publicada').onSnapshot(snap => {
+      setCampanhasPublicas(snap.docs.map(d => ({ id:d.id, ...d.data() })));
     }, erro);
     const up = db.collection('pecas').onSnapshot(snap => {
       setPecas(snap.docs.map(d => ({ id:d.id, ...d.data() })));
@@ -270,8 +272,8 @@ function Provider({ children }) {
     const ur = db.collection('redesSociais').doc('principal').onSnapshot(doc => {
       setRedesSociais(doc.exists ? doc.data() : { instagramHandle:'', posts:[] });
     }, erro);
-    const ua = db.collection('arquivos').onSnapshot(snap => {
-      setArquivos(snap.docs.map(d => ({ id:d.id, ...d.data() })));
+    const ua = db.collection('arquivos').where('categoria','!=','restrito').onSnapshot(snap => {
+      setArquivosPublicos(snap.docs.map(d => ({ id:d.id, ...d.data() })));
     }, erro);
     const ue = db.collection('embaixadores').onSnapshot(snap => {
       setEmbaixadores(snap.docs.map(d => ({ id:d.id, ...d.data() })));
@@ -315,8 +317,22 @@ function Provider({ children }) {
       setPipes(d && d.data ? d.data : DEFAULT_PIPELINES);
     }, erro);
 
-    return () => { u1(); u2(); u3(); u4(); u5(); };
+    /* Versões completas (todos os status/categorias) pra quem gerencia — só existem
+       logada, porque só aí a regra libera ler sem o filtro que a lista pública exige. */
+    const u6 = db.collection('campanhas').onSnapshot(snap => {
+      setCampanhasGestao(snap.docs.map(d => ({ id:d.id, ...d.data() })));
+    }, erro);
+    const u7 = db.collection('arquivos').onSnapshot(snap => {
+      setArquivosGestao(snap.docs.map(d => ({ id:d.id, ...d.data() })));
+    }, erro);
+
+    return () => { u1(); u2(); u3(); u4(); u5(); u6(); u7(); };
   }, [fbUser]);
+
+  /* Logada, a gestão precisa ver tudo (rascunho + publicada, restrito + não).
+     Sem login, só a fatia pública, que já veio pré-filtrada do Firestore. */
+  const campanhas = fbUser ? campanhasGestao : campanhasPublicas;
+  const arquivos  = fbUser ? arquivosGestao  : arquivosPublicos;
 
   /* Ao entrar, cai direto no próprio setor. Quem aprova cai na fila de Gestão. */
   useEffect(() => {
