@@ -168,6 +168,7 @@ function Provider({ children }) {
   const [pacotes, setPacotes] = useState([]);
   const [meuPortalEmbaixador, setMeuPortalEmbaixador] = useState(null);
   const [portalCarregado, setPortalCarregado] = useState(false);
+  const [portaisEmbaixador, setPortaisEmbaixador] = useState([]);
   const [pecas, setPecas] = useState([]);
   const [slack, setSlack]     = useState([]);
   const [pipes, setPipes]     = useState(DEFAULT_PIPELINES);
@@ -335,7 +336,13 @@ function Provider({ children }) {
       setPacotes(snap.docs.map(d => ({ id:d.id, ...d.data() })));
     }, erro);
 
-    return () => { u1(); u2(); u3(); u4(); u5(); u6(); u7(); u8(); };
+    /* Time consegue ver os portais de todos os embaixadores, pra conferir
+       o que cada um enxerga, sem precisar da senha de ninguém. */
+    const u9 = db.collection('embaixadoresPortal').onSnapshot(snap => {
+      setPortaisEmbaixador(snap.docs.map(d => ({ id:d.id, ...d.data() })));
+    }, erro);
+
+    return () => { u1(); u2(); u3(); u4(); u5(); u6(); u7(); u8(); u9(); };
   }, [fbUser, isTeamMember]);
 
   /* Portal do embaixador: roda pra qualquer conta autenticada (não só time),
@@ -807,7 +814,7 @@ function Provider({ children }) {
   window.__nbDem = demands;
   window.__nbPosts = posts;
 
-  return <Ctx.Provider value={{ demands, active, archived, filtered, slack, user, isTeamMember, authReady, authError, setAuthError, dbReady, dbErro, dbErroPublico, seed, pedidos, aceitarPedido, recusarPedido, posts, addPost, updatePost, deletePost, campanhas, updateCampanha, publicarCampanha, despublicarCampanha, deleteCampanha, enviarCampanhaDeDemanda, pecas, addPeca, removePeca, redesSociais, salvarRedesSociais, arquivos, addArquivo, removeArquivo, embaixadores, addEmbaixador, removeEmbaixador, pacotes, salvarPacote, removePacote, meuPortalEmbaixador, portalCarregado, isEmbaixador, criarPortalEmbaixador, removerPortalEmbaixador, view, setView, layout, setLayout, area, setArea, query, setQuery, priFilter, setPriFilter, reqFilter, setReqFilter, selDemand, setModal, newOpen, setNewOpen, pacoteOpen, setPacoteOpen, notifyPending, setNotifyPending, profileOpen, setProfileOpen, editStages, setEditStages, dragging, setDragging, previewMember, setPreviewMember, photos, googlePhotos, profiles, pipes, salvarPipes, attach, comments, storageWarn, MAX_FILE, addAttachment, uploadFile, migrarLocal, carregarAnexo, removeAttachment, addComment, removeComment, logout, savePhoto, removePhoto, saveProfile, addDemand, moveStage, moveArea, setAssignees, updateDemand, archiveDemand, restoreDemand, delDemand }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ demands, active, archived, filtered, slack, user, isTeamMember, authReady, authError, setAuthError, dbReady, dbErro, dbErroPublico, seed, pedidos, aceitarPedido, recusarPedido, posts, addPost, updatePost, deletePost, campanhas, updateCampanha, publicarCampanha, despublicarCampanha, deleteCampanha, enviarCampanhaDeDemanda, pecas, addPeca, removePeca, redesSociais, salvarRedesSociais, arquivos, addArquivo, removeArquivo, embaixadores, addEmbaixador, removeEmbaixador, pacotes, salvarPacote, removePacote, meuPortalEmbaixador, portalCarregado, isEmbaixador, criarPortalEmbaixador, removerPortalEmbaixador, portaisEmbaixador, view, setView, layout, setLayout, area, setArea, query, setQuery, priFilter, setPriFilter, reqFilter, setReqFilter, selDemand, setModal, newOpen, setNewOpen, pacoteOpen, setPacoteOpen, notifyPending, setNotifyPending, profileOpen, setProfileOpen, editStages, setEditStages, dragging, setDragging, previewMember, setPreviewMember, photos, googlePhotos, profiles, pipes, salvarPipes, attach, comments, storageWarn, MAX_FILE, addAttachment, uploadFile, migrarLocal, carregarAnexo, removeAttachment, addComment, removeComment, logout, savePhoto, removePhoto, saveProfile, addDemand, moveStage, moveArea, setAssignees, updateDemand, archiveDemand, restoreDemand, delDemand }}>{children}</Ctx.Provider>;
 }
 
 const useApp = () => useContext(Ctx);
@@ -1063,6 +1070,8 @@ function Sidebar() {
             active={view==='central'} onClick={()=>setView('central')}/>
           <NavItem label="Campanhas" Icon={ITarget} iconColor={NB.mut}
             count={campanhas.length||undefined} active={view==='campanhas'} onClick={()=>setView('campanhas')}/>
+          <NavItem label="Área do Embaixador" Icon={IStamp} iconColor={NB.mut}
+            active={view==='portalEmbaixador'} onClick={()=>setView('portalEmbaixador')}/>
         </div>
 
         <div style={secLbl}>Módulos</div>
@@ -5543,6 +5552,71 @@ function EmbaixadorLoginPage({ onVoltar }) {
   );
 }
 
+function EmbaixadorPortalConteudo({ p }) {
+  if (!p) return (
+    <div style={{background:'#fff',border:'1px dashed '+NB.bd,borderRadius:16,padding:'40px 24px',textAlign:'center'}}>
+      <p style={{fontSize:13.5,color:NB.mut}}>Sua conta ainda não tem um perfil de embaixador vinculado. Fala com a equipe de Marketing pra resolver.</p>
+    </div>
+  );
+  return (
+    <div style={{display:'flex',flexDirection:'column',gap:16}}>
+      <div style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:16,padding:'22px 24px',display:'flex',alignItems:'center',gap:16,flexWrap:'wrap'}}>
+        <div style={{width:44,height:44,borderRadius:12,background:NB.navy1,color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+          <IFile s={19}/>
+        </div>
+        <div style={{flex:1,minWidth:200}}>
+          <div style={{fontSize:14.5,fontWeight:600,color:NB.txt,marginBottom:3}}>Contrato</div>
+          <div style={{fontSize:12.5,color:NB.mut2}}>{p.contratoUrl ? 'Disponível pra consulta' : 'Ainda não disponibilizado'}</div>
+        </div>
+        {p.contratoUrl && (
+          <a href={p.contratoUrl} target="_blank" rel="noopener noreferrer"
+            style={{padding:'9px 16px',background:NB.navy1,borderRadius:9,color:'#fff',fontSize:12.5,fontWeight:600,textDecoration:'none',display:'flex',alignItems:'center',gap:7}}>
+            <IExt s={13}/> Ver contrato
+          </a>
+        )}
+      </div>
+
+      <div style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:16,padding:'22px 24px',display:'flex',alignItems:'center',gap:16,flexWrap:'wrap'}}>
+        <div style={{width:44,height:44,borderRadius:12,background:NB.pink,color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+          <IGlobe s={19}/>
+        </div>
+        <div style={{flex:1,minWidth:200}}>
+          <div style={{fontSize:14.5,fontWeight:600,color:NB.txt,marginBottom:3}}>{p.nome ? p.nome+' — LP' : 'Landing Page'}</div>
+          <div style={{fontSize:12.5,color:NB.mut2}}>{p.lpUrl ? 'Link pra indicar e gerar cupons' : 'Ainda não disponibilizada'}</div>
+        </div>
+        {p.lpUrl && (
+          <a href={p.lpUrl} target="_blank" rel="noopener noreferrer"
+            style={{padding:'9px 16px',background:NB.pink,borderRadius:9,color:'#fff',fontSize:12.5,fontWeight:600,textDecoration:'none',display:'flex',alignItems:'center',gap:7}}>
+            <IExt s={13}/> Abrir LP
+          </a>
+        )}
+      </div>
+
+      <div style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:16,padding:'22px 24px'}}>
+        <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:(p.materiais||[]).length?16:0}}>
+          <div style={{width:44,height:44,borderRadius:12,background:NB.azul,color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+            <IChatBox s={19}/>
+          </div>
+          <div>
+            <div style={{fontSize:14.5,fontWeight:600,color:NB.txt,marginBottom:3}}>Materiais pra divulgar</div>
+            <div style={{fontSize:12.5,color:NB.mut2}}>{(p.materiais||[]).length===0?'Nenhum material ainda':(p.materiais||[]).length+' item(s)'}</div>
+          </div>
+        </div>
+        {(p.materiais||[]).length>0 && (
+          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(200px,1fr))',gap:10}}>
+            {p.materiais.map((m,i)=>(
+              <a key={i} href={m.url} target="_blank" rel="noopener noreferrer"
+                style={{display:'flex',alignItems:'center',gap:7,background:NB.col,border:'1px solid '+NB.bd,borderRadius:9,padding:'9px 12px',fontSize:12.5,color:NB.txt,textDecoration:'none'}}>
+                <IExt s={12}/> {m.nome}
+              </a>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function EmbaixadorPortalView() {
   const { user, meuPortalEmbaixador, logout } = useApp();
   const p = meuPortalEmbaixador;
@@ -5561,68 +5635,62 @@ function EmbaixadorPortalView() {
       <div style={{maxWidth:760,margin:'0 auto',padding:'36px 24px 60px'}}>
         <h1 style={{fontSize:24,fontWeight:600,color:NB.txt,marginBottom:6}}>Olá, {(p&&p.nome)||user.name}!</h1>
         <p style={{fontSize:14,color:NB.mut,marginBottom:30}}>Aqui está o essencial pra você divulgar o Nibo.</p>
+        <EmbaixadorPortalConteudo p={p}/>
+      </div>
+    </div>
+  );
+}
 
-        {!p ? (
-          <div style={{background:'#fff',border:'1px dashed '+NB.bd,borderRadius:16,padding:'40px 24px',textAlign:'center'}}>
-            <p style={{fontSize:13.5,color:NB.mut}}>Sua conta ainda não tem um perfil de embaixador vinculado. Fala com a equipe de Marketing pra resolver.</p>
-          </div>
-        ) : (
-          <div style={{display:'flex',flexDirection:'column',gap:16}}>
-            <div style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:16,padding:'22px 24px',display:'flex',alignItems:'center',gap:16,flexWrap:'wrap'}}>
-              <div style={{width:44,height:44,borderRadius:12,background:NB.navy1,color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-                <IFile s={19}/>
-              </div>
-              <div style={{flex:1,minWidth:200}}>
-                <div style={{fontSize:14.5,fontWeight:600,color:NB.txt,marginBottom:3}}>Contrato</div>
-                <div style={{fontSize:12.5,color:NB.mut2}}>{p.contratoUrl ? 'Disponível pra consulta' : 'Ainda não disponibilizado'}</div>
-              </div>
-              {p.contratoUrl && (
-                <a href={p.contratoUrl} target="_blank" rel="noopener noreferrer"
-                  style={{padding:'9px 16px',background:NB.navy1,borderRadius:9,color:'#fff',fontSize:12.5,fontWeight:600,textDecoration:'none',display:'flex',alignItems:'center',gap:7}}>
-                  <IExt s={13}/> Ver contrato
-                </a>
-              )}
-            </div>
+/* Visualização da Gestão: qualquer pessoa do time vê o portal de qualquer
+   embaixador, sem precisar da senha dele — só pra conferência. */
+function PortalEmbaixadorGestaoView() {
+  const { portaisEmbaixador } = useApp();
+  const [selId, setSelId] = useState(null);
+  const selecionado = portaisEmbaixador.find(p=>p.id===selId) || null;
 
-            <div style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:16,padding:'22px 24px',display:'flex',alignItems:'center',gap:16,flexWrap:'wrap'}}>
-              <div style={{width:44,height:44,borderRadius:12,background:NB.pink,color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-                <IGlobe s={19}/>
-              </div>
-              <div style={{flex:1,minWidth:200}}>
-                <div style={{fontSize:14.5,fontWeight:600,color:NB.txt,marginBottom:3}}>Sua Landing Page</div>
-                <div style={{fontSize:12.5,color:NB.mut2}}>{p.lpUrl ? 'Link pra indicar e gerar seus cupons' : 'Ainda não disponibilizada'}</div>
-              </div>
-              {p.lpUrl && (
-                <a href={p.lpUrl} target="_blank" rel="noopener noreferrer"
-                  style={{padding:'9px 16px',background:NB.pink,borderRadius:9,color:'#fff',fontSize:12.5,fontWeight:600,textDecoration:'none',display:'flex',alignItems:'center',gap:7}}>
-                  <IExt s={13}/> Abrir LP
-                </a>
-              )}
-            </div>
+  if (portaisEmbaixador.length===0) {
+    return (
+      <div style={{padding:30}}>
+        <div style={{background:'#fff',border:'1px dashed '+NB.bd,borderRadius:16,padding:'40px 24px',textAlign:'center'}}>
+          <p style={{fontSize:13.5,color:NB.mut}}>Nenhum embaixador com acesso ao portal ainda. Crie um em Central de Informações → Embaixadores.</p>
+        </div>
+      </div>
+    );
+  }
 
-            <div style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:16,padding:'22px 24px'}}>
-              <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:(p.materiais||[]).length?16:0}}>
-                <div style={{width:44,height:44,borderRadius:12,background:NB.azul,color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-                  <IChatBox s={19}/>
-                </div>
-                <div>
-                  <div style={{fontSize:14.5,fontWeight:600,color:NB.txt,marginBottom:3}}>Materiais pra divulgar</div>
-                  <div style={{fontSize:12.5,color:NB.mut2}}>{(p.materiais||[]).length===0?'Nenhum material ainda':(p.materiais||[]).length+' item(s)'}</div>
-                </div>
-              </div>
-              {(p.materiais||[]).length>0 && (
-                <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(200px,1fr))',gap:10}}>
-                  {p.materiais.map((m,i)=>(
-                    <a key={i} href={m.url} target="_blank" rel="noopener noreferrer"
-                      style={{display:'flex',alignItems:'center',gap:7,background:NB.col,border:'1px solid '+NB.bd,borderRadius:9,padding:'9px 12px',fontSize:12.5,color:NB.txt,textDecoration:'none'}}>
-                      <IExt s={12}/> {m.nome}
-                    </a>
-                  ))}
-                </div>
-              )}
+  if (selecionado) {
+    return (
+      <div style={{padding:'22px 30px 30px',overflowY:'auto',height:'100%'}}>
+        <button onClick={()=>setSelId(null)} style={{display:'flex',alignItems:'center',gap:7,background:'none',border:'none',color:NB.mut,fontSize:12.5,marginBottom:18}}>
+          <IArrowL s={13}/> Voltar pra lista
+        </button>
+        <h2 style={{fontSize:20,fontWeight:600,color:NB.txt,marginBottom:4}}>{selecionado.nome}</h2>
+        <p style={{fontSize:13,color:NB.mut,marginBottom:22}}>{selecionado.email} · o que essa conta vê ao entrar no portal</p>
+        <div style={{maxWidth:640}}>
+          <EmbaixadorPortalConteudo p={selecionado}/>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{padding:'22px 30px 30px',overflowY:'auto',height:'100%'}}>
+      <div style={{marginBottom:18}}>
+        <span style={{fontSize:13.5,color:NB.mut}}>{portaisEmbaixador.length} embaixador(es) com acesso ao portal</span>
+      </div>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(220px,1fr))',gap:14}}>
+        {portaisEmbaixador.map(p=>(
+          <button key={p.id} onClick={()=>setSelId(p.id)}
+            style={{textAlign:'left',background:'#fff',border:'1px solid '+NB.bd,borderRadius:14,padding:'16px 18px',display:'flex',alignItems:'center',gap:12}}>
+            <div style={{width:38,height:38,borderRadius:'50%',background:NB.pink,color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',fontSize:13,fontWeight:600,flexShrink:0}}>
+              {(p.nome||'').split(/\s+/).filter(Boolean).map(s=>s[0]).slice(0,2).join('').toUpperCase()}
             </div>
-          </div>
-        )}
+            <div style={{minWidth:0}}>
+              <div style={{fontSize:13.5,fontWeight:600,color:NB.txt,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p.nome}</div>
+              <div style={{fontSize:11.5,color:NB.mut2,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p.email}</div>
+            </div>
+          </button>
+        ))}
       </div>
     </div>
   );
@@ -5708,6 +5776,7 @@ function AppContent() {
               {view==='gestao'     && <GestaoView/>}
               {view==='central'    && <InfoCentralView/>}
               {view==='campanhas'  && <CampanhasManagerView/>}
+              {view==='portalEmbaixador' && <PortalEmbaixadorGestaoView/>}
             </React.Fragment>
           )}
         </main>
