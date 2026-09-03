@@ -16,7 +16,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <script>
-  firebase.initializeApp({
+  const FB_CONFIG = {
     apiKey:            "AIzaSyDE6wv0kFOOJGWDjOX-mQ2s1kO0ktFdybs",
     authDomain:        "dash-marketing-9302b.firebaseapp.com",
     projectId:         "dash-marketing-9302b",
@@ -24,7 +24,8 @@
     messagingSenderId: "178405690302",
     appId:             "1:178405690302:web:ba034d22ae0367f123c7ef",
     measurementId:     "G-Y6F5EJ241Y"
-  });
+  };
+  firebase.initializeApp(FB_CONFIG);
 </script>
 
 <style>
@@ -165,6 +166,8 @@ function Provider({ children }) {
   const [arquivosGestao, setArquivosGestao] = useState([]);
   const [embaixadores, setEmbaixadores] = useState([]);
   const [pacotes, setPacotes] = useState([]);
+  const [meuPortalEmbaixador, setMeuPortalEmbaixador] = useState(null);
+  const [portalCarregado, setPortalCarregado] = useState(false);
   const [pecas, setPecas] = useState([]);
   const [slack, setSlack]     = useState([]);
   const [pipes, setPipes]     = useState(DEFAULT_PIPELINES);
@@ -221,7 +224,10 @@ function Provider({ children }) {
     const unsub = firebase.auth().onAuthStateChanged(u => {
       if (!u) { setFbUser(null); setAuthReady(true); return; }
       const mail = (u.email || '').toLowerCase();
-      if (!mail.endsWith(NIBO_DOMAIN)) {
+      const viaGoogle = (u.providerData||[]).some(p => p.providerId === 'google.com');
+      /* A restrição de domínio só vale pra quem entra pelo Google (Gestão) —
+         embaixadores entram com e-mail/senha próprio, de fora do Nibo. */
+      if (viaGoogle && !mail.endsWith(NIBO_DOMAIN)) {
         setAuthError('Acesso restrito a contas ' + NIBO_DOMAIN + '. Você entrou com ' + mail + '.');
         firebase.auth().signOut();
         return;
@@ -239,6 +245,7 @@ function Provider({ children }) {
 
   const baseUser = fbUser ? ACTIVE_TEAM.find(m => m.email === fbUser.email) : null;
   const isTeamMember = !!baseUser;
+  const isEmbaixador = !isTeamMember && !!meuPortalEmbaixador;
   const user = fbUser
     ? baseUser
       ? { ...baseUser, googlePhoto: fbUser.photoURL, ...(profiles[baseUser.id] || {}) }
@@ -282,7 +289,7 @@ function Provider({ children }) {
 
   /* Escutas do que é interno só depois do login — as regras exigem usuária autenticada. */
   useEffect(() => {
-    if (!fbUser) { dbRef.current = null; setDbReady(false); return; }
+    if (!fbUser || !isTeamMember) { dbRef.current = null; setDbReady(false); return; }
     let db;
     try { db = firebase.firestore(); dbRef.current = db; }
     catch (e) { setDbErro('Não foi possível abrir o banco: ' + e.message); return; }
@@ -329,6 +336,21 @@ function Provider({ children }) {
     }, erro);
 
     return () => { u1(); u2(); u3(); u4(); u5(); u6(); u7(); u8(); };
+  }, [fbUser, isTeamMember]);
+
+  /* Portal do embaixador: roda pra qualquer conta autenticada (não só time),
+     já que embaixadores logam com e-mail/senha, não com conta @nibo.com.br. */
+  useEffect(() => {
+    setPortalCarregado(false);
+    if (!fbUser || !fbUser.email) { setMeuPortalEmbaixador(null); setPortalCarregado(true); return; }
+    let db;
+    try { db = firebase.firestore(); } catch (e) { setPortalCarregado(true); return; }
+    const un = db.collection('embaixadoresPortal').where('email','==',fbUser.email).limit(1)
+      .onSnapshot(snap => {
+        setMeuPortalEmbaixador(snap.docs.length ? { id:snap.docs[0].id, ...snap.docs[0].data() } : null);
+        setPortalCarregado(true);
+      }, () => { setMeuPortalEmbaixador(null); setPortalCarregado(true); });
+    return () => un();
   }, [fbUser]);
 
   /* Logada, a gestão precisa ver tudo (rascunho + publicada, restrito + não).
@@ -709,6 +731,36 @@ function Provider({ children }) {
     db.collection('embaixadores').doc(id).delete().catch(e=>setDbErro('Não foi possível remover: '+e.message));
   }, []);
 
+  /* Cria a conta de login do embaixador (e-mail/senha) num app Firebase
+     secundário, pra não derrubar a sessão de quem está criando — depois
+     grava o doc do portal com o essencial: contrato, LP e materiais. */
+  const criarPortalEmbaixador = useCallback(async (dados, senhaInicial) => {
+    const db = dbRef.current; if (!db) return { ok:false, erro:'Sem conexão com o banco.' };
+    const nomeApp = 'criarEmbaixador'+Date.now();
+    let secApp;
+    try {
+      secApp = firebase.initializeApp(FB_CONFIG, nomeApp);
+      await secApp.auth().createUserWithEmailAndPassword(dados.email, senhaInicial);
+      await secApp.auth().signOut();
+      await db.collection('embaixadoresPortal').add({
+        ...dados, criadoEm:new Date().toISOString(), criadoPor:(user&&user.name)||'',
+      });
+      await secApp.delete();
+      return { ok:true };
+    } catch (e) {
+      if (secApp) { try { await secApp.delete(); } catch(_){} }
+      const msg = e && e.code==='auth/email-already-in-use' ? 'Já existe uma conta com esse e-mail.'
+        : e && e.code==='auth/weak-password' ? 'Senha fraca demais — use pelo menos 6 caracteres.'
+        : e && e.code==='auth/operation-not-allowed' ? 'Login por e-mail/senha não está habilitado no Firebase — habilite em Authentication → Sign-in method.'
+        : (e && e.message) || 'Erro desconhecido.';
+      return { ok:false, erro: msg };
+    }
+  }, [user]);
+  const removerPortalEmbaixador = useCallback((id) => {
+    const db = dbRef.current; if (!db) return;
+    db.collection('embaixadoresPortal').doc(id).delete().catch(e=>setDbErro('Não foi possível remover: '+e.message));
+  }, []);
+
   /* ---------- Pacotes de tarefas ---------- */
   /* Um método só: id existente = atualiza (inclusive "assumir" um pacote
      padrão embutido, tipo 'webinar', que ainda não é um doc de verdade);
@@ -755,7 +807,7 @@ function Provider({ children }) {
   window.__nbDem = demands;
   window.__nbPosts = posts;
 
-  return <Ctx.Provider value={{ demands, active, archived, filtered, slack, user, isTeamMember, authReady, authError, setAuthError, dbReady, dbErro, dbErroPublico, seed, pedidos, aceitarPedido, recusarPedido, posts, addPost, updatePost, deletePost, campanhas, updateCampanha, publicarCampanha, despublicarCampanha, deleteCampanha, enviarCampanhaDeDemanda, pecas, addPeca, removePeca, redesSociais, salvarRedesSociais, arquivos, addArquivo, removeArquivo, embaixadores, addEmbaixador, removeEmbaixador, pacotes, salvarPacote, removePacote, view, setView, layout, setLayout, area, setArea, query, setQuery, priFilter, setPriFilter, reqFilter, setReqFilter, selDemand, setModal, newOpen, setNewOpen, pacoteOpen, setPacoteOpen, notifyPending, setNotifyPending, profileOpen, setProfileOpen, editStages, setEditStages, dragging, setDragging, previewMember, setPreviewMember, photos, googlePhotos, profiles, pipes, salvarPipes, attach, comments, storageWarn, MAX_FILE, addAttachment, uploadFile, migrarLocal, carregarAnexo, removeAttachment, addComment, removeComment, logout, savePhoto, removePhoto, saveProfile, addDemand, moveStage, moveArea, setAssignees, updateDemand, archiveDemand, restoreDemand, delDemand }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ demands, active, archived, filtered, slack, user, isTeamMember, authReady, authError, setAuthError, dbReady, dbErro, dbErroPublico, seed, pedidos, aceitarPedido, recusarPedido, posts, addPost, updatePost, deletePost, campanhas, updateCampanha, publicarCampanha, despublicarCampanha, deleteCampanha, enviarCampanhaDeDemanda, pecas, addPeca, removePeca, redesSociais, salvarRedesSociais, arquivos, addArquivo, removeArquivo, embaixadores, addEmbaixador, removeEmbaixador, pacotes, salvarPacote, removePacote, meuPortalEmbaixador, portalCarregado, isEmbaixador, criarPortalEmbaixador, removerPortalEmbaixador, view, setView, layout, setLayout, area, setArea, query, setQuery, priFilter, setPriFilter, reqFilter, setReqFilter, selDemand, setModal, newOpen, setNewOpen, pacoteOpen, setPacoteOpen, notifyPending, setNotifyPending, profileOpen, setProfileOpen, editStages, setEditStages, dragging, setDragging, previewMember, setPreviewMember, photos, googlePhotos, profiles, pipes, salvarPipes, attach, comments, storageWarn, MAX_FILE, addAttachment, uploadFile, migrarLocal, carregarAnexo, removeAttachment, addComment, removeComment, logout, savePhoto, removePhoto, saveProfile, addDemand, moveStage, moveArea, setAssignees, updateDemand, archiveDemand, restoreDemand, delDemand }}>{children}</Ctx.Provider>;
 }
 
 const useApp = () => useContext(Ctx);
@@ -2373,28 +2425,100 @@ function ArquivosTab({ podeEditar }) {
 
 /* ---------- Embaixadores ---------- */
 function EmbaixadorModal({ onClose }) {
-  const { addEmbaixador } = useApp();
+  const { addEmbaixador, criarPortalEmbaixador } = useApp();
   const [f, setF] = useState({ nome:'', instagram:'', descricao:'' });
+  const [comPortal, setComPortal] = useState(false);
+  const [portal, setPortal] = useState({ email:'', senha:'', contratoUrl:'', lpUrl:'' });
+  const [materiais, setMateriais] = useState([]);
+  const [novoMaterial, setNovoMaterial] = useState({ nome:'', url:'' });
   const [err, setErr] = useState('');
-  const set=(k,v)=>setF(x=>({...x,[k]:v}));
-  const salvar = () => {
-    if (!f.nome.trim()) return setErr('Preencha o nome.');
-    addEmbaixador(f); onClose();
+  const [salvando, setSalvando] = useState(false);
+  const set=(k,v)=>{setF(x=>({...x,[k]:v})); setErr('');};
+  const setP=(k,v)=>{setPortal(x=>({...x,[k]:v})); setErr('');};
+
+  const adicionarMaterial = () => {
+    if (!novoMaterial.nome.trim() || !novoMaterial.url.trim()) return setErr('Preencha nome e link do material.');
+    let url = novoMaterial.url.trim();
+    if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+    setMateriais(m => [...m, { nome: novoMaterial.nome.trim(), url }]);
+    setNovoMaterial({ nome:'', url:'' }); setErr('');
   };
+  const removerMaterial = i => setMateriais(m => m.filter((_,ix)=>ix!==i));
+
+  const salvar = async () => {
+    if (!f.nome.trim()) return setErr('Preencha o nome.');
+    if (comPortal) {
+      if (!portal.email.trim()) return setErr('Preencha o e-mail de acesso do embaixador.');
+      if (!portal.senha || portal.senha.length<6) return setErr('A senha inicial precisa ter pelo menos 6 caracteres.');
+    }
+    setSalvando(true);
+    addEmbaixador(f);
+    if (comPortal) {
+      const r = await criarPortalEmbaixador({
+        email: portal.email.trim(), nome: f.nome.trim(),
+        contratoUrl: portal.contratoUrl.trim(), lpUrl: portal.lpUrl.trim(), materiais,
+      }, portal.senha);
+      if (!r.ok) { setErr(r.erro); setSalvando(false); return; }
+    }
+    setSalvando(false);
+    onClose();
+  };
+
   return (
-    <Modal onClose={onClose} width={440}>
+    <Modal onClose={onClose} width={480}>
       <div style={{padding:'22px 24px 16px',borderBottom:'1px solid '+NB.bdSoft}}>
         <h2 style={{fontSize:17,fontWeight:600,color:NB.txt}}>Novo embaixador</h2>
       </div>
-      <div style={{padding:'20px 24px',display:'flex',flexDirection:'column',gap:12}}>
+      <div style={{padding:'20px 24px',display:'flex',flexDirection:'column',gap:12,maxHeight:'62vh',overflowY:'auto'}}>
         <input value={f.nome} onChange={e=>set('nome',e.target.value)} placeholder="Nome" style={{...inp,padding:'9px 12px',fontSize:13.5}}/>
         <input value={f.instagram} onChange={e=>set('instagram',e.target.value)} placeholder="@instagram ou link" style={{...inp,padding:'9px 12px',fontSize:13.5}}/>
         <textarea value={f.descricao} onChange={e=>set('descricao',e.target.value)} rows={2} placeholder="Como ele colabora com o Nibo" style={{...inp,padding:'9px 12px',fontSize:13.5,resize:'vertical'}}/>
+
+        <div style={{background:comPortal?'#FFF0F8':NB.col,border:'1px solid '+(comPortal?'#FBC5E3':NB.bd),borderRadius:11,padding:'13px 15px'}}>
+          <label style={{display:'flex',alignItems:'center',gap:10,cursor:'pointer'}}>
+            <input type="checkbox" checked={comPortal} onChange={e=>{setComPortal(e.target.checked); setErr('');}} style={{width:16,height:16,accentColor:NB.pink}}/>
+            <span style={{fontSize:13.5,fontWeight:500,color:NB.txt}}>Criar acesso ao Portal do Embaixador</span>
+          </label>
+          {comPortal && (
+            <div style={{display:'flex',flexDirection:'column',gap:10,marginTop:13}}>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+                <input type="email" value={portal.email} onChange={e=>setP('email',e.target.value)} placeholder="E-mail de acesso" style={{...inp,padding:'8px 11px',fontSize:12.5,background:'#fff'}}/>
+                <input type="text" value={portal.senha} onChange={e=>setP('senha',e.target.value)} placeholder="Senha inicial (mín. 6 caracteres)" style={{...inp,padding:'8px 11px',fontSize:12.5,background:'#fff'}}/>
+              </div>
+              <input value={portal.contratoUrl} onChange={e=>setP('contratoUrl',e.target.value)} placeholder="Link do contrato (opcional por agora)" style={{...inp,padding:'8px 11px',fontSize:12.5,background:'#fff'}}/>
+              <input value={portal.lpUrl} onChange={e=>setP('lpUrl',e.target.value)} placeholder="Link da LP personalizada (opcional por agora)" style={{...inp,padding:'8px 11px',fontSize:12.5,background:'#fff'}}/>
+
+              <div>
+                <div style={{fontSize:11,fontWeight:600,color:NB.mut,marginBottom:7,textTransform:'uppercase',letterSpacing:'0.05em'}}>Materiais pra divulgar</div>
+                {materiais.length>0 && (
+                  <div style={{display:'flex',flexDirection:'column',gap:6,marginBottom:9}}>
+                    {materiais.map((m,i)=>(
+                      <div key={i} style={{display:'flex',alignItems:'center',gap:8,background:'#fff',border:'1px solid '+NB.bd,borderRadius:8,padding:'6px 10px'}}>
+                        <span style={{fontSize:12.5,color:NB.txt,flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{m.nome}</span>
+                        <button type="button" onClick={()=>removerMaterial(i)} style={{fontSize:11,color:'#B4232A',background:'none',border:'none'}}>Remover</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div style={{display:'flex',gap:7}}>
+                  <input value={novoMaterial.nome} onChange={e=>{setNovoMaterial(v=>({...v,nome:e.target.value})); setErr('');}} placeholder="Nome" style={{...inp,padding:'7px 10px',fontSize:12,flex:1,background:'#fff'}}/>
+                  <input value={novoMaterial.url} onChange={e=>{setNovoMaterial(v=>({...v,url:e.target.value})); setErr('');}} placeholder="Link" style={{...inp,padding:'7px 10px',fontSize:12,flex:1,background:'#fff'}}/>
+                  <button type="button" onClick={adicionarMaterial} style={{padding:'7px 12px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:8,fontSize:11.5,fontWeight:500,color:NB.pink,flexShrink:0}}>+</button>
+                </div>
+              </div>
+              <p style={{fontSize:11.5,color:NB.mut2,lineHeight:1.5,margin:0}}>Exige que o login por e-mail/senha esteja habilitado no Firebase (Authentication → Sign-in method).</p>
+            </div>
+          )}
+        </div>
+
         {err && <p style={{fontSize:12.5,color:'#B4232A'}}>{err}</p>}
       </div>
       <div style={{padding:'16px 24px',borderTop:'1px solid '+NB.bdSoft,display:'flex',justifyContent:'flex-end',gap:10}}>
         <button onClick={onClose} style={{padding:'10px 16px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:9,fontSize:13,fontWeight:500,color:NB.mut}}>Cancelar</button>
-        <button onClick={salvar} style={{padding:'10px 20px',background:NB.azul,border:'none',borderRadius:9,fontSize:13,fontWeight:500,color:'#fff'}}>Salvar</button>
+        <button onClick={salvar} disabled={salvando}
+          style={{padding:'10px 20px',background:NB.azul,border:'none',borderRadius:9,fontSize:13,fontWeight:500,color:'#fff',opacity:salvando?0.7:1}}>
+          {salvando?'Salvando…':'Salvar'}
+        </button>
       </div>
     </Modal>
   );
@@ -5273,7 +5397,7 @@ function useLoginGestao() {
 }
 
 /* =========== TELA DE ESCOLHA — Central de Informações ou Gestão ============ */
-function EntryChooser({ onEscolherCentral }) {
+function EntryChooser({ onEscolherCentral, onEscolherEmbaixador }) {
   const { entrar, busy, erro } = useLoginGestao();
 
   const cardStyle = {
@@ -5300,21 +5424,29 @@ function EntryChooser({ onEscolherCentral }) {
             <IGlobe s={22}/>
           </div>
           <div>
-            <div style={{fontSize:17,fontWeight:600,color:NB.txt,marginBottom:5}}>Central de Informações</div>
-            <p style={{fontSize:13,color:NB.mut,lineHeight:1.55}}>Campanhas ativas, peças, calendário e mais — aberta pra qualquer pessoa do Nibo, sem login.</p>
+            <div style={{fontSize:17,fontWeight:600,color:NB.txt,marginBottom:5}}>Central de Conteúdo de MKT</div>
+            <p style={{fontSize:13,color:NB.mut,lineHeight:1.55}}>Campanhas ativas, peças, materiais e pedidos de novas artes — aberta pra qualquer pessoa do Nibo, sem login.</p>
           </div>
         </button>
 
-        <button onClick={entrar} disabled={busy} style={{...cardStyle, opacity:busy?0.75:1, cursor:busy?'wait':'pointer'}}
-          onMouseEnter={e=>{ if(!busy){ e.currentTarget.style.boxShadow='0 10px 30px rgba(11,42,92,0.10)'; e.currentTarget.style.borderColor='#C9D6EA'; }}}
+        <button onClick={onEscolherEmbaixador} style={cardStyle}
+          onMouseEnter={e=>{e.currentTarget.style.boxShadow='0 10px 30px rgba(11,42,92,0.10)'; e.currentTarget.style.borderColor='#C9D6EA';}}
           onMouseLeave={e=>{e.currentTarget.style.boxShadow='none'; e.currentTarget.style.borderColor=NB.bd;}}>
           <div style={{width:46,height:46,borderRadius:12,background:NB.pink,color:'#fff',display:'flex',alignItems:'center',justifyContent:'center'}}>
             <IStamp s={22}/>
           </div>
           <div>
-            <div style={{fontSize:17,fontWeight:600,color:NB.txt,marginBottom:5}}>{busy?'Entrando…':'Gestão (MKT)'}</div>
-            <p style={{fontSize:13,color:NB.mut,lineHeight:1.55}}>Painel completo do time — pede login com conta @nibo.com.br do marketing.</p>
+            <div style={{fontSize:17,fontWeight:600,color:NB.txt,marginBottom:5}}>Área do Embaixador</div>
+            <p style={{fontSize:13,color:NB.mut,lineHeight:1.55}}>Contrato, link da sua LP e materiais pra divulgar — login com o e-mail cadastrado.</p>
           </div>
+        </button>
+      </div>
+
+      <div style={{marginTop:36,textAlign:'center'}}>
+        <p style={{fontSize:12,color:NB.mut2,marginBottom:8}}>É do time de Marketing?</p>
+        <button onClick={entrar} disabled={busy}
+          style={{display:'flex',alignItems:'center',gap:7,padding:'8px 15px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:20,color:NB.mut,fontSize:12.5,fontWeight:500,margin:'0 auto',opacity:busy?0.7:1}}>
+          <ILock s={12}/> {busy?'Entrando…':'Gestão (MKT)'}
         </button>
       </div>
 
@@ -5356,33 +5488,157 @@ function PublicCentralPage({ onVoltar }) {
   );
 }
 
-function VisitorApp() {
-  const { user, logout, dbReady, dbErro } = useApp();
+function EmbaixadorLoginPage({ onVoltar }) {
+  const [email, setEmail] = useState('');
+  const [senha, setSenha] = useState('');
+  const [erro, setErro] = useState('');
+  const [busy, setBusy] = useState(false);
 
-  if (!dbReady && !dbErro) {
-    return (
-      <div style={{height:'100vh',width:'100%',display:'flex',alignItems:'center',justifyContent:'center',flexDirection:'column',gap:13,color:NB.mut,background:NB.bg}}>
-        <div style={{width:32,height:32,border:'2.5px solid '+NB.bd,borderTopColor:NB.azul,borderRadius:'50%',animation:'nb-spin 0.8s linear infinite'}}/>
-        <span style={{fontSize:13.5}}>Carregando…</span>
+  const entrar = async e => {
+    e.preventDefault();
+    if (!email.trim() || !senha) return setErro('Preencha e-mail e senha.');
+    setBusy(true); setErro('');
+    try {
+      await firebase.auth().signInWithEmailAndPassword(email.trim(), senha);
+    } catch (err) {
+      const code = err && err.code;
+      setErro(
+        code==='auth/invalid-credential' || code==='auth/wrong-password' || code==='auth/user-not-found' ? 'E-mail ou senha incorretos.'
+        : code==='auth/too-many-requests' ? 'Muitas tentativas — espera um pouco e tenta de novo.'
+        : code==='auth/invalid-email' ? 'E-mail inválido.'
+        : 'Não foi possível entrar. Erro: '+(code||'desconhecido')
+      );
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div style={{height:'100vh',width:'100%',display:'flex',alignItems:'center',justifyContent:'center',background:NB.bg,padding:24}}>
+      <div style={{width:'100%',maxWidth:380}}>
+        <button onClick={onVoltar} style={{display:'flex',alignItems:'center',gap:7,background:'none',border:'none',color:NB.mut,fontSize:12.5,marginBottom:22}}>
+          <IArrowL s={13}/> Voltar
+        </button>
+        <div style={{display:'flex',alignItems:'center',gap:11,marginBottom:28}}>
+          <NiboSymbol size={30} color={NB.navy1}/>
+          <div style={{fontSize:15,fontWeight:700,color:NB.navy1}}>Área do Embaixador</div>
+        </div>
+        <form onSubmit={entrar} style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:16,padding:28}}>
+          <div style={{marginBottom:16}}>
+            <div style={{...lbl,marginBottom:6}}>E-mail cadastrado</div>
+            <input type="email" value={email} onChange={e=>{setEmail(e.target.value); setErro('');}} placeholder="seu@email.com" style={{...inp,padding:'10px 12px',fontSize:13.5}} autoFocus/>
+          </div>
+          <div style={{marginBottom:20}}>
+            <div style={{...lbl,marginBottom:6}}>Senha</div>
+            <input type="password" value={senha} onChange={e=>{setSenha(e.target.value); setErro('');}} placeholder="••••••••" style={{...inp,padding:'10px 12px',fontSize:13.5}}/>
+          </div>
+          {erro && <p style={{fontSize:12.5,color:'#B4232A',marginBottom:16}}>{erro}</p>}
+          <button type="submit" disabled={busy}
+            style={{width:'100%',padding:'12px',background:NB.pink,border:'none',borderRadius:9,color:'#fff',fontWeight:600,fontSize:13.5,opacity:busy?0.7:1}}>
+            {busy?'Entrando…':'Entrar'}
+          </button>
+        </form>
+        <p style={{fontSize:12,color:NB.mut2,textAlign:'center',marginTop:18}}>Ainda não recebeu seu acesso? Fala com a equipe de Marketing do Nibo.</p>
       </div>
-    );
-  }
+    </div>
+  );
+}
+
+function EmbaixadorPortalView() {
+  const { user, meuPortalEmbaixador, logout } = useApp();
+  const p = meuPortalEmbaixador;
+
+  return (
+    <div style={{height:'100vh',width:'100%',overflowY:'auto',background:NB.bg}}>
+      <div style={{background:'#fff',borderBottom:'1px solid '+NB.bd,padding:'16px 30px',display:'flex',alignItems:'center',gap:14}}>
+        <NiboSymbol size={30} color={NB.navy1}/>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontSize:15,fontWeight:700,color:NB.navy1}}>Área do Embaixador</div>
+          <div style={{fontSize:12,color:NB.mut}}>{(p&&p.nome)||user.name}</div>
+        </div>
+        <button onClick={logout} title="Sair" style={{padding:9,background:'#fff',border:'1px solid '+NB.bd,borderRadius:9,color:NB.mut,display:'flex'}}><ILogout s={15}/></button>
+      </div>
+
+      <div style={{maxWidth:760,margin:'0 auto',padding:'36px 24px 60px'}}>
+        <h1 style={{fontSize:24,fontWeight:600,color:NB.txt,marginBottom:6}}>Olá, {(p&&p.nome)||user.name}!</h1>
+        <p style={{fontSize:14,color:NB.mut,marginBottom:30}}>Aqui está o essencial pra você divulgar o Nibo.</p>
+
+        {!p ? (
+          <div style={{background:'#fff',border:'1px dashed '+NB.bd,borderRadius:16,padding:'40px 24px',textAlign:'center'}}>
+            <p style={{fontSize:13.5,color:NB.mut}}>Sua conta ainda não tem um perfil de embaixador vinculado. Fala com a equipe de Marketing pra resolver.</p>
+          </div>
+        ) : (
+          <div style={{display:'flex',flexDirection:'column',gap:16}}>
+            <div style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:16,padding:'22px 24px',display:'flex',alignItems:'center',gap:16,flexWrap:'wrap'}}>
+              <div style={{width:44,height:44,borderRadius:12,background:NB.navy1,color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                <IFile s={19}/>
+              </div>
+              <div style={{flex:1,minWidth:200}}>
+                <div style={{fontSize:14.5,fontWeight:600,color:NB.txt,marginBottom:3}}>Contrato</div>
+                <div style={{fontSize:12.5,color:NB.mut2}}>{p.contratoUrl ? 'Disponível pra consulta' : 'Ainda não disponibilizado'}</div>
+              </div>
+              {p.contratoUrl && (
+                <a href={p.contratoUrl} target="_blank" rel="noopener noreferrer"
+                  style={{padding:'9px 16px',background:NB.navy1,borderRadius:9,color:'#fff',fontSize:12.5,fontWeight:600,textDecoration:'none',display:'flex',alignItems:'center',gap:7}}>
+                  <IExt s={13}/> Ver contrato
+                </a>
+              )}
+            </div>
+
+            <div style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:16,padding:'22px 24px',display:'flex',alignItems:'center',gap:16,flexWrap:'wrap'}}>
+              <div style={{width:44,height:44,borderRadius:12,background:NB.pink,color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                <IGlobe s={19}/>
+              </div>
+              <div style={{flex:1,minWidth:200}}>
+                <div style={{fontSize:14.5,fontWeight:600,color:NB.txt,marginBottom:3}}>Sua Landing Page</div>
+                <div style={{fontSize:12.5,color:NB.mut2}}>{p.lpUrl ? 'Link pra indicar e gerar seus cupons' : 'Ainda não disponibilizada'}</div>
+              </div>
+              {p.lpUrl && (
+                <a href={p.lpUrl} target="_blank" rel="noopener noreferrer"
+                  style={{padding:'9px 16px',background:NB.pink,borderRadius:9,color:'#fff',fontSize:12.5,fontWeight:600,textDecoration:'none',display:'flex',alignItems:'center',gap:7}}>
+                  <IExt s={13}/> Abrir LP
+                </a>
+              )}
+            </div>
+
+            <div style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:16,padding:'22px 24px'}}>
+              <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:(p.materiais||[]).length?16:0}}>
+                <div style={{width:44,height:44,borderRadius:12,background:NB.azul,color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                  <IChatBox s={19}/>
+                </div>
+                <div>
+                  <div style={{fontSize:14.5,fontWeight:600,color:NB.txt,marginBottom:3}}>Materiais pra divulgar</div>
+                  <div style={{fontSize:12.5,color:NB.mut2}}>{(p.materiais||[]).length===0?'Nenhum material ainda':(p.materiais||[]).length+' item(s)'}</div>
+                </div>
+              </div>
+              {(p.materiais||[]).length>0 && (
+                <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(200px,1fr))',gap:10}}>
+                  {p.materiais.map((m,i)=>(
+                    <a key={i} href={m.url} target="_blank" rel="noopener noreferrer"
+                      style={{display:'flex',alignItems:'center',gap:7,background:NB.col,border:'1px solid '+NB.bd,borderRadius:9,padding:'9px 12px',fontSize:12.5,color:NB.txt,textDecoration:'none'}}>
+                      <IExt s={12}/> {m.nome}
+                    </a>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function VisitorApp() {
+  const { user, logout } = useApp();
 
   return (
     <div style={{height:'100vh',width:'100%',overflow:'hidden'}}>
       <InfoCentralView
         onLogoClick={logout}
         topBanner={
-          <React.Fragment>
-            <div style={{background:'#EAF3FD',borderBottom:'1px solid #BFDDF7',padding:'10px 28px',fontSize:12.5,color:NB.navy1,display:'flex',alignItems:'center',gap:9}}>
-              <IAlert s={14}/> Essa conta não tem acesso à Gestão do Marketing — aqui vai o que dá pra ver.
-            </div>
-            {dbErro && (
-              <div style={{background:'#FEF2F2',borderBottom:'1px solid #FECACA',padding:'11px 28px',fontSize:13,color:'#B4232A',display:'flex',alignItems:'center',gap:9}}>
-                <IAlert s={15}/> {dbErro}
-              </div>
-            )}
-          </React.Fragment>
+          <div style={{background:'#EAF3FD',borderBottom:'1px solid #BFDDF7',padding:'10px 28px',fontSize:12.5,color:NB.navy1,display:'flex',alignItems:'center',gap:9}}>
+            <IAlert s={14}/> Essa conta não tem acesso à Gestão do Marketing — aqui vai o que dá pra ver.
+          </div>
         }
         headerRight={
           <React.Fragment>
@@ -5401,13 +5657,19 @@ function VisitorApp() {
 }
 
 function AppContent() {
-  const { view, user, isTeamMember, authReady, setDragging, editStages, setEditStages, dbReady, dbErro, previewMember, setPreviewMember } = useApp();
-  const [mostrarCentral, setMostrarCentral] = useState(false);
+  const { view, user, isTeamMember, isEmbaixador, portalCarregado, authReady, setDragging, editStages, setEditStages, dbReady, dbErro, previewMember, setPreviewMember } = useApp();
+  const [entrada, setEntrada] = useState('escolha'); // 'escolha' | 'central' | 'embaixador'
   if (!authReady) return <Splash/>;
-  if (!user) return mostrarCentral
-    ? <PublicCentralPage onVoltar={()=>setMostrarCentral(false)}/>
-    : <EntryChooser onEscolherCentral={()=>setMostrarCentral(true)}/>;
-  if (!isTeamMember) return <VisitorApp/>;
+  if (!user) {
+    if (entrada==='central') return <PublicCentralPage onVoltar={()=>setEntrada('escolha')}/>;
+    if (entrada==='embaixador') return <EmbaixadorLoginPage onVoltar={()=>setEntrada('escolha')}/>;
+    return <EntryChooser onEscolherCentral={()=>setEntrada('central')} onEscolherEmbaixador={()=>setEntrada('embaixador')}/>;
+  }
+  if (!isTeamMember) {
+    if (!portalCarregado) return <Splash/>;
+    if (isEmbaixador) return <EmbaixadorPortalView/>;
+    return <VisitorApp/>;
+  }
   return (
     <div style={{display:'flex',height:'100vh',width:'100%',overflow:'hidden',background:NB.bg}}
       onDragOver={e=>e.preventDefault()}
