@@ -1907,37 +1907,46 @@ const CAPA_GRADIENTES = [
   ['#002D72','#0072CE'], ['#6431E2','#41B6E6'], ['#FF40B3','#6431E2'], ['#0072CE','#41B6E6'], ['#002D72','#6431E2'],
 ];
 
+function tempoRelativo(iso) {
+  if (!iso) return '';
+  const dias = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
+  if (dias<=0) return 'hoje';
+  if (dias===1) return 'há 1 dia';
+  if (dias<7) return 'há '+dias+' dias';
+  const semanas = Math.floor(dias/7);
+  if (semanas===1) return 'há 1 semana';
+  if (semanas<5) return 'há '+semanas+' semanas';
+  const meses = Math.floor(dias/30);
+  return meses<=1 ? 'há 1 mês' : 'há '+meses+' meses';
+}
+
 function CampanhaPublicCard({ camp, pecasDaCampanha, indice=0 }) {
   const [whats, setWhats] = useState(false);
   const jornada = PERSONAS.find(p=>p.id===camp.jornada);
   const pecasLinks = camp.pecasDemanda || [];
+  const totalPecas = pecasDaCampanha.length + pecasLinks.length;
   const [c1,c2] = CAPA_GRADIENTES[indice % CAPA_GRADIENTES.length];
 
   return (
-    <div style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:16,overflow:'hidden',boxShadow:'0 1px 3px rgba(11,42,92,0.04)',transition:'box-shadow 0.15s, transform 0.15s'}}
-      onMouseEnter={e=>{e.currentTarget.style.boxShadow='0 16px 32px rgba(11,42,92,0.09)'; e.currentTarget.style.transform='translateY(-2px)';}}
-      onMouseLeave={e=>{e.currentTarget.style.boxShadow='0 1px 3px rgba(11,42,92,0.04)'; e.currentTarget.style.transform='none';}}>
+    <div style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:16,overflow:'hidden',transition:'box-shadow 0.18s ease, transform 0.18s ease'}}
+      onMouseEnter={e=>{e.currentTarget.style.boxShadow='0 16px 32px rgba(16,20,31,0.08)'; e.currentTarget.style.transform='translateY(-2px)';}}
+      onMouseLeave={e=>{e.currentTarget.style.boxShadow='none'; e.currentTarget.style.transform='none';}}>
 
-      <div style={{aspectRatio:'16/8',background:'linear-gradient(135deg,'+c1+','+c2+')',position:'relative',display:'flex',alignItems:'flex-end',padding:16}}>
-        {jornada && (
-          <span style={{position:'absolute',top:14,right:14,width:32,height:32,background:'rgba(255,255,255,0.2)',borderRadius:9,display:'flex',alignItems:'center',justifyContent:'center',fontSize:15}}>
-            {jornada.emoji}
-          </span>
-        )}
-        <h3 style={{fontSize:17,fontWeight:600,color:'#fff',position:'relative',zIndex:2,lineHeight:1.3}}>{camp.titulo}</h3>
+      <div style={{aspectRatio:'16/10',background:'linear-gradient(135deg,'+c1+','+c2+')',position:'relative',display:'flex',alignItems:'flex-end',padding:16,color:'#fff'}}>
+        <div style={{position:'absolute',top:14,right:14,width:30,height:30,background:'rgba(255,255,255,0.18)',borderRadius:8,display:'flex',alignItems:'center',justifyContent:'center',fontSize:14}}>
+          {jornada ? jornada.emoji : <ITarget s={15}/>}
+        </div>
+        <div style={{fontFamily:"'Poppins',sans-serif",fontWeight:600,fontSize:16,position:'relative',zIndex:2}}>{camp.titulo}</div>
       </div>
 
-      <div style={{padding:'16px 18px 18px'}}>
-        <div style={{display:'flex',flexWrap:'wrap',gap:6,marginBottom:10}}>
-          {camp.desconto && (
-            <span style={{fontSize:11.5,fontWeight:700,color:'#0F6E56',background:'#E1F5EE',borderRadius:20,padding:'3px 11px'}}>{camp.desconto}</span>
-          )}
-          {jornada && (
-            <span style={{fontSize:11.5,color:NB.azul,background:'#EAF3FD',borderRadius:20,padding:'3px 11px'}}>{jornada.label}</span>
-          )}
-          {(camp.produtos||[]).map(p=><span key={p} style={{fontSize:11.5,color:NB.txt,background:NB.col,borderRadius:20,padding:'3px 11px'}}>{p}</span>)}
-        </div>
-        {camp.descricao && <p style={{fontSize:13,color:NB.mut,lineHeight:1.55,marginBottom:12}}>{camp.descricao}</p>}
+      <div style={{padding:'16px 18px 20px'}}>
+        <span style={{display:'inline-block',fontSize:11.5,fontWeight:600,color:NB.pink,background:'rgba(255,64,179,0.12)',padding:'3px 10px',borderRadius:999,marginBottom:10}}>
+          {jornada ? jornada.label : (camp.desconto || 'Campanha')}
+        </span>
+        <h3 style={{fontSize:15.5,fontWeight:600,color:NB.txt,marginBottom:6}}>{camp.descricao || camp.titulo}</h3>
+        <p style={{fontSize:12.5,color:NB.mut2,marginBottom:12}}>
+          Atualizado {tempoRelativo(camp.publicadaEm)} · {totalPecas} {totalPecas===1?'peça':'peças'}
+        </p>
 
         {(pecasDaCampanha.length>0 || pecasLinks.length>0) && (
           <div style={{display:'flex',gap:7,flexWrap:'wrap',marginBottom:12}}>
