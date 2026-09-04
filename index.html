@@ -5412,8 +5412,6 @@ function EntryChooser({ onEscolherEmbaixador }) {
     boxShadow:'0 20px 40px rgba(16,20,31,0.08)', display:'flex', flexDirection:'column',
     position:'relative', transition:'transform .18s ease, box-shadow .18s ease', textAlign:'left',
   };
-  const hoverOn = e => { e.currentTarget.style.transform='translateY(-4px)'; e.currentTarget.style.boxShadow='0 26px 50px rgba(16,20,31,0.12)'; };
-  const hoverOff = e => { e.currentTarget.style.transform='none'; e.currentTarget.style.boxShadow='0 20px 40px rgba(16,20,31,0.08)'; };
   const badgeStyle = {
     display:'inline-flex', alignItems:'center', gap:6, fontSize:12, fontWeight:600, color:NB.mut,
     background:NB.bg, border:'1px solid '+NB.bd, padding:'6px 12px', borderRadius:999,
@@ -5421,16 +5419,18 @@ function EntryChooser({ onEscolherEmbaixador }) {
   };
   const ctaStyle = {
     width:'100%', padding:13, borderRadius:10, background:NB.navy1, color:'#fff',
-    border:'1.5px solid '+NB.navy1, fontWeight:600, fontSize:14, transition:'background .15s ease',
+    border:'1.5px solid '+NB.navy1, fontWeight:600, fontSize:14, cursor:'pointer',
   };
+  const elevar = e => { e.currentTarget.style.transform='translateY(-4px)'; e.currentTarget.style.boxShadow='0 26px 50px rgba(16,20,31,0.12)'; };
+  const baixar = e => { e.currentTarget.style.transform='none'; e.currentTarget.style.boxShadow='0 20px 40px rgba(16,20,31,0.08)'; };
 
   return (
     <div style={{minHeight:'100vh',display:'flex',flexDirection:'column',background:NB.bg,overflowY:'auto'}}>
       <div style={{background:'linear-gradient(120deg,#0A1B3D 0%, #0F2A5C 40%, #0C3D82 70%, #0055A7 100%)',padding:'56px 32px 96px',color:'#fff',textAlign:'center'}}>
         <div style={{maxWidth:640,margin:'0 auto'}}>
           <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:8,marginBottom:28}}>
-            <NiboSymbol size={26} color="#fff"/>
-            <span style={{fontSize:20,fontWeight:700,color:'#fff',letterSpacing:'-0.01em'}}>nibo</span>
+            <NiboSymbol size={24} color="#fff"/>
+            <span style={{fontSize:20,fontWeight:700,color:'#fff'}}>nibo</span>
             <span style={{fontSize:14,color:'#B9C6E8',fontWeight:500,borderLeft:'1px solid rgba(255,255,255,0.25)',paddingLeft:8}}>mkt</span>
           </div>
           <h1 style={{fontSize:30,fontWeight:600,color:'#fff',marginBottom:12}}>Para onde você quer ir?</h1>
@@ -5441,7 +5441,7 @@ function EntryChooser({ onEscolherEmbaixador }) {
       <div style={{flex:1,maxWidth:840,margin:'-64px auto 0',padding:'0 32px 24px',width:'100%',boxSizing:'border-box'}}>
         <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(300px,1fr))',gap:24,alignItems:'stretch'}}>
 
-          <div style={cardStyle} onMouseEnter={hoverOn} onMouseLeave={hoverOff}>
+          <div style={cardStyle} onMouseEnter={elevar} onMouseLeave={baixar}>
             <div style={{width:50,height:50,borderRadius:14,background:NB.azul,display:'flex',alignItems:'center',justifyContent:'center',marginBottom:20}}>
               <IGrid s={22}/>
             </div>
@@ -5455,7 +5455,7 @@ function EntryChooser({ onEscolherEmbaixador }) {
             </button>
           </div>
 
-          <div style={cardStyle} onMouseEnter={hoverOn} onMouseLeave={hoverOff}>
+          <div style={cardStyle} onMouseEnter={elevar} onMouseLeave={baixar}>
             <div style={{width:50,height:50,borderRadius:14,background:'linear-gradient(135deg, rgba(255,64,179,0.55), '+NB.pink+')',display:'flex',alignItems:'center',justifyContent:'center',marginBottom:20}}>
               <IStar s={22}/>
             </div>
@@ -5469,19 +5469,21 @@ function EntryChooser({ onEscolherEmbaixador }) {
 
         </div>
 
-        <div style={{marginTop:36,marginBottom:48,paddingTop:28,textAlign:'center'}}>
-          <p style={{fontSize:12.5,color:NB.mut2,marginBottom:10}}>É do time de Marketing?</p>
-          <button onClick={entrar} disabled={busy}
-            style={{display:'inline-flex',alignItems:'center',gap:7,fontSize:13.5,fontWeight:600,color:NB.mut,padding:'9px 16px',borderRadius:999,border:'1px solid '+NB.bd,background:'#fff',opacity:busy?0.7:1}}>
-            <ILock s={13}/> {busy?'Entrando…':'Acessar Gestão de Tarefas do MKT'}
-          </button>
-        </div>
-
         {erro && (
-          <div style={{maxWidth:600,margin:'0 auto 24px',background:'#fff',border:'1px solid #FECACA',borderRadius:10,padding:'12px 15px',fontSize:12.5,color:'#B4232A',textAlign:'center'}}>
+          <div style={{marginTop:20,background:'#fff',border:'1px solid #FECACA',borderRadius:10,padding:'12px 15px',fontSize:12.5,color:'#B4232A'}}>
             {erro}
           </div>
         )}
+
+        <div style={{marginTop:36,marginBottom:48,paddingTop:28,textAlign:'center'}}>
+          <p style={{fontSize:12.5,color:NB.mut2,marginBottom:10}}>É do time de Marketing?</p>
+          <button onClick={entrar} disabled={busy}
+            style={{display:'inline-flex',alignItems:'center',gap:7,fontSize:13.5,fontWeight:600,color:NB.mut,padding:'9px 16px',borderRadius:999,border:'1px solid '+NB.bd,background:'#fff',opacity:busy?0.7:1}}
+            onMouseEnter={e=>{if(!busy){e.currentTarget.style.borderColor=NB.azul; e.currentTarget.style.color=NB.azul; e.currentTarget.style.background='#EAF3FD';}}}
+            onMouseLeave={e=>{e.currentTarget.style.borderColor=NB.bd; e.currentTarget.style.color=NB.mut; e.currentTarget.style.background='#fff';}}>
+            <ILock s={13}/> {busy?'Entrando…':'Acessar Gestão de Tarefas do MKT'}
+          </button>
+        </div>
 
         <div style={{borderTop:'1px solid '+NB.bd,padding:'32px 0 40px',color:NB.mut2,fontSize:13,display:'flex',justifyContent:'space-between',flexWrap:'wrap',gap:8}}>
           <span>© {new Date().getFullYear()} Nibo · Central de Materiais de Marketing</span>
