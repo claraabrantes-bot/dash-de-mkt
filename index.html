@@ -1989,31 +1989,32 @@ function InfoCentralView({ onLogoClick, headerRight, topBanner }) {
   return (
     <div style={{height:'100%',overflowY:'auto',overflowX:'hidden',background:NB.bg}}>
       <div style={{position:'sticky',top:0,zIndex:10,background:'#fff',borderBottom:'1px solid '+NB.bd}}>
-        <div style={{maxWidth:1180,margin:'0 auto',padding:'0 32px',height:64,display:'flex',alignItems:'center',gap:36}}>
+        <div style={{maxWidth:1280,margin:'0 auto',padding:'0 32px',height:68,display:'flex',alignItems:'center',gap:32}}>
           <button onClick={onLogoClick} style={{background:'none',border:'none',display:'flex',alignItems:'center',gap:9,cursor:'pointer',padding:0,flexShrink:0}}>
-            <NiboSymbol size={24} color={NB.navy1}/>
-            <span style={{fontSize:16,fontWeight:700,color:NB.navy1,letterSpacing:'-0.02em'}}>Nibo</span>
+            <NiboSymbol size={22} color={NB.navy1}/>
+            <span style={{fontSize:18,fontWeight:700,color:NB.navy1,letterSpacing:'-0.01em'}}>Nibo</span>
+            <span style={{width:9,height:9,borderRadius:'50%',background:NB.pink,marginLeft:2}}/>
           </button>
-          <div style={{display:'flex',gap:24,overflowX:'auto',flex:1}} className="nb-scrollnone">
+          <div style={{display:'flex',gap:26,overflowX:'auto',flex:1}} className="nb-scrollnone">
             {abas.map(a=>{
               const on = aba===a.id;
               return (
                 <button key={a.id} onClick={()=>setAba(a.id)}
-                  style={{padding:'21px 1px',background:'none',border:'none',
-                    borderBottom:'2.5px solid '+(on?NB.azul:'transparent'),
-                    fontSize:13.5,fontWeight:on?600:500,color:on?NB.navy1:NB.mut,whiteSpace:'nowrap',flexShrink:0}}>
+                  style={{padding:'23px 1px',background:'none',border:'none',
+                    borderBottom:'2px solid '+(on?NB.azul:'transparent'),
+                    fontSize:14,fontWeight:on?600:500,color:on?NB.navy1:NB.mut,whiteSpace:'nowrap',flexShrink:0}}>
                   {a.label}
                 </button>
               );
             })}
           </div>
-          <div style={{display:'flex',alignItems:'center',gap:10,flexShrink:0}}>{headerRight}</div>
+          <div style={{display:'flex',alignItems:'center',gap:16,flexShrink:0}}>{headerRight}</div>
         </div>
       </div>
 
       {topBanner}
 
-      <div style={{maxWidth:1180,margin:'0 auto',padding:'0 32px 48px'}}>
+      <div style={{maxWidth:1280,margin:'0 auto',padding:'0 32px 48px'}}>
         {aba==='campanhas'   && <CampanhasBuscaTab onIrPara={setAba}/>}
         {aba==='social'      && <RedesSociaisTab podeEditar={podeEditar}/>}
         {aba==='arquivos'    && <ArquivosTab podeEditar={podeEditarArquivos}/>}
@@ -2050,51 +2051,55 @@ function CampanhasBuscaTab({ onIrPara }) {
   return (
     <div>
       {destaque && (
-        <div style={{background:'linear-gradient(120deg, #001B45 0%, '+NB.navy1+' 55%, '+NB.roxo+' 130%)',borderRadius:20,marginTop:24,marginBottom:36,color:'#fff',position:'relative',overflow:'hidden',display:'grid',gridTemplateColumns:'1.1fr 0.9fr',gap:0}}>
-          <div style={{padding:'40px 8px 40px 40px'}}>
-            <span style={{display:'inline-flex',alignItems:'center',gap:8,background:'rgba(255,255,255,0.12)',padding:'6px 13px',borderRadius:20,fontSize:12,color:'#DCE4FA',marginBottom:18}}>
-              <ITarget s={13}/> Campanha em destaque
-            </span>
-            <h1 style={{fontSize:29,fontWeight:600,color:'#fff',marginBottom:12,letterSpacing:'-0.01em'}}>{destaque.titulo}</h1>
-            {destaque.descricao && <p style={{color:'#B9C6E8',fontSize:14.5,lineHeight:1.6,marginBottom:24}}>{destaque.descricao}</p>}
-            <div style={{display:'flex',gap:10,flexWrap:'wrap'}}>
-              <button onClick={()=>setMostrarMateriais(v=>!v)} disabled={materiaisDestaque.length===0}
-                style={{background:'#fff',color:NB.navy1,padding:'12px 20px',border:'none',borderRadius:10,fontWeight:600,fontSize:13.5,opacity:materiaisDestaque.length===0?0.6:1,cursor:materiaisDestaque.length===0?'default':'pointer'}}>
-                {materiaisDestaque.length===0 ? 'Sem materiais anexados' : (mostrarMateriais?'Ocultar materiais':'Ver todos os materiais')}
-              </button>
-              <button onClick={()=>onIrPara && onIrPara('abordagem')}
-                style={{border:'1.5px solid rgba(255,255,255,0.35)',background:'none',color:'#fff',padding:'12px 20px',borderRadius:10,fontWeight:600,fontSize:13.5}}>
-                Sugestões de texto
-              </button>
-            </div>
-            {mostrarMateriais && materiaisDestaque.length>0 && (
-              <div style={{display:'flex',flexDirection:'column',gap:8,marginTop:18}}>
-                {materiaisDestaque.map((m,i)=>(
-                  <a key={i} href={m.url} target="_blank" rel="noopener noreferrer"
-                    style={{display:'flex',alignItems:'center',gap:8,background:'rgba(255,255,255,0.1)',borderRadius:9,padding:'9px 13px',fontSize:13,color:'#fff',textDecoration:'none'}}>
-                    <IExt s={13}/> {m.nome}
-                  </a>
-                ))}
+        <div style={{background:'linear-gradient(120deg,#0A1B3D 0%, #0F2A5C 35%, #0C3D82 65%, #0055A7 100%)',borderRadius:24,marginTop:24,marginBottom:56,color:'#fff',position:'relative',overflow:'hidden'}}>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:48,alignItems:'center',padding:44}}>
+            <div>
+              <span style={{display:'inline-flex',alignItems:'center',gap:8,background:'rgba(255,255,255,0.1)',padding:'6px 14px 6px 10px',borderRadius:999,fontSize:13,color:'#DCE4FA',marginBottom:20}}>
+                <ITarget s={13}/> Campanha em destaque
+              </span>
+              <h1 style={{fontSize:36,fontWeight:600,color:'#fff',marginBottom:16,maxWidth:480,lineHeight:1.15}}>{destaque.titulo}</h1>
+              {destaque.descricao && <p style={{color:'#B9C6E8',fontSize:14.5,lineHeight:1.6,maxWidth:440,marginBottom:28}}>{destaque.descricao}</p>}
+              <div style={{display:'flex',gap:12,flexWrap:'wrap'}}>
+                <button onClick={()=>setMostrarMateriais(v=>!v)} disabled={materiaisDestaque.length===0}
+                  style={{background:'#fff',color:NB.navy1,padding:'12px 22px',border:'none',borderRadius:10,fontWeight:600,fontSize:14,opacity:materiaisDestaque.length===0?0.6:1,cursor:materiaisDestaque.length===0?'default':'pointer'}}>
+                  {materiaisDestaque.length===0 ? 'Sem materiais anexados' : (mostrarMateriais?'Ocultar materiais':'Ver todos os materiais')}
+                </button>
+                <button onClick={()=>onIrPara && onIrPara('abordagem')}
+                  style={{border:'1.5px solid rgba(255,255,255,0.35)',background:'none',color:'#fff',padding:'12px 22px',borderRadius:10,fontWeight:600,fontSize:14}}>
+                  Sugestões de texto
+                </button>
               </div>
-            )}
-          </div>
-          <div style={{position:'relative',margin:'20px 20px 20px 0',borderRadius:16,overflow:'hidden',background:'linear-gradient(135deg,'+NB.azul+','+NB.azulClaro+')',minHeight:200}}>
-            <div style={{position:'absolute',inset:0,opacity:0.5,background:'radial-gradient(circle at 75% 20%, rgba(255,255,255,0.5), transparent 55%)'}}/>
-            <div style={{position:'absolute',bottom:0,left:0,right:0,padding:'18px 20px',background:'linear-gradient(0deg, rgba(0,0,0,0.4), transparent)'}}>
-              {jornadaDestaque && <div style={{fontSize:11.5,color:'rgba(255,255,255,0.85)'}}>{jornadaDestaque.emoji} Pra {jornadaDestaque.label.toLowerCase()}</div>}
-              <div style={{fontSize:16,fontWeight:600,color:'#fff',marginTop:3}}>{destaque.titulo}</div>
+              {mostrarMateriais && materiaisDestaque.length>0 && (
+                <div style={{display:'flex',flexDirection:'column',gap:8,marginTop:18}}>
+                  {materiaisDestaque.map((m,i)=>(
+                    <a key={i} href={m.url} target="_blank" rel="noopener noreferrer"
+                      style={{display:'flex',alignItems:'center',gap:8,background:'rgba(255,255,255,0.1)',borderRadius:9,padding:'9px 13px',fontSize:13,color:'#fff',textDecoration:'none'}}>
+                      <IExt s={13}/> {m.nome}
+                    </a>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div style={{padding:'1.5px',borderRadius:25.5,background:'linear-gradient(135deg, #2C7BE5 0%, #0A1B3D 100%)',boxShadow:'0 30px 60px rgba(0,0,0,0.35)'}}>
+              <div style={{aspectRatio:'16/11',borderRadius:24,position:'relative',overflow:'hidden',background:'linear-gradient(135deg,'+NB.azul+','+NB.azulClaro+')'}}>
+                <div style={{position:'absolute',inset:0,opacity:0.5,background:'radial-gradient(circle at 75% 20%, rgba(255,255,255,0.5), transparent 55%)'}}/>
+                <div style={{position:'absolute',bottom:0,left:0,right:0,padding:'22px 24px',background:'linear-gradient(0deg, rgba(0,0,0,0.55), transparent)'}}>
+                  {jornadaDestaque && <div style={{fontSize:12,color:'#E8ECF7',opacity:0.85}}>{jornadaDestaque.emoji} Pra {jornadaDestaque.label.toLowerCase()}</div>}
+                  <div style={{fontSize:18,fontWeight:600,color:'#fff',marginTop:4}}>{destaque.titulo}</div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      <div style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:16,padding:'26px 28px',marginBottom:36,boxShadow:'0 1px 3px rgba(11,42,92,0.04)'}}>
-        <h2 style={{fontSize:19,fontWeight:600,color:NB.txt,marginBottom:4}}>O que você está procurando?</h2>
-        <p style={{fontSize:13,color:NB.mut,marginBottom:18}}>Busque por peça pronta, banner ou palavra-chave do briefing.</p>
-        <div style={{position:'relative',marginBottom:16}}>
-          <span style={{position:'absolute',left:16,top:'50%',transform:'translateY(-50%)',color:NB.mut2,display:'flex'}}><ISearch s={17}/></span>
+      <div style={{marginTop:72,marginBottom:72}}>
+        <h2 style={{fontSize:27,fontWeight:600,color:NB.txt,marginBottom:6}}>O que você está procurando?</h2>
+        <p style={{fontSize:14,color:NB.mut,marginBottom:20}}>Busque por peça pronta, banner ou palavra-chave do briefing.</p>
+        <div style={{position:'relative',marginBottom:18,maxWidth:640}}>
+          <span style={{position:'absolute',left:18,top:'50%',transform:'translateY(-50%)',color:NB.mut2,display:'flex'}}><ISearch s={17}/></span>
           <input value={busca} onChange={e=>setBusca(e.target.value)} placeholder="Ex: banner Black Friday, post de aniversário..."
-            style={{width:'100%',background:NB.bg,border:'1.5px solid '+NB.bd,borderRadius:14,padding:'13px 16px 13px 44px',fontSize:14.5,color:NB.txt,outline:'none'}}
+            style={{width:'100%',background:'#fff',border:'1.5px solid '+NB.bd,borderRadius:16,padding:'14px 18px 14px 46px',fontSize:15,color:NB.txt,outline:'none',boxSizing:'border-box'}}
             onFocus={e=>{e.target.style.borderColor=NB.azul;}} onBlur={e=>{e.target.style.borderColor=NB.bd;}}/>
         </div>
         <div style={{display:'flex',flexWrap:'wrap',gap:8}}>
@@ -2102,7 +2107,7 @@ function CampanhasBuscaTab({ onIrPara }) {
             const on = busca.toLowerCase()===c.toLowerCase();
             return (
               <button key={c} onClick={()=>setBusca(on?'':c)}
-                style={{padding:'7px 15px',borderRadius:20,fontSize:12.5,fontWeight:500,border:'1.5px solid '+(on?NB.navy1:NB.bd),background:on?NB.navy1:'#fff',color:on?'#fff':NB.mut}}>
+                style={{padding:'8px 15px',borderRadius:999,fontSize:13,fontWeight:500,border:'1.5px solid '+(on?NB.navy1:'#D7E3F5'),background:on?NB.navy1:'transparent',color:on?'#fff':NB.mut}}>
                 {c}
               </button>
             );
@@ -2119,9 +2124,9 @@ function CampanhasBuscaTab({ onIrPara }) {
         )}
       </div>
 
-      <div style={{display:'flex',alignItems:'flex-end',justifyContent:'space-between',marginBottom:22}}>
+      <div style={{display:'flex',alignItems:'flex-end',justifyContent:'space-between',marginBottom:24}}>
         <div>
-          <h2 style={{fontSize:20,fontWeight:600,color:NB.txt}}>{destaque ? 'Campanhas ativas e recentes' : 'Campanhas ativas'}</h2>
+          <h2 style={{fontSize:22,fontWeight:600,color:NB.txt}}>{destaque ? 'Campanhas ativas e recentes' : 'Campanhas ativas'}</h2>
           <p style={{fontSize:13,color:NB.mut,marginTop:3}}>{publicadas.length===0?'Nenhuma no momento':publicadas.length+(publicadas.length===1?' campanha publicada':' campanhas publicadas')}</p>
         </div>
       </div>
@@ -2135,7 +2140,7 @@ function CampanhasBuscaTab({ onIrPara }) {
           <p style={{fontSize:13,color:NB.mut,lineHeight:1.6,maxWidth:380,margin:'0 auto'}}>Assim que o marketing publicar uma, ela aparece aqui em destaque pra todo mundo do Nibo ver.</p>
         </div>
       ) : (
-        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(340px,1fr))',gap:20}}>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(300px,1fr))',gap:24}}>
           {publicadas.map((c,i)=>(
             <CampanhaPublicCard key={c.id} camp={c} indice={i} pecasDaCampanha={pecas.filter(p=>(c.pecaIds||[]).includes(p.id))}/>
           ))}
