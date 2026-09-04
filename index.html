@@ -863,6 +863,8 @@ const IRocket  = ({s=16})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}
 const IEye     = ({s=15})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}><path d="M1.5 12S5 4.5 12 4.5 22.5 12 22.5 12 19 19.5 12 19.5 1.5 12 1.5 12z"/><circle cx="12" cy="12" r="3.2"/></svg>;
 const IEyeOff  = ({s=15})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}><path d="M3 3l18 18"/><path d="M10.6 5.1A11.5 11.5 0 0 1 12 5c7 0 10.5 7 10.5 7a17.3 17.3 0 0 1-3.4 4.4M6.3 6.9C3.5 8.8 1.5 12 1.5 12S5 19 12 19a10.6 10.6 0 0 0 3.2-.5"/><path d="M9.5 9.9a3.2 3.2 0 0 0 4.5 4.5"/></svg>;
 const ILock    = ({s=15})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>;
+const IGrid    = ({s=15})=><svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>;
+const IStar    = ({s=15})=><svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2l3 7h7l-5.5 4.5L18 21l-6-4-6 4 1.5-7.5L2 9h7z"/></svg>;
 const IPhoto   = ({s=15})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}><rect x="2.5" y="4.5" width="19" height="15" rx="2.5"/><circle cx="8.5" cy="10" r="1.7"/><path d="M21.5 16l-5.5-5.5-4 4-2-2-6 6"/></svg>;
 const IPlay    = ({s=15})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}><circle cx="12" cy="12" r="9.5"/><polygon points="10 8.5 16 12 10 15.5" fill="currentColor" stroke="none"/></svg>;
 const IGlobe   = ({s=15})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}><circle cx="12" cy="12" r="9.5"/><ellipse cx="12" cy="12" rx="4" ry="9.5"/><line x1="2.5" y1="12" x2="21.5" y2="12"/></svg>;
@@ -5406,60 +5408,86 @@ function EntryChooser({ onEscolherEmbaixador }) {
   const { entrar, busy, erro } = useLoginGestao();
 
   const cardStyle = {
-    flex:'1 1 280px', maxWidth:340, background:'#fff', border:'1px solid '+NB.bd, borderRadius:18,
-    padding:'32px 28px', display:'flex', flexDirection:'column', alignItems:'flex-start', gap:14,
-    cursor:'pointer', textAlign:'left', transition:'box-shadow 0.15s, border-color 0.15s',
+    background:'#fff', border:'1px solid '+NB.bd, borderRadius:24, padding:'32px 28px',
+    boxShadow:'0 20px 40px rgba(16,20,31,0.08)', display:'flex', flexDirection:'column',
+    position:'relative', transition:'transform .18s ease, box-shadow .18s ease', textAlign:'left',
+  };
+  const hoverOn = e => { e.currentTarget.style.transform='translateY(-4px)'; e.currentTarget.style.boxShadow='0 26px 50px rgba(16,20,31,0.12)'; };
+  const hoverOff = e => { e.currentTarget.style.transform='none'; e.currentTarget.style.boxShadow='0 20px 40px rgba(16,20,31,0.08)'; };
+  const badgeStyle = {
+    display:'inline-flex', alignItems:'center', gap:6, fontSize:12, fontWeight:600, color:NB.mut,
+    background:NB.bg, border:'1px solid '+NB.bd, padding:'6px 12px', borderRadius:999,
+    marginBottom:20, alignSelf:'flex-start',
+  };
+  const ctaStyle = {
+    width:'100%', padding:13, borderRadius:10, background:NB.navy1, color:'#fff',
+    border:'1.5px solid '+NB.navy1, fontWeight:600, fontSize:14, transition:'background .15s ease',
   };
 
   return (
-    <div style={{height:'100vh',width:'100%',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',background:NB.bg,padding:24,overflow:'auto'}}>
-      <div style={{display:'flex',alignItems:'center',gap:20,marginBottom:52}}>
-        <NiboSymbol size={64} color={NB.navy1}/>
-        <div>
-          <div style={{fontSize:38,fontWeight:700,color:NB.navy1,letterSpacing:'-0.015em'}}>Central</div>
-          <div style={{fontSize:15,color:NB.mut,fontWeight:500,letterSpacing:'0.03em'}}>NIBO MARKETING</div>
+    <div style={{minHeight:'100vh',display:'flex',flexDirection:'column',background:NB.bg,overflowY:'auto'}}>
+      <div style={{background:'linear-gradient(120deg,#0A1B3D 0%, #0F2A5C 40%, #0C3D82 70%, #0055A7 100%)',padding:'56px 32px 96px',color:'#fff',textAlign:'center'}}>
+        <div style={{maxWidth:640,margin:'0 auto'}}>
+          <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:8,marginBottom:28}}>
+            <NiboSymbol size={26} color="#fff"/>
+            <span style={{fontSize:20,fontWeight:700,color:'#fff',letterSpacing:'-0.01em'}}>nibo</span>
+            <span style={{fontSize:14,color:'#B9C6E8',fontWeight:500,borderLeft:'1px solid rgba(255,255,255,0.25)',paddingLeft:8}}>mkt</span>
+          </div>
+          <h1 style={{fontSize:30,fontWeight:600,color:'#fff',marginBottom:12}}>Para onde você quer ir?</h1>
+          <p style={{fontSize:15,color:'#C7D4F0',lineHeight:1.6}}>O Nibo MKT reúne os conteúdos e materiais para colaboradores e parceiros que ajudam a levar a marca Nibo adiante.</p>
         </div>
       </div>
 
-      <div style={{display:'flex',gap:20,flexWrap:'wrap',justifyContent:'center',width:'100%',maxWidth:720}}>
-        <button onClick={entrar} disabled={busy} style={{...cardStyle, opacity:busy?0.75:1, cursor:busy?'wait':'pointer'}}
-          onMouseEnter={e=>{ if(!busy){ e.currentTarget.style.boxShadow='0 10px 30px rgba(11,42,92,0.10)'; e.currentTarget.style.borderColor='#C9D6EA'; }}}
-          onMouseLeave={e=>{e.currentTarget.style.boxShadow='none'; e.currentTarget.style.borderColor=NB.bd;}}>
-          <div style={{width:46,height:46,borderRadius:12,background:'#EAF3FD',color:NB.azul,display:'flex',alignItems:'center',justifyContent:'center'}}>
-            <IGlobe s={22}/>
-          </div>
-          <div>
-            <div style={{fontSize:17,fontWeight:600,color:NB.txt,marginBottom:5}}>{busy?'Entrando…':'Central de Informações'}</div>
-            <p style={{fontSize:13,color:NB.mut,lineHeight:1.55}}>Campanhas, peças e materiais de divulgação — login com sua conta @nibo.com.br.</p>
-          </div>
-        </button>
+      <div style={{flex:1,maxWidth:840,margin:'-64px auto 0',padding:'0 32px 24px',width:'100%',boxSizing:'border-box'}}>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(300px,1fr))',gap:24,alignItems:'stretch'}}>
 
-        <button onClick={onEscolherEmbaixador} style={cardStyle}
-          onMouseEnter={e=>{e.currentTarget.style.boxShadow='0 10px 30px rgba(11,42,92,0.10)'; e.currentTarget.style.borderColor='#C9D6EA';}}
-          onMouseLeave={e=>{e.currentTarget.style.boxShadow='none'; e.currentTarget.style.borderColor=NB.bd;}}>
-          <div style={{width:46,height:46,borderRadius:12,background:NB.pink,color:'#fff',display:'flex',alignItems:'center',justifyContent:'center'}}>
-            <IStamp s={22}/>
+          <div style={cardStyle} onMouseEnter={hoverOn} onMouseLeave={hoverOff}>
+            <div style={{width:50,height:50,borderRadius:14,background:NB.azul,display:'flex',alignItems:'center',justifyContent:'center',marginBottom:20}}>
+              <IGrid s={22}/>
+            </div>
+            <h3 style={{fontSize:19,fontWeight:600,color:NB.txt,marginBottom:10}}>Central de Conteúdo de MKT</h3>
+            <p style={{fontSize:14,color:NB.mut,lineHeight:1.6,marginBottom:20,flex:1}}>Campanhas ativas, peças prontas, materiais institucionais e pedidos de novas artes — para todos os colaboradores Nibo.</p>
+            <span style={badgeStyle}>
+              <ILock s={12}/> Login com conta Nibo (Google Workspace)
+            </span>
+            <button onClick={entrar} disabled={busy} style={{...ctaStyle,opacity:busy?0.7:1,cursor:busy?'wait':'pointer'}}>
+              {busy?'Entrando…':'Acessar'}
+            </button>
           </div>
-          <div>
-            <div style={{fontSize:17,fontWeight:600,color:NB.txt,marginBottom:5}}>Área do Embaixador</div>
-            <p style={{fontSize:13,color:NB.mut,lineHeight:1.55}}>Contrato, link da sua LP e materiais pra divulgar — login com o e-mail cadastrado.</p>
+
+          <div style={cardStyle} onMouseEnter={hoverOn} onMouseLeave={hoverOff}>
+            <div style={{width:50,height:50,borderRadius:14,background:'linear-gradient(135deg, rgba(255,64,179,0.55), '+NB.pink+')',display:'flex',alignItems:'center',justifyContent:'center',marginBottom:20}}>
+              <IStar s={22}/>
+            </div>
+            <h3 style={{fontSize:19,fontWeight:600,color:NB.txt,marginBottom:10}}>Área do Embaixador</h3>
+            <p style={{fontSize:14,color:NB.mut,lineHeight:1.6,marginBottom:20,flex:1}}>Conteúdos liberados para você, contratos, materiais de divulgação e o link da sua LP personalizada para indicação.</p>
+            <span style={badgeStyle}>
+              <ILock s={12}/> Login com e-mail cadastrado
+            </span>
+            <button onClick={onEscolherEmbaixador} style={ctaStyle}>Acessar</button>
           </div>
-        </button>
-      </div>
 
-      <div style={{marginTop:36,textAlign:'center'}}>
-        <p style={{fontSize:12,color:NB.mut2,marginBottom:8}}>É do time de Marketing?</p>
-        <button onClick={entrar} disabled={busy}
-          style={{display:'flex',alignItems:'center',gap:7,padding:'8px 15px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:20,color:NB.mut,fontSize:12.5,fontWeight:500,margin:'0 auto',opacity:busy?0.7:1}}>
-          <ILock s={12}/> {busy?'Entrando…':'Gestão (MKT)'}
-        </button>
-      </div>
-
-      {erro && (
-        <div style={{marginTop:20,maxWidth:600,background:'#fff',border:'1px solid #FECACA',borderRadius:10,padding:'12px 15px',fontSize:12.5,color:'#B4232A'}}>
-          {erro}
         </div>
-      )}
+
+        <div style={{marginTop:36,marginBottom:48,paddingTop:28,textAlign:'center'}}>
+          <p style={{fontSize:12.5,color:NB.mut2,marginBottom:10}}>É do time de Marketing?</p>
+          <button onClick={entrar} disabled={busy}
+            style={{display:'inline-flex',alignItems:'center',gap:7,fontSize:13.5,fontWeight:600,color:NB.mut,padding:'9px 16px',borderRadius:999,border:'1px solid '+NB.bd,background:'#fff',opacity:busy?0.7:1}}>
+            <ILock s={13}/> {busy?'Entrando…':'Acessar Gestão de Tarefas do MKT'}
+          </button>
+        </div>
+
+        {erro && (
+          <div style={{maxWidth:600,margin:'0 auto 24px',background:'#fff',border:'1px solid #FECACA',borderRadius:10,padding:'12px 15px',fontSize:12.5,color:'#B4232A',textAlign:'center'}}>
+            {erro}
+          </div>
+        )}
+
+        <div style={{borderTop:'1px solid '+NB.bd,padding:'32px 0 40px',color:NB.mut2,fontSize:13,display:'flex',justifyContent:'space-between',flexWrap:'wrap',gap:8}}>
+          <span>© {new Date().getFullYear()} Nibo · Central de Materiais de Marketing</span>
+          <span>Dúvidas? marketingteam@nibo.com</span>
+        </div>
+      </div>
     </div>
   );
 }
