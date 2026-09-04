@@ -5424,8 +5424,8 @@ function EntryChooser({ onEscolherEmbaixador }) {
             <IGlobe s={22}/>
           </div>
           <div>
-            <div style={{fontSize:17,fontWeight:600,color:NB.txt,marginBottom:5}}>{busy?'Entrando…':'Colaboradores Nibo'}</div>
-            <p style={{fontSize:13,color:NB.mut,lineHeight:1.55}}>Campanhas, peças, materiais e a Gestão de Marketing — login com sua conta @nibo.com.br.</p>
+            <div style={{fontSize:17,fontWeight:600,color:NB.txt,marginBottom:5}}>{busy?'Entrando…':'Central de Informações'}</div>
+            <p style={{fontSize:13,color:NB.mut,lineHeight:1.55}}>Campanhas, peças e materiais de divulgação — login com sua conta @nibo.com.br.</p>
           </div>
         </button>
 
@@ -5439,6 +5439,14 @@ function EntryChooser({ onEscolherEmbaixador }) {
             <div style={{fontSize:17,fontWeight:600,color:NB.txt,marginBottom:5}}>Área do Embaixador</div>
             <p style={{fontSize:13,color:NB.mut,lineHeight:1.55}}>Contrato, link da sua LP e materiais pra divulgar — login com o e-mail cadastrado.</p>
           </div>
+        </button>
+      </div>
+
+      <div style={{marginTop:36,textAlign:'center'}}>
+        <p style={{fontSize:12,color:NB.mut2,marginBottom:8}}>É do time de Marketing?</p>
+        <button onClick={entrar} disabled={busy}
+          style={{display:'flex',alignItems:'center',gap:7,padding:'8px 15px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:20,color:NB.mut,fontSize:12.5,fontWeight:500,margin:'0 auto',opacity:busy?0.7:1}}>
+          <ILock s={12}/> {busy?'Entrando…':'Gestão (MKT)'}
         </button>
       </div>
 
