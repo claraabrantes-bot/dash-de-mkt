@@ -167,6 +167,8 @@ function Provider({ children }) {
   const [meuPortalEmbaixador, setMeuPortalEmbaixador] = useState(null);
   const [portalCarregado, setPortalCarregado] = useState(false);
   const [portaisEmbaixador, setPortaisEmbaixador] = useState([]);
+  const [meusEnviosFotos, setMeusEnviosFotos] = useState([]);
+  const [todosEnviosFotos, setTodosEnviosFotos] = useState([]);
   const [pecas, setPecas] = useState([]);
   const [slack, setSlack]     = useState([]);
   const [pipes, setPipes]     = useState(DEFAULT_PIPELINES);
@@ -335,7 +337,11 @@ function Provider({ children }) {
       setPortaisEmbaixador(snap.docs.map(d => ({ id:d.id, ...d.data() })));
     }, erro);
 
-    return () => { u1(); u2(); u3(); u4(); u5(); u8(); u9(); };
+    const u10 = db.collection('embaixadorEnvios').onSnapshot(snap => {
+      setTodosEnviosFotos(snap.docs.map(d => ({ id:d.id, ...d.data() })));
+    }, erro);
+
+    return () => { u1(); u2(); u3(); u4(); u5(); u8(); u9(); u10(); };
   }, [fbUser, isTeamMember]);
 
   /* Portal do embaixador: roda pra qualquer conta autenticada (não só time),
@@ -350,6 +356,18 @@ function Provider({ children }) {
         setMeuPortalEmbaixador(snap.docs.length ? { id:snap.docs[0].id, ...snap.docs[0].data() } : null);
         setPortalCarregado(true);
       }, () => { setMeuPortalEmbaixador(null); setPortalCarregado(true); });
+    return () => un();
+  }, [fbUser]);
+
+  /* Envios de foto do próprio embaixador — cada um só vê os seus. */
+  useEffect(() => {
+    if (!fbUser || !fbUser.email) { setMeusEnviosFotos([]); return; }
+    let db;
+    try { db = firebase.firestore(); } catch (e) { return; }
+    const un = db.collection('embaixadorEnvios').where('email','==',fbUser.email)
+      .onSnapshot(snap => {
+        setMeusEnviosFotos(snap.docs.map(d => ({ id:d.id, ...d.data() })).sort((a,b)=>(b.enviadoEm||'').localeCompare(a.enviadoEm||'')));
+      }, () => setMeusEnviosFotos([]));
     return () => un();
   }, [fbUser]);
 
@@ -756,6 +774,25 @@ function Provider({ children }) {
     db.collection('embaixadoresPortal').doc(id).delete().catch(e=>setDbErro('Não foi possível remover: '+e.message));
   }, []);
 
+  /* Envio de foto pelo próprio embaixador — usa firestore() direto porque
+     dbRef só existe pra quem é do time; embaixador não é. */
+  const enviarFotoEmbaixador = useCallback(async (dataUrl) => {
+    if (!fbUser || !fbUser.email) return { ok:false, erro:'Sessão expirada — recarrega a página.' };
+    try {
+      const db = firebase.firestore();
+      await db.collection('embaixadorEnvios').add({
+        email: fbUser.email, foto: dataUrl, enviadoEm: new Date().toISOString(),
+      });
+      return { ok:true };
+    } catch (e) {
+      return { ok:false, erro: (e && e.message) || 'Erro desconhecido.' };
+    }
+  }, [fbUser]);
+  const removerEnvioFoto = useCallback((id) => {
+    const db = dbRef.current; if (!db) return;
+    db.collection('embaixadorEnvios').doc(id).delete().catch(()=>{});
+  }, []);
+
   /* ---------- Pacotes de tarefas ---------- */
   /* Um método só: id existente = atualiza (inclusive "assumir" um pacote
      padrão embutido, tipo 'webinar', que ainda não é um doc de verdade);
@@ -802,7 +839,7 @@ function Provider({ children }) {
   window.__nbDem = demands;
   window.__nbPosts = posts;
 
-  return <Ctx.Provider value={{ demands, active, archived, filtered, slack, user, isTeamMember, authReady, authError, setAuthError, preferirCentral, setPreferirCentral, dbReady, dbErro, seed, pedidos, aceitarPedido, recusarPedido, posts, addPost, updatePost, deletePost, campanhas, updateCampanha, publicarCampanha, despublicarCampanha, deleteCampanha, enviarCampanhaDeDemanda, pecas, addPeca, removePeca, redesSociais, salvarRedesSociais, arquivos, addArquivo, removeArquivo, embaixadores, addEmbaixador, removeEmbaixador, pacotes, salvarPacote, removePacote, meuPortalEmbaixador, portalCarregado, isEmbaixador, criarPortalEmbaixador, removerPortalEmbaixador, portaisEmbaixador, view, setView, layout, setLayout, area, setArea, query, setQuery, priFilter, setPriFilter, reqFilter, setReqFilter, selDemand, setModal, newOpen, setNewOpen, pacoteOpen, setPacoteOpen, notifyPending, setNotifyPending, profileOpen, setProfileOpen, editStages, setEditStages, dragging, setDragging, previewMember, setPreviewMember, photos, googlePhotos, profiles, pipes, salvarPipes, attach, comments, storageWarn, MAX_FILE, addAttachment, uploadFile, migrarLocal, carregarAnexo, removeAttachment, addComment, removeComment, logout, savePhoto, removePhoto, saveProfile, addDemand, moveStage, moveArea, setAssignees, updateDemand, archiveDemand, restoreDemand, delDemand }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ demands, active, archived, filtered, slack, user, isTeamMember, authReady, authError, setAuthError, preferirCentral, setPreferirCentral, dbReady, dbErro, seed, pedidos, aceitarPedido, recusarPedido, posts, addPost, updatePost, deletePost, campanhas, updateCampanha, publicarCampanha, despublicarCampanha, deleteCampanha, enviarCampanhaDeDemanda, pecas, addPeca, removePeca, redesSociais, salvarRedesSociais, arquivos, addArquivo, removeArquivo, embaixadores, addEmbaixador, removeEmbaixador, pacotes, salvarPacote, removePacote, meuPortalEmbaixador, portalCarregado, isEmbaixador, criarPortalEmbaixador, removerPortalEmbaixador, portaisEmbaixador, meusEnviosFotos, todosEnviosFotos, enviarFotoEmbaixador, removerEnvioFoto, view, setView, layout, setLayout, area, setArea, query, setQuery, priFilter, setPriFilter, reqFilter, setReqFilter, selDemand, setModal, newOpen, setNewOpen, pacoteOpen, setPacoteOpen, notifyPending, setNotifyPending, profileOpen, setProfileOpen, editStages, setEditStages, dragging, setDragging, previewMember, setPreviewMember, photos, googlePhotos, profiles, pipes, salvarPipes, attach, comments, storageWarn, MAX_FILE, addAttachment, uploadFile, migrarLocal, carregarAnexo, removeAttachment, addComment, removeComment, logout, savePhoto, removePhoto, saveProfile, addDemand, moveStage, moveArea, setAssignees, updateDemand, archiveDemand, restoreDemand, delDemand }}>{children}</Ctx.Provider>;
 }
 
 const useApp = () => useContext(Ctx);
@@ -5829,6 +5866,64 @@ function EmbaixadorPortalConteudo({ p }) {
   );
 }
 
+function EnvioFotosEmbaixador() {
+  const { meusEnviosFotos, enviarFotoEmbaixador, MAX_FILE } = useApp();
+  const [enviando, setEnviando] = useState(false);
+  const [err, setErr] = useState('');
+  const [ok, setOk] = useState(false);
+
+  const escolher = e => {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    if (file.size > MAX_FILE) return setErr('A foto tem '+Math.round(file.size/1024)+'KB e o limite é '+Math.round(MAX_FILE/1024)+'KB — tenta uma menor.');
+    setErr(''); setOk(false); setEnviando(true);
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const r = await enviarFotoEmbaixador(reader.result);
+      setEnviando(false);
+      if (!r.ok) setErr(r.erro); else { setOk(true); setTimeout(()=>setOk(false), 3000); }
+    };
+    reader.onerror = () => { setEnviando(false); setErr('Não foi possível ler a imagem.'); };
+    reader.readAsDataURL(file);
+  };
+
+  return (
+    <div style={{marginTop:28}}>
+      <h2 style={{fontSize:19,fontWeight:600,color:NB.txt,marginBottom:4}}>Enviar fotos suas</h2>
+      <p style={{fontSize:13.5,color:NB.mut,marginBottom:16}}>Manda fotos suas pro time de Marketing usar em posts, depoimentos e materiais — não precisa ter nada a ver com o seu perfil.</p>
+      <div style={{background:'#fff',border:'1px dashed '+NB.bd,borderRadius:14,padding:'20px',display:'flex',alignItems:'center',gap:16,flexWrap:'wrap',marginBottom:16}}>
+        <div style={{width:44,height:44,borderRadius:12,background:'#EAF3FD',color:NB.azul,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+          <ICamera s={19}/>
+        </div>
+        <div style={{flex:1,minWidth:180}}>
+          <div style={{fontSize:13.5,fontWeight:600,color:NB.txt,marginBottom:2}}>Mandar uma foto</div>
+          <div style={{fontSize:12,color:NB.mut2}}>Até {Math.round(MAX_FILE/1024)}KB por foto.</div>
+        </div>
+        <label style={{padding:'9px 16px',background:enviando?NB.mut2:NB.azul,borderRadius:9,color:'#fff',fontSize:12.5,fontWeight:600,cursor:enviando?'default':'pointer',flexShrink:0}}>
+          {enviando?'Enviando…':'Escolher foto'}
+          <input type="file" accept="image/*" onChange={escolher} disabled={enviando} style={{display:'none'}}/>
+        </label>
+      </div>
+      {err && <p style={{fontSize:12.5,color:'#B4232A',marginBottom:12}}>{err}</p>}
+      {ok && <p style={{fontSize:12.5,color:'#0F6E56',marginBottom:12}}>Foto enviada! O time de Marketing vai ver por aqui.</p>}
+
+      {meusEnviosFotos.length>0 && (
+        <div>
+          <div style={{fontSize:12,color:NB.mut2,marginBottom:10}}>Suas fotos enviadas ({meusEnviosFotos.length})</div>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(90px,1fr))',gap:10}}>
+            {meusEnviosFotos.map(f=>(
+              <div key={f.id} style={{aspectRatio:'1/1',borderRadius:10,overflow:'hidden',background:NB.col,border:'1px solid '+NB.bd}}>
+                <img src={f.foto} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function EmbaixadorPortalView() {
   const { user, meuPortalEmbaixador, logout } = useApp();
   const p = meuPortalEmbaixador;
@@ -5868,6 +5963,7 @@ function EmbaixadorPortalView() {
 
       <div style={{maxWidth:760,margin:'0 auto',padding:'32px 24px 0'}}>
         <EmbaixadorPortalConteudo p={p}/>
+        <EnvioFotosEmbaixador/>
         <div style={{borderTop:'1px solid '+NB.bd,padding:'32px 0 40px',color:NB.mut2,fontSize:13,display:'flex',justifyContent:'space-between',flexWrap:'wrap',gap:8,marginTop:36}}>
           <span>© {new Date().getFullYear()} Nibo · Central de Materiais de Marketing</span>
           <span>Dúvidas? marketingteam@nibo.com</span>
@@ -5877,12 +5973,10 @@ function EmbaixadorPortalView() {
   );
 }
 
-/* Visualização da Gestão
-
 /* Visualização da Gestão: qualquer pessoa do time vê o portal de qualquer
    embaixador, sem precisar da senha dele — só pra conferência. */
 function PortalEmbaixadorGestaoView() {
-  const { portaisEmbaixador } = useApp();
+  const { portaisEmbaixador, todosEnviosFotos, removerEnvioFoto } = useApp();
   const [selId, setSelId] = useState(null);
   const selecionado = portaisEmbaixador.find(p=>p.id===selId) || null;
 
@@ -5897,6 +5991,7 @@ function PortalEmbaixadorGestaoView() {
   }
 
   if (selecionado) {
+    const enviosDela = todosEnviosFotos.filter(f=>f.email===selecionado.email);
     return (
       <div style={{padding:'22px 30px 30px',overflowY:'auto',height:'100%'}}>
         <button onClick={()=>setSelId(null)} style={{display:'flex',alignItems:'center',gap:7,background:'none',border:'none',color:NB.mut,fontSize:12.5,marginBottom:18}}>
@@ -5906,6 +6001,32 @@ function PortalEmbaixadorGestaoView() {
         <p style={{fontSize:13,color:NB.mut,marginBottom:22}}>{selecionado.email} · o que essa conta vê ao entrar no portal</p>
         <div style={{maxWidth:640}}>
           <EmbaixadorPortalConteudo p={selecionado}/>
+
+          <div style={{marginTop:28}}>
+            <h3 style={{fontSize:16,fontWeight:600,color:NB.txt,marginBottom:4}}>Fotos que ela mandou ({enviosDela.length})</h3>
+            <p style={{fontSize:12.5,color:NB.mut,marginBottom:14}}>Enviadas pelo Portal, pra usar em posts, depoimentos e materiais.</p>
+            {enviosDela.length===0 ? (
+              <div style={{background:NB.col,border:'1px dashed '+NB.bd,borderRadius:12,padding:20,textAlign:'center'}}>
+                <p style={{fontSize:12.5,color:NB.mut2}}>Ainda não mandou nenhuma.</p>
+              </div>
+            ) : (
+              <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(120px,1fr))',gap:12}}>
+                {enviosDela.map(f=>(
+                  <div key={f.id} style={{position:'relative'}}>
+                    <div style={{aspectRatio:'1/1',borderRadius:12,overflow:'hidden',background:NB.col,border:'1px solid '+NB.bd}}>
+                      <img src={f.foto} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>
+                    </div>
+                    <a href={f.foto} download={'foto-'+(selecionado.nome||'embaixador').replace(/\s+/g,'-')+'.png'}
+                      style={{position:'absolute',top:6,right:6,width:26,height:26,borderRadius:'50%',background:'rgba(255,255,255,0.9)',display:'flex',alignItems:'center',justifyContent:'center',color:NB.navy1}}>
+                      <IDown s={13}/>
+                    </a>
+                    <button onClick={()=>removerEnvioFoto(f.id)} title="Remover"
+                      style={{position:'absolute',bottom:6,right:6,width:22,height:22,borderRadius:'50%',background:'rgba(255,255,255,0.9)',border:'none',color:'#B4232A',fontSize:13,lineHeight:1}}>×</button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     );
