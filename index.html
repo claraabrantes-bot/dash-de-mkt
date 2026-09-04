@@ -159,11 +159,9 @@ function Provider({ children }) {
   const [demands, setDemands] = useState([]);
   const [pedidos, setPedidos] = useState([]);
   const [posts, setPosts] = useState([]);
-  const [campanhasPublicas, setCampanhasPublicas] = useState([]);
-  const [campanhasGestao, setCampanhasGestao] = useState([]);
+  const [campanhas, setCampanhas] = useState([]);
   const [redesSociais, setRedesSociais] = useState({ instagramHandle:'', posts:[] });
-  const [arquivosPublicos, setArquivosPublicos] = useState([]);
-  const [arquivosGestao, setArquivosGestao] = useState([]);
+  const [arquivos, setArquivos] = useState([]);
   const [embaixadores, setEmbaixadores] = useState([]);
   const [pacotes, setPacotes] = useState([]);
   const [meuPortalEmbaixador, setMeuPortalEmbaixador] = useState(null);
@@ -175,8 +173,6 @@ function Provider({ children }) {
   const [dbReady, setDbReady] = useState(false);
   const [dbErro, setDbErro]   = useState('');
   const dbRef    = useRef(null);
-  const publicDbRef = useRef(null);
-  const [dbErroPublico, setDbErroPublico] = useState('');
   const pipesRef = useRef(pipes);
   pipesRef.current = pipes;
 
@@ -256,21 +252,26 @@ function Provider({ children }) {
           googlePhoto: fbUser.photoURL }
     : null;
 
-  /* Central de Informações é pública: essas duas coleções carregam sempre,
-     com ou sem login — as regras do Firestore liberam leitura sem exigir conta. */
+  /* Central de Informações agora exige login @nibo.com.br — qualquer conta
+     do Nibo carrega esses dados, não só o time de marketing. Embaixadores
+     (login por e-mail externo) nunca batem nesse domínio, então ficam fora. */
   useEffect(() => {
+    if (!fbUser || !fbUser.email.endsWith(NIBO_DOMAIN)) {
+      setCampanhas([]); setPecas([]); setRedesSociais({instagramHandle:'',posts:[]}); setArquivos([]); setEmbaixadores([]);
+      return;
+    }
     let db;
-    try { db = firebase.firestore(); publicDbRef.current = db; }
-    catch (e) { setDbErroPublico('Não foi possível abrir o banco: ' + e.message); return; }
+    try { db = firebase.firestore(); }
+    catch (e) { setDbErro('Não foi possível abrir o banco: ' + e.message); return; }
 
-    const erro = e => setDbErroPublico(
+    const erro = e => setDbErro(
       e && e.code === 'permission-denied'
-        ? 'Sem permissão de leitura pública. Publique as regras do Firestore no console do Firebase.'
+        ? 'Sem permissão de acesso ao banco. Publique as regras do Firestore no console do Firebase.'
         : 'Falha de conexão: ' + (e && e.message ? e.message : 'desconhecida')
     );
 
-    const uc = db.collection('campanhas').where('status','==','publicada').onSnapshot(snap => {
-      setCampanhasPublicas(snap.docs.map(d => ({ id:d.id, ...d.data() })));
+    const uc = db.collection('campanhas').onSnapshot(snap => {
+      setCampanhas(snap.docs.map(d => ({ id:d.id, ...d.data() })));
     }, erro);
     const up = db.collection('pecas').onSnapshot(snap => {
       setPecas(snap.docs.map(d => ({ id:d.id, ...d.data() })));
@@ -278,15 +279,15 @@ function Provider({ children }) {
     const ur = db.collection('redesSociais').doc('principal').onSnapshot(doc => {
       setRedesSociais(doc.exists ? doc.data() : { instagramHandle:'', posts:[] });
     }, erro);
-    const ua = db.collection('arquivos').where('categoria','!=','restrito').onSnapshot(snap => {
-      setArquivosPublicos(snap.docs.map(d => ({ id:d.id, ...d.data() })));
+    const ua = db.collection('arquivos').onSnapshot(snap => {
+      setArquivos(snap.docs.map(d => ({ id:d.id, ...d.data() })));
     }, erro);
     const ue = db.collection('embaixadores').onSnapshot(snap => {
       setEmbaixadores(snap.docs.map(d => ({ id:d.id, ...d.data() })));
     }, erro);
 
-    return () => { uc(); up(); ul(); ur(); ua(); ue(); };
-  }, []);
+    return () => { uc(); up(); ur(); ua(); ue(); };
+  }, [fbUser]);
 
   /* Escutas do que é interno só depois do login — as regras exigem usuária autenticada. */
   useEffect(() => {
@@ -323,15 +324,6 @@ function Provider({ children }) {
       setPipes(d && d.data ? d.data : DEFAULT_PIPELINES);
     }, erro);
 
-    /* Versões completas (todos os status/categorias) pra quem gerencia — só existem
-       logada, porque só aí a regra libera ler sem o filtro que a lista pública exige. */
-    const u6 = db.collection('campanhas').onSnapshot(snap => {
-      setCampanhasGestao(snap.docs.map(d => ({ id:d.id, ...d.data() })));
-    }, erro);
-    const u7 = db.collection('arquivos').onSnapshot(snap => {
-      setArquivosGestao(snap.docs.map(d => ({ id:d.id, ...d.data() })));
-    }, erro);
-
     const u8 = db.collection('pacotes').onSnapshot(snap => {
       setPacotes(snap.docs.map(d => ({ id:d.id, ...d.data() })));
     }, erro);
@@ -342,7 +334,7 @@ function Provider({ children }) {
       setPortaisEmbaixador(snap.docs.map(d => ({ id:d.id, ...d.data() })));
     }, erro);
 
-    return () => { u1(); u2(); u3(); u4(); u5(); u6(); u7(); u8(); u9(); };
+    return () => { u1(); u2(); u3(); u4(); u5(); u8(); u9(); };
   }, [fbUser, isTeamMember]);
 
   /* Portal do embaixador: roda pra qualquer conta autenticada (não só time),
@@ -359,11 +351,6 @@ function Provider({ children }) {
       }, () => { setMeuPortalEmbaixador(null); setPortalCarregado(true); });
     return () => un();
   }, [fbUser]);
-
-  /* Logada, a gestão precisa ver tudo (rascunho + publicada, restrito + não).
-     Sem login, só a fatia pública, que já veio pré-filtrada do Firestore. */
-  const campanhas = fbUser ? campanhasGestao : campanhasPublicas;
-  const arquivos  = fbUser ? arquivosGestao  : arquivosPublicos;
 
   /* Ao entrar, cai direto no próprio setor. Quem aprova cai na fila de Gestão. */
   useEffect(() => {
@@ -814,7 +801,7 @@ function Provider({ children }) {
   window.__nbDem = demands;
   window.__nbPosts = posts;
 
-  return <Ctx.Provider value={{ demands, active, archived, filtered, slack, user, isTeamMember, authReady, authError, setAuthError, dbReady, dbErro, dbErroPublico, seed, pedidos, aceitarPedido, recusarPedido, posts, addPost, updatePost, deletePost, campanhas, updateCampanha, publicarCampanha, despublicarCampanha, deleteCampanha, enviarCampanhaDeDemanda, pecas, addPeca, removePeca, redesSociais, salvarRedesSociais, arquivos, addArquivo, removeArquivo, embaixadores, addEmbaixador, removeEmbaixador, pacotes, salvarPacote, removePacote, meuPortalEmbaixador, portalCarregado, isEmbaixador, criarPortalEmbaixador, removerPortalEmbaixador, portaisEmbaixador, view, setView, layout, setLayout, area, setArea, query, setQuery, priFilter, setPriFilter, reqFilter, setReqFilter, selDemand, setModal, newOpen, setNewOpen, pacoteOpen, setPacoteOpen, notifyPending, setNotifyPending, profileOpen, setProfileOpen, editStages, setEditStages, dragging, setDragging, previewMember, setPreviewMember, photos, googlePhotos, profiles, pipes, salvarPipes, attach, comments, storageWarn, MAX_FILE, addAttachment, uploadFile, migrarLocal, carregarAnexo, removeAttachment, addComment, removeComment, logout, savePhoto, removePhoto, saveProfile, addDemand, moveStage, moveArea, setAssignees, updateDemand, archiveDemand, restoreDemand, delDemand }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ demands, active, archived, filtered, slack, user, isTeamMember, authReady, authError, setAuthError, dbReady, dbErro, seed, pedidos, aceitarPedido, recusarPedido, posts, addPost, updatePost, deletePost, campanhas, updateCampanha, publicarCampanha, despublicarCampanha, deleteCampanha, enviarCampanhaDeDemanda, pecas, addPeca, removePeca, redesSociais, salvarRedesSociais, arquivos, addArquivo, removeArquivo, embaixadores, addEmbaixador, removeEmbaixador, pacotes, salvarPacote, removePacote, meuPortalEmbaixador, portalCarregado, isEmbaixador, criarPortalEmbaixador, removerPortalEmbaixador, portaisEmbaixador, view, setView, layout, setLayout, area, setArea, query, setQuery, priFilter, setPriFilter, reqFilter, setReqFilter, selDemand, setModal, newOpen, setNewOpen, pacoteOpen, setPacoteOpen, notifyPending, setNotifyPending, profileOpen, setProfileOpen, editStages, setEditStages, dragging, setDragging, previewMember, setPreviewMember, photos, googlePhotos, profiles, pipes, salvarPipes, attach, comments, storageWarn, MAX_FILE, addAttachment, uploadFile, migrarLocal, carregarAnexo, removeAttachment, addComment, removeComment, logout, savePhoto, removePhoto, saveProfile, addDemand, moveStage, moveArea, setAssignees, updateDemand, archiveDemand, restoreDemand, delDemand }}>{children}</Ctx.Provider>;
 }
 
 const useApp = () => useContext(Ctx);
@@ -2348,9 +2335,13 @@ const ARQUIVOS_CORRIGIDOS = [
 ];
 
 function ArquivosTab({ podeEditar }) {
-  const { arquivos: arquivosDoBanco, addArquivo, removeArquivo } = useApp();
+  const { arquivos: arquivosTodos, isTeamMember, addArquivo, removeArquivo } = useApp();
   const [novo, setNovo] = useState(false);
   const [corrigindo, setCorrigindo] = useState(false);
+
+  /* A regra do Firestore libera tudo pra quem está logada — quem não é do
+     time de marketing não deve ver a categoria "Apenas time de Marketing". */
+  const arquivosDoBanco = isTeamMember ? arquivosTodos : arquivosTodos.filter(a => a.categoria !== 'restrito');
 
   /* Os arquivos padrão sempre aparecem, e o que for adicionado de verdade
      entra junto — nunca é tudo ou nada. Se algum dia um item real usar a
@@ -5406,7 +5397,7 @@ function useLoginGestao() {
 }
 
 /* =========== TELA DE ESCOLHA — Central de Informações ou Gestão ============ */
-function EntryChooser({ onEscolherCentral, onEscolherEmbaixador }) {
+function EntryChooser({ onEscolherEmbaixador }) {
   const { entrar, busy, erro } = useLoginGestao();
 
   const cardStyle = {
@@ -5426,15 +5417,15 @@ function EntryChooser({ onEscolherCentral, onEscolherEmbaixador }) {
       </div>
 
       <div style={{display:'flex',gap:20,flexWrap:'wrap',justifyContent:'center',width:'100%',maxWidth:720}}>
-        <button onClick={onEscolherCentral} style={cardStyle}
-          onMouseEnter={e=>{e.currentTarget.style.boxShadow='0 10px 30px rgba(11,42,92,0.10)'; e.currentTarget.style.borderColor='#C9D6EA';}}
+        <button onClick={entrar} disabled={busy} style={{...cardStyle, opacity:busy?0.75:1, cursor:busy?'wait':'pointer'}}
+          onMouseEnter={e=>{ if(!busy){ e.currentTarget.style.boxShadow='0 10px 30px rgba(11,42,92,0.10)'; e.currentTarget.style.borderColor='#C9D6EA'; }}}
           onMouseLeave={e=>{e.currentTarget.style.boxShadow='none'; e.currentTarget.style.borderColor=NB.bd;}}>
           <div style={{width:46,height:46,borderRadius:12,background:'#EAF3FD',color:NB.azul,display:'flex',alignItems:'center',justifyContent:'center'}}>
             <IGlobe s={22}/>
           </div>
           <div>
-            <div style={{fontSize:17,fontWeight:600,color:NB.txt,marginBottom:5}}>Central de Conteúdo de MKT</div>
-            <p style={{fontSize:13,color:NB.mut,lineHeight:1.55}}>Campanhas ativas, peças, materiais e pedidos de novas artes — aberta pra qualquer pessoa do Nibo, sem login.</p>
+            <div style={{fontSize:17,fontWeight:600,color:NB.txt,marginBottom:5}}>{busy?'Entrando…':'Colaboradores Nibo'}</div>
+            <p style={{fontSize:13,color:NB.mut,lineHeight:1.55}}>Campanhas, peças, materiais e a Gestão de Marketing — login com sua conta @nibo.com.br.</p>
           </div>
         </button>
 
@@ -5451,48 +5442,11 @@ function EntryChooser({ onEscolherCentral, onEscolherEmbaixador }) {
         </button>
       </div>
 
-      <div style={{marginTop:36,textAlign:'center'}}>
-        <p style={{fontSize:12,color:NB.mut2,marginBottom:8}}>É do time de Marketing?</p>
-        <button onClick={entrar} disabled={busy}
-          style={{display:'flex',alignItems:'center',gap:7,padding:'8px 15px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:20,color:NB.mut,fontSize:12.5,fontWeight:500,margin:'0 auto',opacity:busy?0.7:1}}>
-          <ILock s={12}/> {busy?'Entrando…':'Gestão (MKT)'}
-        </button>
-      </div>
-
       {erro && (
         <div style={{marginTop:20,maxWidth:600,background:'#fff',border:'1px solid #FECACA',borderRadius:10,padding:'12px 15px',fontSize:12.5,color:'#B4232A'}}>
           {erro}
         </div>
       )}
-    </div>
-  );
-}
-
-function PublicCentralPage({ onVoltar }) {
-  const { dbErroPublico } = useApp();
-  const { entrar, busy } = useLoginGestao();
-
-  return (
-    <div style={{height:'100vh',width:'100%',overflow:'hidden'}}>
-      <InfoCentralView
-        onLogoClick={onVoltar}
-        topBanner={dbErroPublico && (
-          <div style={{background:'#FEF2F2',borderBottom:'1px solid #FECACA',padding:'11px 28px',fontSize:13,color:'#B4232A',display:'flex',alignItems:'center',gap:9}}>
-            <IAlert s={15}/> {dbErroPublico}
-          </div>
-        )}
-        headerRight={
-          <React.Fragment>
-            <a href="/solicitar.html" target="_blank" rel="noopener noreferrer"
-              style={{display:'flex',alignItems:'center',gap:7,padding:'9px 16px',background:NB.navy1,borderRadius:20,color:'#fff',fontSize:12.5,fontWeight:600,textDecoration:'none'}}>
-              <IPlus s={13}/> Solicitar demanda
-            </a>
-            <button onClick={entrar} disabled={busy}
-              style={{padding:'9px 16px',background:NB.pink,border:'none',borderRadius:20,color:'#fff',fontSize:12.5,fontWeight:600,opacity:busy?0.7:1}}>
-              {busy?'Entrando…':'Gestão (MKT)'}
-            </button>
-          </React.Fragment>
-        }/>
     </div>
   );
 }
@@ -5726,12 +5680,11 @@ function VisitorApp() {
 
 function AppContent() {
   const { view, user, isTeamMember, isEmbaixador, portalCarregado, authReady, setDragging, editStages, setEditStages, dbReady, dbErro, previewMember, setPreviewMember } = useApp();
-  const [entrada, setEntrada] = useState('escolha'); // 'escolha' | 'central' | 'embaixador'
+  const [entrada, setEntrada] = useState('escolha'); // 'escolha' | 'embaixador'
   if (!authReady) return <Splash/>;
   if (!user) {
-    if (entrada==='central') return <PublicCentralPage onVoltar={()=>setEntrada('escolha')}/>;
     if (entrada==='embaixador') return <EmbaixadorLoginPage onVoltar={()=>setEntrada('escolha')}/>;
-    return <EntryChooser onEscolherCentral={()=>setEntrada('central')} onEscolherEmbaixador={()=>setEntrada('embaixador')}/>;
+    return <EntryChooser onEscolherEmbaixador={()=>setEntrada('embaixador')}/>;
   }
   if (!isTeamMember) {
     if (!portalCarregado) return <Splash/>;
