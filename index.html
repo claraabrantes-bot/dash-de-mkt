@@ -5506,67 +5506,121 @@ function EmbaixadorLoginPage({ onVoltar }) {
   );
 }
 
+const CAPA_ICON_CORES = [NB.navy1, NB.pink, NB.azul, NB.roxo, NB.azulClaro, NB.petroleo];
+
+function ContratoModal({ p, onClose }) {
+  return (
+    <Modal onClose={onClose} width={440}>
+      <div style={{padding:'26px 24px 20px',textAlign:'center'}}>
+        <div style={{width:52,height:52,borderRadius:14,background:NB.navy1,color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 16px'}}>
+          <IFile s={23}/>
+        </div>
+        <h2 style={{fontSize:17,fontWeight:600,color:NB.txt,marginBottom:6}}>Contrato de Parceria</h2>
+        <p style={{fontSize:13,color:NB.mut,lineHeight:1.55}}>Embaixador(a) Nibo — consulte o documento sempre que precisar.</p>
+      </div>
+      <div style={{padding:'0 24px 24px'}}>
+        {p.contratoUrl ? (
+          <a href={p.contratoUrl} target="_blank" rel="noopener noreferrer"
+            style={{display:'flex',alignItems:'center',justifyContent:'center',gap:8,width:'100%',padding:'12px',background:NB.navy1,borderRadius:9,color:'#fff',fontWeight:600,fontSize:13.5,textDecoration:'none'}}>
+            <IExt s={14}/> Ver contrato em PDF
+          </a>
+        ) : (
+          <div style={{background:NB.col,border:'1px dashed '+NB.bd,borderRadius:10,padding:'16px',textAlign:'center',fontSize:12.5,color:NB.mut2}}>
+            Ainda não disponibilizado — fala com a equipe de Marketing.
+          </div>
+        )}
+      </div>
+    </Modal>
+  );
+}
+
 function EmbaixadorPortalConteudo({ p }) {
+  const [verContrato, setVerContrato] = useState(false);
+
   if (!p) return (
     <div style={{background:'#fff',border:'1px dashed '+NB.bd,borderRadius:16,padding:'40px 24px',textAlign:'center'}}>
       <p style={{fontSize:13.5,color:NB.mut}}>Sua conta ainda não tem um perfil de embaixador vinculado. Fala com a equipe de Marketing pra resolver.</p>
     </div>
   );
+
+  const materiais = p.materiais || [];
+
   return (
-    <div style={{display:'flex',flexDirection:'column',gap:16}}>
-      <div style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:16,padding:'22px 24px',display:'flex',alignItems:'center',gap:16,flexWrap:'wrap'}}>
-        <div style={{width:44,height:44,borderRadius:12,background:NB.navy1,color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-          <IFile s={19}/>
-        </div>
-        <div style={{flex:1,minWidth:200}}>
-          <div style={{fontSize:14.5,fontWeight:600,color:NB.txt,marginBottom:3}}>Contrato</div>
-          <div style={{fontSize:12.5,color:NB.mut2}}>{p.contratoUrl ? 'Disponível pra consulta' : 'Ainda não disponibilizado'}</div>
-        </div>
-        {p.contratoUrl && (
-          <a href={p.contratoUrl} target="_blank" rel="noopener noreferrer"
-            style={{padding:'9px 16px',background:NB.navy1,borderRadius:9,color:'#fff',fontSize:12.5,fontWeight:600,textDecoration:'none',display:'flex',alignItems:'center',gap:7}}>
-            <IExt s={13}/> Ver contrato
-          </a>
-        )}
-      </div>
-
-      <div style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:16,padding:'22px 24px',display:'flex',alignItems:'center',gap:16,flexWrap:'wrap'}}>
-        <div style={{width:44,height:44,borderRadius:12,background:NB.pink,color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-          <IGlobe s={19}/>
-        </div>
-        <div style={{flex:1,minWidth:200}}>
-          <div style={{fontSize:14.5,fontWeight:600,color:NB.txt,marginBottom:3}}>{p.nome ? p.nome+' — LP' : 'Landing Page'}</div>
-          <div style={{fontSize:12.5,color:NB.mut2}}>{p.lpUrl ? 'Link pra indicar e gerar cupons' : 'Ainda não disponibilizada'}</div>
-        </div>
-        {p.lpUrl && (
-          <a href={p.lpUrl} target="_blank" rel="noopener noreferrer"
-            style={{padding:'9px 16px',background:NB.pink,borderRadius:9,color:'#fff',fontSize:12.5,fontWeight:600,textDecoration:'none',display:'flex',alignItems:'center',gap:7}}>
-            <IExt s={13}/> Abrir LP
-          </a>
-        )}
-      </div>
-
-      <div style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:16,padding:'22px 24px'}}>
-        <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:(p.materiais||[]).length?16:0}}>
-          <div style={{width:44,height:44,borderRadius:12,background:NB.azul,color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-            <IChatBox s={19}/>
-          </div>
+    <div style={{display:'flex',flexDirection:'column',gap:28}}>
+      <div>
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:16}}>
           <div>
-            <div style={{fontSize:14.5,fontWeight:600,color:NB.txt,marginBottom:3}}>Materiais pra divulgar</div>
-            <div style={{fontSize:12.5,color:NB.mut2}}>{(p.materiais||[]).length===0?'Nenhum material ainda':(p.materiais||[]).length+' item(s)'}</div>
+            <h2 style={{fontSize:18,fontWeight:600,color:NB.txt,marginBottom:4}}>Materiais pra divulgar</h2>
+            <p style={{fontSize:12.5,color:NB.mut}}>Peças prontas pra usar nas suas redes.</p>
           </div>
         </div>
-        {(p.materiais||[]).length>0 && (
-          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(200px,1fr))',gap:10}}>
-            {p.materiais.map((m,i)=>(
+        {materiais.length===0 ? (
+          <div style={{background:NB.col,border:'1px dashed '+NB.bd,borderRadius:14,padding:'24px',textAlign:'center'}}>
+            <p style={{fontSize:12.5,color:NB.mut2}}>Nenhum material ainda.</p>
+          </div>
+        ) : (
+          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(220px,1fr))',gap:12}}>
+            {materiais.map((m,i)=>(
               <a key={i} href={m.url} target="_blank" rel="noopener noreferrer"
-                style={{display:'flex',alignItems:'center',gap:7,background:NB.col,border:'1px solid '+NB.bd,borderRadius:9,padding:'9px 12px',fontSize:12.5,color:NB.txt,textDecoration:'none'}}>
-                <IExt s={12}/> {m.nome}
+                style={{display:'flex',gap:12,alignItems:'flex-start',background:'#fff',border:'1px solid '+NB.bd,borderRadius:14,padding:'16px',textDecoration:'none'}}>
+                <div style={{width:36,height:36,borderRadius:10,background:CAPA_ICON_CORES[i%CAPA_ICON_CORES.length],color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                  <IFile s={16}/>
+                </div>
+                <div style={{minWidth:0}}>
+                  <div style={{fontSize:13.5,fontWeight:600,color:NB.txt,marginBottom:6,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{m.nome}</div>
+                  <div style={{display:'flex',alignItems:'center',gap:6,fontSize:12,fontWeight:600,color:NB.azul}}>
+                    Abrir arquivo <IDown s={11}/>
+                  </div>
+                </div>
               </a>
             ))}
           </div>
         )}
       </div>
+
+      <div>
+        <h2 style={{fontSize:18,fontWeight:600,color:NB.txt,marginBottom:4}}>Seus dados contratuais</h2>
+        <p style={{fontSize:12.5,color:NB.mut,marginBottom:16}}>Consulte as condições da sua parceria com o Nibo sempre que precisar.</p>
+        <button onClick={()=>setVerContrato(true)}
+          style={{width:'100%',display:'flex',alignItems:'center',gap:16,background:'#fff',border:'1px solid '+NB.bd,borderRadius:14,padding:'18px 20px',textAlign:'left'}}>
+          <div style={{width:44,height:44,borderRadius:12,background:NB.navy1,color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+            <IFile s={19}/>
+          </div>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{fontSize:14.5,fontWeight:600,color:NB.txt,marginBottom:3}}>Contrato de Parceria — Embaixador(a) Nibo</div>
+            <div style={{fontSize:12.5,color:NB.mut2}}>{p.contratoUrl ? 'Disponível pra consulta' : 'Ainda não disponibilizado'}</div>
+          </div>
+          <span style={{display:'flex',alignItems:'center',gap:6,fontSize:12.5,fontWeight:600,color:NB.azul,flexShrink:0}}>
+            Ver contrato <IExt s={13}/>
+          </span>
+        </button>
+      </div>
+
+      <div>
+        <h2 style={{fontSize:18,fontWeight:600,color:NB.txt,marginBottom:4}}>Sua Landing Page</h2>
+        <p style={{fontSize:12.5,color:NB.mut,marginBottom:16}}>Link pra indicar o Nibo e gerar seus cupons.</p>
+        {p.lpUrl ? (
+          <a href={p.lpUrl} target="_blank" rel="noopener noreferrer"
+            style={{display:'flex',alignItems:'center',gap:16,background:'#fff',border:'1px solid '+NB.bd,borderRadius:14,padding:'18px 20px',textDecoration:'none'}}>
+            <div style={{width:44,height:44,borderRadius:12,background:NB.pink,color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+              <IGlobe s={19}/>
+            </div>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontSize:14.5,fontWeight:600,color:NB.txt,marginBottom:3}}>Sua página personalizada</div>
+              <div style={{fontSize:12.5,color:NB.mut2,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p.lpUrl}</div>
+            </div>
+            <span style={{display:'flex',alignItems:'center',gap:6,fontSize:12.5,fontWeight:600,color:NB.pink,flexShrink:0}}>
+              Abrir <IExt s={13}/>
+            </span>
+          </a>
+        ) : (
+          <div style={{background:NB.col,border:'1px dashed '+NB.bd,borderRadius:14,padding:'20px',textAlign:'center',fontSize:12.5,color:NB.mut2}}>
+            Ainda não disponibilizada.
+          </div>
+        )}
+      </div>
+
+      {verContrato && <ContratoModal p={p} onClose={()=>setVerContrato(false)}/>}
     </div>
   );
 }
@@ -5574,6 +5628,8 @@ function EmbaixadorPortalConteudo({ p }) {
 function EmbaixadorPortalView() {
   const { user, meuPortalEmbaixador, logout } = useApp();
   const p = meuPortalEmbaixador;
+  const nome = (p&&p.nome)||user.name;
+  const iniciais = nome.split(/\s+/).filter(Boolean).map(s=>s[0]).slice(0,2).join('').toUpperCase();
 
   return (
     <div style={{height:'100vh',width:'100%',overflowY:'auto',background:NB.bg}}>
@@ -5581,19 +5637,34 @@ function EmbaixadorPortalView() {
         <NiboSymbol size={30} color={NB.navy1}/>
         <div style={{flex:1,minWidth:0}}>
           <div style={{fontSize:15,fontWeight:700,color:NB.navy1}}>Área do Embaixador</div>
-          <div style={{fontSize:12,color:NB.mut}}>{(p&&p.nome)||user.name}</div>
+          <div style={{fontSize:12,color:NB.mut}}>{nome}</div>
         </div>
         <button onClick={logout} title="Sair" style={{padding:9,background:'#fff',border:'1px solid '+NB.bd,borderRadius:9,color:NB.mut,display:'flex'}}><ILogout s={15}/></button>
       </div>
 
-      <div style={{maxWidth:760,margin:'0 auto',padding:'36px 24px 60px'}}>
-        <h1 style={{fontSize:24,fontWeight:600,color:NB.txt,marginBottom:6}}>Olá, {(p&&p.nome)||user.name}!</h1>
-        <p style={{fontSize:14,color:NB.mut,marginBottom:30}}>Aqui está o essencial pra você divulgar o Nibo.</p>
+      <div style={{background:'linear-gradient(120deg, #001B45 0%, '+NB.navy1+' 55%, '+NB.roxo+' 130%)',padding:'40px 24px'}}>
+        <div style={{maxWidth:760,margin:'0 auto',display:'flex',alignItems:'center',gap:20}}>
+          <div style={{width:64,height:64,borderRadius:'50%',background:'rgba(255,255,255,0.15)',color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',fontSize:22,fontWeight:600,flexShrink:0,border:'2px solid rgba(255,255,255,0.3)'}}>
+            {iniciais}
+          </div>
+          <div>
+            <span style={{display:'inline-flex',alignItems:'center',gap:7,background:'rgba(255,255,255,0.12)',padding:'5px 12px',borderRadius:20,fontSize:11.5,color:'#DCE4FA',marginBottom:10}}>
+              🤝 Área exclusiva de relacionamento com o Nibo
+            </span>
+            <h1 style={{fontSize:22,fontWeight:600,color:'#fff',marginBottom:5}}>Olá, {nome.split(' ')[0]} — que bom te ver por aqui.</h1>
+            <p style={{fontSize:13,color:'#B9C6E8',lineHeight:1.55}}>Aqui ficam os materiais de divulgação, o link da sua LP e seus dados contratuais, tudo em um só lugar.</p>
+          </div>
+        </div>
+      </div>
+
+      <div style={{maxWidth:760,margin:'0 auto',padding:'32px 24px 60px'}}>
         <EmbaixadorPortalConteudo p={p}/>
       </div>
     </div>
   );
 }
+
+/* Visualização da Gestão
 
 /* Visualização da Gestão: qualquer pessoa do time vê o portal de qualquer
    embaixador, sem precisar da senha dele — só pra conferência. */
