@@ -1011,7 +1011,7 @@ function NavItem({ label, Icon, iconColor, count, active, onClick, indent }) {
 
 /* =========== SIDEBAR =========== */
 function Sidebar() {
-  const { view, setView, area, setArea, user, active, slack, archived, pipes, pedidos, posts, campanhas, setNewOpen, setPacoteOpen, setProfileOpen, logout, previewMember, setPreviewMember } = useApp();
+  const { view, setView, area, setArea, user, active, slack, archived, pipes, pedidos, posts, campanhas, setNewOpen, setPacoteOpen, setProfileOpen, logout, previewMember, setPreviewMember, setPreferirCentral } = useApp();
   const areas = ['Social','Design','Mídia Paga','Produto','RevOps'];
   const vencidas = active.filter(d => { const s=getSla(d.deadline); return s && s.type!=='ok'; }).length;
   const emAprovacao = active.filter(d => {
@@ -1157,6 +1157,14 @@ function Sidebar() {
                   })}
                 </div>
               )}
+
+              <div style={{height:1,background:NB.bdSoft}}/>
+
+              <button onClick={()=>{setMenu(false); setPreferirCentral(true);}}
+                style={{width:'100%',display:'flex',alignItems:'center',gap:9,padding:'11px 14px',background:'none',border:'none',fontSize:13,color:NB.txt,fontWeight:500,textAlign:'left'}}
+                onMouseEnter={e=>{e.currentTarget.style.background=NB.col;}} onMouseLeave={e=>{e.currentTarget.style.background='none';}}>
+                <IGlobe s={15}/> Ver a Central como colaborador
+              </button>
 
               <div style={{height:1,background:NB.bdSoft}}/>
 
