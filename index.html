@@ -2443,7 +2443,7 @@ function ArquivosTab({ podeEditar }) {
 /* ---------- Embaixadores ---------- */
 function EmbaixadorModal({ onClose }) {
   const { addEmbaixador, criarPortalEmbaixador } = useApp();
-  const [f, setF] = useState({ nome:'', instagram:'', descricao:'' });
+  const [f, setF] = useState({ nome:'', cargo:'', empresa:'', instagram:'', descricao:'' });
   const [comPortal, setComPortal] = useState(false);
   const [portal, setPortal] = useState({ email:'', senha:'', contratoUrl:'', lpUrl:'' });
   const [materiais, setMateriais] = useState([]);
@@ -2488,6 +2488,10 @@ function EmbaixadorModal({ onClose }) {
       </div>
       <div style={{padding:'20px 24px',display:'flex',flexDirection:'column',gap:12,maxHeight:'62vh',overflowY:'auto'}}>
         <input value={f.nome} onChange={e=>set('nome',e.target.value)} placeholder="Nome" style={{...inp,padding:'9px 12px',fontSize:13.5}}/>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+          <input value={f.cargo} onChange={e=>set('cargo',e.target.value)} placeholder="Cargo (ex: Mentora e CEO)" style={{...inp,padding:'9px 12px',fontSize:13.5}}/>
+          <input value={f.empresa} onChange={e=>set('empresa',e.target.value)} placeholder="Empresa (opcional)" style={{...inp,padding:'9px 12px',fontSize:13.5}}/>
+        </div>
         <input value={f.instagram} onChange={e=>set('instagram',e.target.value)} placeholder="@instagram ou link" style={{...inp,padding:'9px 12px',fontSize:13.5}}/>
         <textarea value={f.descricao} onChange={e=>set('descricao',e.target.value)} rows={2} placeholder="Como ele colabora com o Nibo" style={{...inp,padding:'9px 12px',fontSize:13.5,resize:'vertical'}}/>
 
@@ -2572,27 +2576,23 @@ function EmbaixadoresTab({ podeEditar }) {
           <p style={{fontSize:14,fontWeight:600,color:NB.txt,marginBottom:6}}>Nenhum embaixador cadastrado ainda</p>
         </div>
       ) : (
-        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(190px,1fr))',gap:18}}>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(170px,1fr))',gap:20}}>
           {embaixadores.map((e,i)=>{
             const [c1,c2] = AVATAR_GRADIENTES[i % AVATAR_GRADIENTES.length];
-            const ano = e.criadoEm ? new Date(e.criadoEm).getFullYear() : null;
             return (
-              <div key={e.id} style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:16,padding:'24px 18px',textAlign:'center'}}>
-                <div style={{width:64,height:64,borderRadius:'50%',background:'linear-gradient(135deg,'+c1+','+c2+')',color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',fontSize:19,fontWeight:600,margin:'0 auto 14px',position:'relative'}}>
-                  {iniciais(e.nome)}
-                  <span style={{position:'absolute',bottom:-1,right:-1,width:20,height:20,borderRadius:'50%',background:'#0F6E56',border:'2px solid #fff',display:'flex',alignItems:'center',justifyContent:'center'}}>
-                    <ICheck s={10}/>
-                  </span>
+              <div key={e.id} style={{display:'flex',flexDirection:'column'}}>
+                <div style={{aspectRatio:'3/3.6',borderRadius:24,overflow:'hidden',marginBottom:18,background:'linear-gradient(135deg,'+c1+','+c2+')',display:'flex',alignItems:'center',justifyContent:'center',boxShadow:'0 14px 30px rgba(16,20,31,0.1)'}}>
+                  <span style={{fontSize:34,fontWeight:600,color:'#fff'}}>{iniciais(e.nome)}</span>
                 </div>
-                <h4 style={{fontSize:14.5,fontWeight:600,color:NB.txt,marginBottom:4}}>{e.nome}</h4>
-                {e.descricao && <p style={{fontSize:12,color:NB.mut,marginBottom:6,lineHeight:1.45}}>{e.descricao}</p>}
-                {ano && <p style={{fontSize:11,color:NB.mut2}}>Embaixador(a) desde {ano}</p>}
+                {e.cargo && <span style={{fontSize:12,fontWeight:700,letterSpacing:'0.06em',textTransform:'uppercase',color:NB.azul,marginBottom:8}}>{e.cargo}</span>}
+                <h4 style={{fontSize:19,fontWeight:600,color:NB.txt,marginBottom:4}}>{e.nome}</h4>
+                {e.empresa && <p style={{fontSize:13.5,color:NB.mut,fontWeight:500,marginBottom:6}}>{e.empresa}</p>}
                 {e.instagram && (
                   <a href={e.instagram.startsWith('http')?e.instagram:'https://instagram.com/'+e.instagram.replace('@','')} target="_blank" rel="noopener noreferrer"
-                    style={{display:'inline-block',fontSize:12,color:NB.azul,textDecoration:'none',marginTop:8}}>{e.instagram}</a>
+                    style={{display:'inline-block',fontSize:12.5,color:NB.azul,textDecoration:'none'}}>{e.instagram}</a>
                 )}
                 {podeEditar && (
-                  <button onClick={()=>removeEmbaixador(e.id)} style={{display:'block',margin:'8px auto 0',fontSize:11,color:'#B4232A',background:'none',border:'none'}}>Remover</button>
+                  <button onClick={()=>removeEmbaixador(e.id)} style={{alignSelf:'flex-start',marginTop:8,fontSize:11,color:'#B4232A',background:'none',border:'none'}}>Remover</button>
                 )}
               </div>
             );
