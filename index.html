@@ -2452,17 +2452,34 @@ function EmbaixadorModal({ onClose }) {
   const [novoMaterial, setNovoMaterial] = useState({ nome:'', url:'' });
   const [err, setErr] = useState('');
   const [salvando, setSalvando] = useState(false);
+  const [removendoFundo, setRemovendoFundo] = useState(false);
   const set=(k,v)=>{setF(x=>({...x,[k]:v})); setErr('');};
   const setP=(k,v)=>{setPortal(x=>({...x,[k]:v})); setErr('');};
 
-  const escolherFoto = e => {
+  const escolherFoto = async e => {
     const file = e.target.files && e.target.files[0];
     if (!file) return;
-    if (file.size > MAX_FILE) return setErr('A foto tem '+Math.round(file.size/1024)+'KB e o limite é '+Math.round(MAX_FILE/1024)+'KB — tenta uma imagem menor.');
-    const reader = new FileReader();
-    reader.onload = () => { setF(x=>({...x, foto: reader.result})); setErr(''); };
-    reader.onerror = () => setErr('Não foi possível ler a imagem.');
-    reader.readAsDataURL(file);
+    if (file.size > MAX_FILE*3) return setErr('A foto tem '+Math.round(file.size/1024)+'KB — tenta uma bem menor (até uns '+Math.round(MAX_FILE*3/1024)+'KB).');
+    setErr(''); setRemovendoFundo(true);
+    try {
+      const { default: removerFundo } = await import('https://esm.sh/@imgly/background-removal@1.5.7');
+      const blobSemFundo = await removerFundo(file);
+      if (blobSemFundo.size > MAX_FILE) throw new Error('A foto processada ficou grande demais pra salvar — tenta uma imagem de origem menor.');
+      const dataUrl = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(blobSemFundo);
+      });
+      setF(x=>({...x, foto: dataUrl}));
+    } catch (err) {
+      setErr('Não deu pra remover o fundo automaticamente ('+(err&&err.message?err.message:'erro desconhecido')+'). Sobe a foto já sem fundo, se preferir.');
+      const reader = new FileReader();
+      reader.onload = () => setF(x=>({...x, foto: reader.result}));
+      reader.readAsDataURL(file);
+    } finally {
+      setRemovendoFundo(false);
+    }
   };
   const adicionarEspecialidade = () => {
     const v = novaEspecialidade.trim();
@@ -2507,13 +2524,20 @@ function EmbaixadorModal({ onClose }) {
       </div>
       <div style={{padding:'20px 24px',display:'flex',flexDirection:'column',gap:12,maxHeight:'62vh',overflowY:'auto'}}>
         <div style={{display:'flex',alignItems:'center',gap:14}}>
-          <div style={{width:56,height:56,borderRadius:14,overflow:'hidden',background:NB.col,border:'1px solid '+NB.bd,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-            {f.foto ? <img src={f.foto} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/> : <IStamp s={20} color={NB.mut2}/>}
+          <div style={{width:56,height:56,borderRadius:14,overflow:'hidden',background:'#EAF3FD',border:'1px solid '+NB.bd,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,position:'relative'}}>
+            {removendoFundo ? (
+              <div style={{width:16,height:16,border:'2px solid '+NB.bd,borderTopColor:NB.azul,borderRadius:'50%',animation:'nb-spin 0.8s linear infinite'}}/>
+            ) : f.foto ? (
+              <img src={f.foto} alt="" style={{width:'100%',height:'100%',objectFit:'contain'}}/>
+            ) : <IStamp s={20} color={NB.mut2}/>}
           </div>
-          <label style={{fontSize:12.5,fontWeight:600,color:NB.azul,cursor:'pointer',padding:'8px 14px',border:'1px solid '+NB.bd,borderRadius:9}}>
-            {f.foto?'Trocar foto':'Adicionar foto'}
-            <input type="file" accept="image/*" onChange={escolherFoto} style={{display:'none'}}/>
-          </label>
+          <div>
+            <label style={{fontSize:12.5,fontWeight:600,color:removendoFundo?NB.mut2:NB.azul,cursor:removendoFundo?'default':'pointer',padding:'8px 14px',border:'1px solid '+NB.bd,borderRadius:9,display:'inline-block'}}>
+              {removendoFundo ? 'Removendo fundo…' : (f.foto?'Trocar foto':'Adicionar foto')}
+              <input type="file" accept="image/*" onChange={escolherFoto} disabled={removendoFundo} style={{display:'none'}}/>
+            </label>
+            <p style={{fontSize:11,color:NB.mut2,marginTop:5}}>O fundo é removido automaticamente.</p>
+          </div>
         </div>
         <input value={f.nome} onChange={e=>set('nome',e.target.value)} placeholder="Nome" style={{...inp,padding:'9px 12px',fontSize:13.5}}/>
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
@@ -2604,7 +2628,8 @@ function EmbaixadorPerfilModal({ e, onClose }) {
 
   return (
     <Modal onClose={onClose} width={480}>
-      <div style={{aspectRatio:'16/11',background:e.foto?'url('+e.foto+') center/cover':'linear-gradient(135deg,'+NB.azul+','+NB.azulClaro+')',display:'flex',alignItems:'flex-end',justifyContent:'center'}}>
+      <div style={{aspectRatio:'16/11',background:e.foto?'#EAF3FD':'linear-gradient(135deg,'+NB.azul+','+NB.azulClaro+')',display:'flex',alignItems:'flex-end',justifyContent:'center'}}>
+        {e.foto && <img src={e.foto} alt="" style={{width:'100%',height:'100%',objectFit:'contain'}}/>}
         {!e.foto && <span style={{fontSize:44,fontWeight:600,color:'#fff',marginBottom:20}}>{iniciais}</span>}
       </div>
       <div style={{padding:'20px 24px 24px'}}>
@@ -2675,8 +2700,8 @@ function EmbaixadoresTab({ podeEditar }) {
             const [c1,c2] = AVATAR_GRADIENTES[i % AVATAR_GRADIENTES.length];
             return (
               <div key={e.id} onClick={()=>setSelecionado(e)} style={{display:'flex',flexDirection:'column',cursor:'pointer'}}>
-                <div style={{aspectRatio:'3/3.6',borderRadius:24,overflow:'hidden',marginBottom:18,background:e.foto?'#000':'linear-gradient(135deg,'+c1+','+c2+')',display:'flex',alignItems:'center',justifyContent:'center',boxShadow:'0 14px 30px rgba(16,20,31,0.1)'}}>
-                  {e.foto ? <img src={e.foto} alt={e.nome} style={{width:'100%',height:'100%',objectFit:'cover'}}/> : <span style={{fontSize:34,fontWeight:600,color:'#fff'}}>{iniciais(e.nome)}</span>}
+                <div style={{aspectRatio:'3/3.6',borderRadius:24,overflow:'hidden',marginBottom:18,background:e.foto?'#EAF3FD':'linear-gradient(135deg,'+c1+','+c2+')',display:'flex',alignItems:'center',justifyContent:'center',boxShadow:'0 14px 30px rgba(16,20,31,0.1)'}}>
+                  {e.foto ? <img src={e.foto} alt={e.nome} style={{width:'100%',height:'100%',objectFit:'contain'}}/> : <span style={{fontSize:34,fontWeight:600,color:'#fff'}}>{iniciais(e.nome)}</span>}
                 </div>
                 {e.cargo && <span style={{fontSize:12,fontWeight:700,letterSpacing:'0.06em',textTransform:'uppercase',color:NB.azul,marginBottom:8}}>{e.cargo}</span>}
                 <h4 style={{fontSize:19,fontWeight:600,color:NB.txt,marginBottom:4}}>{e.nome}</h4>
@@ -2705,8 +2730,8 @@ function EmbaixadoresTab({ podeEditar }) {
             const [c1,c2] = AVATAR_GRADIENTES[(i+4) % AVATAR_GRADIENTES.length];
             return (
               <div key={e.id} onClick={()=>setSelecionado(e)} style={{display:'flex',flexDirection:'column',cursor:'pointer'}}>
-                <div style={{aspectRatio:'3/3.6',borderRadius:24,overflow:'hidden',marginBottom:18,background:e.foto?'#000':'linear-gradient(135deg,'+c1+','+c2+')',display:'flex',alignItems:'center',justifyContent:'center',boxShadow:'0 14px 30px rgba(16,20,31,0.1)'}}>
-                  {e.foto ? <img src={e.foto} alt={e.nome} style={{width:'100%',height:'100%',objectFit:'cover'}}/> : <span style={{fontSize:34,fontWeight:600,color:'#fff'}}>{iniciais(e.nome)}</span>}
+                <div style={{aspectRatio:'3/3.6',borderRadius:24,overflow:'hidden',marginBottom:18,background:e.foto?'#EAF3FD':'linear-gradient(135deg,'+c1+','+c2+')',display:'flex',alignItems:'center',justifyContent:'center',boxShadow:'0 14px 30px rgba(16,20,31,0.1)'}}>
+                  {e.foto ? <img src={e.foto} alt={e.nome} style={{width:'100%',height:'100%',objectFit:'contain'}}/> : <span style={{fontSize:34,fontWeight:600,color:'#fff'}}>{iniciais(e.nome)}</span>}
                 </div>
                 {e.cargo && <span style={{fontSize:12,fontWeight:700,letterSpacing:'0.06em',textTransform:'uppercase',color:NB.azul,marginBottom:8}}>{e.cargo}</span>}
                 <h4 style={{fontSize:19,fontWeight:600,color:NB.txt,marginBottom:4}}>{e.nome}</h4>
@@ -5822,16 +5847,21 @@ function EmbaixadorPortalView() {
       </div>
 
       <div style={{background:'linear-gradient(120deg,#0A1B3D 0%, #0F2A5C 40%, #0C3D82 70%, #0055A7 100%)',padding:'48px 24px 56px'}}>
-        <div style={{maxWidth:760,margin:'0 auto',display:'flex',alignItems:'center',gap:20}}>
-          <div style={{width:64,height:64,borderRadius:'50%',overflow:'hidden',background:'rgba(255,255,255,0.15)',color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',fontSize:22,fontWeight:600,flexShrink:0,border:'2px solid rgba(255,255,255,0.3)'}}>
-            {p&&p.foto ? <img src={p.foto} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/> : iniciais}
-          </div>
-          <div>
+        <div style={{maxWidth:760,margin:'0 auto',display:'flex',alignItems:'center',justifyContent:'space-between',gap:28,flexWrap:'wrap'}}>
+          <div style={{flex:'1 1 320px'}}>
             <span style={{display:'inline-flex',alignItems:'center',gap:7,background:'rgba(255,255,255,0.12)',padding:'5px 12px',borderRadius:20,fontSize:11.5,color:'#DCE4FA',marginBottom:10}}>
               🤝 Área exclusiva de relacionamento com o Nibo
             </span>
             <h1 style={{fontSize:22,fontWeight:600,color:'#fff',marginBottom:5}}>Olá, {nome.split(' ')[0]} — que bom te ver por aqui.</h1>
-            <p style={{fontSize:13,color:'#B9C6E8',lineHeight:1.55}}>Aqui ficam os materiais de divulgação, o link da sua LP e seus dados contratuais, tudo em um só lugar.</p>
+            <p style={{fontSize:13,color:'#B9C6E8',lineHeight:1.55,maxWidth:420}}>Aqui ficam os materiais de divulgação, o link da sua LP e seus dados contratuais, tudo em um só lugar.</p>
+          </div>
+          <div style={{position:'relative',width:130,height:163,flexShrink:0}}>
+            <div style={{width:'100%',height:'100%',borderRadius:20,overflow:'hidden',background:p&&p.foto?'#EAF3FD':'rgba(255,255,255,0.15)',border:'2px solid rgba(255,255,255,0.25)',display:'flex',alignItems:'center',justifyContent:'center'}}>
+              {p&&p.foto ? <img src={p.foto} alt="" style={{width:'100%',height:'100%',objectFit:'contain'}}/> : <span style={{fontSize:34,fontWeight:600,color:'#fff'}}>{iniciais}</span>}
+            </div>
+            <div style={{position:'absolute',bottom:-8,right:-8,width:36,height:36,borderRadius:'50%',background:'#fff',display:'flex',alignItems:'center',justifyContent:'center',boxShadow:'0 4px 10px rgba(0,0,0,0.2)'}}>
+              <NiboSymbol size={18} color={NB.navy1}/>
+            </div>
           </div>
         </div>
       </div>
