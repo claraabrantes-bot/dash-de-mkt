@@ -197,6 +197,7 @@ function Provider({ children }) {
   const [fbUser, setFbUser]       = useState(null);
   const [authReady, setAuthReady] = useState(false);
   const [authError, setAuthError] = useState('');
+  const [preferirCentral, setPreferirCentral] = useState(false);
 
   /* ---------- interface ---------- */
   const [view, setView]     = useState('kanban');
@@ -801,7 +802,7 @@ function Provider({ children }) {
   window.__nbDem = demands;
   window.__nbPosts = posts;
 
-  return <Ctx.Provider value={{ demands, active, archived, filtered, slack, user, isTeamMember, authReady, authError, setAuthError, dbReady, dbErro, seed, pedidos, aceitarPedido, recusarPedido, posts, addPost, updatePost, deletePost, campanhas, updateCampanha, publicarCampanha, despublicarCampanha, deleteCampanha, enviarCampanhaDeDemanda, pecas, addPeca, removePeca, redesSociais, salvarRedesSociais, arquivos, addArquivo, removeArquivo, embaixadores, addEmbaixador, removeEmbaixador, pacotes, salvarPacote, removePacote, meuPortalEmbaixador, portalCarregado, isEmbaixador, criarPortalEmbaixador, removerPortalEmbaixador, portaisEmbaixador, view, setView, layout, setLayout, area, setArea, query, setQuery, priFilter, setPriFilter, reqFilter, setReqFilter, selDemand, setModal, newOpen, setNewOpen, pacoteOpen, setPacoteOpen, notifyPending, setNotifyPending, profileOpen, setProfileOpen, editStages, setEditStages, dragging, setDragging, previewMember, setPreviewMember, photos, googlePhotos, profiles, pipes, salvarPipes, attach, comments, storageWarn, MAX_FILE, addAttachment, uploadFile, migrarLocal, carregarAnexo, removeAttachment, addComment, removeComment, logout, savePhoto, removePhoto, saveProfile, addDemand, moveStage, moveArea, setAssignees, updateDemand, archiveDemand, restoreDemand, delDemand }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ demands, active, archived, filtered, slack, user, isTeamMember, authReady, authError, setAuthError, preferirCentral, setPreferirCentral, dbReady, dbErro, seed, pedidos, aceitarPedido, recusarPedido, posts, addPost, updatePost, deletePost, campanhas, updateCampanha, publicarCampanha, despublicarCampanha, deleteCampanha, enviarCampanhaDeDemanda, pecas, addPeca, removePeca, redesSociais, salvarRedesSociais, arquivos, addArquivo, removeArquivo, embaixadores, addEmbaixador, removeEmbaixador, pacotes, salvarPacote, removePacote, meuPortalEmbaixador, portalCarregado, isEmbaixador, criarPortalEmbaixador, removerPortalEmbaixador, portaisEmbaixador, view, setView, layout, setLayout, area, setArea, query, setQuery, priFilter, setPriFilter, reqFilter, setReqFilter, selDemand, setModal, newOpen, setNewOpen, pacoteOpen, setPacoteOpen, notifyPending, setNotifyPending, profileOpen, setProfileOpen, editStages, setEditStages, dragging, setDragging, previewMember, setPreviewMember, photos, googlePhotos, profiles, pipes, salvarPipes, attach, comments, storageWarn, MAX_FILE, addAttachment, uploadFile, migrarLocal, carregarAnexo, removeAttachment, addComment, removeComment, logout, savePhoto, removePhoto, saveProfile, addDemand, moveStage, moveArea, setAssignees, updateDemand, archiveDemand, restoreDemand, delDemand }}>{children}</Ctx.Provider>;
 }
 
 const useApp = () => useContext(Ctx);
@@ -5388,11 +5389,12 @@ function NewModal() {
 /* =========== PORTA DE ENTRADA — pública, sem login. "Gestão" pede login. ============ */
 /* Lógica de login isolada, reaproveitada pelo card de Gestão. */
 function useLoginGestao() {
-  const { setAuthError } = useApp();
+  const { setAuthError, setPreferirCentral } = useApp();
   const [busy, setBusy] = useState(false);
   const [erro, setErro] = useState('');
 
-  const entrar = async () => {
+  const entrar = async (destino) => {
+    setPreferirCentral(destino === 'central');
     setBusy(true); setErro(''); setAuthError('');
     try {
       const provider = new firebase.auth.GoogleAuthProvider();
@@ -5460,7 +5462,7 @@ function EntryChooser({ onEscolherEmbaixador }) {
             <span style={badgeStyle}>
               <ILock s={12}/> Login com conta Nibo (Google Workspace)
             </span>
-            <button onClick={entrar} disabled={busy} style={{...ctaStyle,opacity:busy?0.7:1,cursor:busy?'wait':'pointer'}}>
+            <button onClick={()=>entrar('central')} disabled={busy} style={{...ctaStyle,opacity:busy?0.7:1,cursor:busy?'wait':'pointer'}}>
               {busy?'Entrando…':'Acessar'}
             </button>
           </div>
@@ -5487,7 +5489,7 @@ function EntryChooser({ onEscolherEmbaixador }) {
 
         <div style={{marginTop:36,marginBottom:48,paddingTop:28,textAlign:'center'}}>
           <p style={{fontSize:12.5,color:NB.mut2,marginBottom:10}}>É do time de Marketing?</p>
-          <button onClick={entrar} disabled={busy}
+          <button onClick={()=>entrar('gestao')} disabled={busy}
             style={{display:'inline-flex',alignItems:'center',gap:7,fontSize:13.5,fontWeight:600,color:NB.mut,padding:'9px 16px',borderRadius:999,border:'1px solid '+NB.bd,background:'#fff',opacity:busy?0.7:1}}
             onMouseEnter={e=>{if(!busy){e.currentTarget.style.borderColor=NB.azul; e.currentTarget.style.color=NB.azul; e.currentTarget.style.background='#EAF3FD';}}}
             onMouseLeave={e=>{e.currentTarget.style.borderColor=NB.bd; e.currentTarget.style.color=NB.mut; e.currentTarget.style.background='#fff';}}>
@@ -5779,16 +5781,24 @@ function PortalEmbaixadorGestaoView() {
 }
 
 function VisitorApp() {
-  const { user, logout } = useApp();
+  const { user, isTeamMember, preferirCentral, setPreferirCentral, logout } = useApp();
+  const vendoComoTime = isTeamMember && preferirCentral;
 
   return (
     <div style={{height:'100vh',width:'100%',overflow:'hidden'}}>
       <InfoCentralView
         onLogoClick={logout}
         topBanner={
-          <div style={{background:'#EAF3FD',borderBottom:'1px solid #BFDDF7',padding:'10px 28px',fontSize:12.5,color:NB.navy1,display:'flex',alignItems:'center',gap:9}}>
-            <IAlert s={14}/> Essa conta não tem acesso à Gestão do Marketing — aqui vai o que dá pra ver.
-          </div>
+          vendoComoTime ? (
+            <div style={{background:'#EAF3FD',borderBottom:'1px solid #BFDDF7',padding:'10px 28px',fontSize:12.5,color:NB.navy1,display:'flex',alignItems:'center',justifyContent:'space-between',gap:9}}>
+              <span style={{display:'flex',alignItems:'center',gap:9}}><IAlert s={14}/> Você está vendo a Central do jeito que qualquer colaborador vê.</span>
+              <button onClick={()=>setPreferirCentral(false)} style={{background:'none',border:'none',color:NB.azul,fontWeight:600,fontSize:12.5}}>Ir pra Gestão</button>
+            </div>
+          ) : (
+            <div style={{background:'#EAF3FD',borderBottom:'1px solid #BFDDF7',padding:'10px 28px',fontSize:12.5,color:NB.navy1,display:'flex',alignItems:'center',gap:9}}>
+              <IAlert s={14}/> Essa conta não tem acesso à Gestão do Marketing — aqui vai o que dá pra ver.
+            </div>
+          )
         }
         headerRight={
           <React.Fragment>
@@ -5807,15 +5817,15 @@ function VisitorApp() {
 }
 
 function AppContent() {
-  const { view, user, isTeamMember, isEmbaixador, portalCarregado, authReady, setDragging, editStages, setEditStages, dbReady, dbErro, previewMember, setPreviewMember } = useApp();
+  const { view, user, isTeamMember, isEmbaixador, portalCarregado, authReady, preferirCentral, setDragging, editStages, setEditStages, dbReady, dbErro, previewMember, setPreviewMember } = useApp();
   const [entrada, setEntrada] = useState('escolha'); // 'escolha' | 'embaixador'
   if (!authReady) return <Splash/>;
   if (!user) {
     if (entrada==='embaixador') return <EmbaixadorLoginPage onVoltar={()=>setEntrada('escolha')}/>;
     return <EntryChooser onEscolherEmbaixador={()=>setEntrada('embaixador')}/>;
   }
-  if (!isTeamMember) {
-    if (!portalCarregado) return <Splash/>;
+  if (!isTeamMember || preferirCentral) {
+    if (!isTeamMember && !portalCarregado) return <Splash/>;
     if (isEmbaixador) return <EmbaixadorPortalView/>;
     return <VisitorApp/>;
   }
