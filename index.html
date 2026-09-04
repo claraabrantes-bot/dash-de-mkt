@@ -5506,8 +5506,6 @@ function EmbaixadorLoginPage({ onVoltar }) {
   );
 }
 
-const CAPA_ICON_CORES = [NB.navy1, NB.pink, NB.azul, NB.roxo, NB.azulClaro, NB.petroleo];
-
 function ContratoModal({ p, onClose }) {
   return (
     <Modal onClose={onClose} width={440}>
@@ -5550,8 +5548,8 @@ function EmbaixadorPortalConteudo({ p }) {
       <div>
         <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:16}}>
           <div>
-            <h2 style={{fontSize:18,fontWeight:600,color:NB.txt,marginBottom:4}}>Materiais pra divulgar</h2>
-            <p style={{fontSize:12.5,color:NB.mut}}>Peças prontas pra usar nas suas redes.</p>
+            <h2 style={{fontSize:19,fontWeight:600,color:NB.txt,marginBottom:4}}>Materiais pra divulgar</h2>
+            <p style={{fontSize:13.5,color:NB.mut}}>Peças prontas pra usar nas suas redes.</p>
           </div>
         </div>
         {materiais.length===0 ? (
@@ -5563,7 +5561,7 @@ function EmbaixadorPortalConteudo({ p }) {
             {materiais.map((m,i)=>(
               <a key={i} href={m.url} target="_blank" rel="noopener noreferrer"
                 style={{display:'flex',gap:12,alignItems:'flex-start',background:'#fff',border:'1px solid '+NB.bd,borderRadius:14,padding:'16px',textDecoration:'none'}}>
-                <div style={{width:36,height:36,borderRadius:10,background:CAPA_ICON_CORES[i%CAPA_ICON_CORES.length],color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                <div style={{width:42,height:42,borderRadius:12,background:NB.navy1,color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
                   <IFile s={16}/>
                 </div>
                 <div style={{minWidth:0}}>
@@ -5579,26 +5577,28 @@ function EmbaixadorPortalConteudo({ p }) {
       </div>
 
       <div>
-        <h2 style={{fontSize:18,fontWeight:600,color:NB.txt,marginBottom:4}}>Seus dados contratuais</h2>
-        <p style={{fontSize:12.5,color:NB.mut,marginBottom:16}}>Consulte as condições da sua parceria com o Nibo sempre que precisar.</p>
+        <h2 style={{fontSize:19,fontWeight:600,color:NB.txt,marginBottom:4}}>Seus dados contratuais</h2>
+        <p style={{fontSize:13.5,color:NB.mut,marginBottom:16}}>Consulte as condições da sua parceria com o Nibo sempre que precisar.</p>
         <button onClick={()=>setVerContrato(true)}
-          style={{width:'100%',display:'flex',alignItems:'center',gap:16,background:'#fff',border:'1px solid '+NB.bd,borderRadius:14,padding:'18px 20px',textAlign:'left'}}>
-          <div style={{width:44,height:44,borderRadius:12,background:NB.navy1,color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-            <IFile s={19}/>
+          style={{width:'100%',display:'flex',alignItems:'center',gap:20,background:'#fff',border:'1.5px solid '+NB.azul,borderRadius:24,padding:'26px 28px',textAlign:'left',cursor:'pointer',transition:'box-shadow 0.15s, transform 0.15s'}}
+          onMouseEnter={e=>{e.currentTarget.style.boxShadow='0 16px 32px rgba(16,20,31,0.1)'; e.currentTarget.style.transform='translateY(-2px)';}}
+          onMouseLeave={e=>{e.currentTarget.style.boxShadow='none'; e.currentTarget.style.transform='none';}}>
+          <div style={{width:52,height:52,borderRadius:14,background:NB.navy1,color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+            <IFile s={21}/>
           </div>
           <div style={{flex:1,minWidth:0}}>
-            <div style={{fontSize:14.5,fontWeight:600,color:NB.txt,marginBottom:3}}>Contrato de Parceria — Embaixador(a) Nibo</div>
-            <div style={{fontSize:12.5,color:NB.mut2}}>{p.contratoUrl ? 'Disponível pra consulta' : 'Ainda não disponibilizado'}</div>
+            <div style={{fontSize:15.5,fontWeight:600,color:NB.txt,marginBottom:4}}>Contrato de Parceria — Embaixador(a) Nibo</div>
+            <div style={{fontSize:13,color:NB.mut}}>{p.contratoUrl ? 'Disponível pra consulta' : 'Ainda não disponibilizado'}</div>
           </div>
-          <span style={{display:'flex',alignItems:'center',gap:6,fontSize:12.5,fontWeight:600,color:NB.azul,flexShrink:0}}>
-            Ver contrato <IExt s={13}/>
+          <span style={{display:'flex',alignItems:'center',gap:6,fontSize:13.5,fontWeight:600,color:NB.navy1,flexShrink:0,whiteSpace:'nowrap'}}>
+            Ver contrato em PDF <IExt s={14}/>
           </span>
         </button>
       </div>
 
       <div>
-        <h2 style={{fontSize:18,fontWeight:600,color:NB.txt,marginBottom:4}}>Sua Landing Page</h2>
-        <p style={{fontSize:12.5,color:NB.mut,marginBottom:16}}>Link pra indicar o Nibo e gerar seus cupons.</p>
+        <h2 style={{fontSize:19,fontWeight:600,color:NB.txt,marginBottom:4}}>Sua Landing Page</h2>
+        <p style={{fontSize:13.5,color:NB.mut,marginBottom:16}}>Link pra indicar o Nibo e gerar seus cupons.</p>
         {p.lpUrl ? (
           <a href={p.lpUrl} target="_blank" rel="noopener noreferrer"
             style={{display:'flex',alignItems:'center',gap:16,background:'#fff',border:'1px solid '+NB.bd,borderRadius:14,padding:'18px 20px',textDecoration:'none'}}>
@@ -5642,7 +5642,7 @@ function EmbaixadorPortalView() {
         <button onClick={logout} title="Sair" style={{padding:9,background:'#fff',border:'1px solid '+NB.bd,borderRadius:9,color:NB.mut,display:'flex'}}><ILogout s={15}/></button>
       </div>
 
-      <div style={{background:'linear-gradient(120deg, #001B45 0%, '+NB.navy1+' 55%, '+NB.roxo+' 130%)',padding:'40px 24px'}}>
+      <div style={{background:'linear-gradient(120deg,#0A1B3D 0%, #0F2A5C 40%, #0C3D82 70%, #0055A7 100%)',padding:'48px 24px 56px'}}>
         <div style={{maxWidth:760,margin:'0 auto',display:'flex',alignItems:'center',gap:20}}>
           <div style={{width:64,height:64,borderRadius:'50%',background:'rgba(255,255,255,0.15)',color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',fontSize:22,fontWeight:600,flexShrink:0,border:'2px solid rgba(255,255,255,0.3)'}}>
             {iniciais}
@@ -5657,8 +5657,12 @@ function EmbaixadorPortalView() {
         </div>
       </div>
 
-      <div style={{maxWidth:760,margin:'0 auto',padding:'32px 24px 60px'}}>
+      <div style={{maxWidth:760,margin:'0 auto',padding:'32px 24px 0'}}>
         <EmbaixadorPortalConteudo p={p}/>
+        <div style={{borderTop:'1px solid '+NB.bd,padding:'32px 0 40px',color:NB.mut2,fontSize:13,display:'flex',justifyContent:'space-between',flexWrap:'wrap',gap:8,marginTop:36}}>
+          <span>© {new Date().getFullYear()} Nibo · Central de Materiais de Marketing</span>
+          <span>Dúvidas? marketingteam@nibo.com</span>
+        </div>
       </div>
     </div>
   );
