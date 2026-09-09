@@ -1019,18 +1019,18 @@ function NavItem({ label, Icon, iconColor, count, active, onClick, indent }) {
   return (
     <button onClick={onClick}
       style={{width:'100%',display:'flex',alignItems:'center',justifyContent:'space-between',gap:8,
-        padding: indent ? '9px 12px 9px 14px' : '10px 12px',
+        padding: indent ? '7px 12px 7px 14px' : '10px 12px',
         borderRadius:10,border:'none',marginLeft:indent?18:0,width:indent?'calc(100% - 18px)':'100%',
-        borderLeft:'3px solid '+(active?NB.azul:'transparent'),
-        background:active?'#EAF3FD':'transparent',transition:'background 0.12s'}}
+        borderLeft: indent ? 'none' : '3px solid '+(active?NB.azul:'transparent'),
+        background:active?(indent?NB.col:'#EAF3FD'):'transparent',transition:'background 0.12s'}}
       onMouseEnter={e=>{ if(!active) e.currentTarget.style.background=NB.col; }}
       onMouseLeave={e=>{ if(!active) e.currentTarget.style.background='transparent'; }}>
-      <span style={{display:'flex',alignItems:'center',gap:11,minWidth:0}}>
-        <span style={{color:active?iconColor:iconColor,opacity:active?1:0.85,display:'flex',flexShrink:0}}><Icon s={indent?15:17}/></span>
-        <span style={{color:active?NB.txt:'#3D4B63',fontSize:indent?13:13.5,fontWeight:active?600:500,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{label}</span>
+      <span style={{display:'flex',alignItems:'center',gap:indent?9:11,minWidth:0}}>
+        <span style={{color: active ? iconColor : NB.mut, opacity: indent && !active ? 0.7 : 1, display:'flex',flexShrink:0}}><Icon s={indent?13:17}/></span>
+        <span style={{color: indent ? (active?NB.txt:NB.mut) : (active?NB.txt:'#3D4B63'), fontSize:indent?12:13.5, fontWeight: indent ? (active?600:500) : (active?600:500), whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{label}</span>
       </span>
       {count !== undefined && (
-        <span style={{color:active?NB.azul:NB.mut2,fontSize:12,fontWeight:600,flexShrink:0}}>{count}</span>
+        <span style={{color:active?NB.azul:NB.mut2,fontSize:indent?11:12,fontWeight:600,flexShrink:0}}>{count}</span>
       )}
     </button>
   );
