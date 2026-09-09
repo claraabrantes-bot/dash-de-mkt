@@ -1124,7 +1124,7 @@ function Sidebar() {
             active={view==='central'} onClick={()=>setView('central')}/>
           <NavItem label="Campanhas" Icon={ITarget} iconColor={NB.mut}
             count={campanhas.length||undefined} active={view==='campanhas'} onClick={()=>setView('campanhas')}/>
-          <NavItem label="Área do Embaixador" Icon={IStamp} iconColor={NB.mut}
+          <NavItem label="Gestão de Embaixadores" Icon={IStamp} iconColor={NB.mut}
             active={view==='portalEmbaixador'} onClick={()=>setView('portalEmbaixador')}/>
         </div>
 
@@ -6090,20 +6090,93 @@ function EmbaixadorPortalView() {
 
 /* Visualização da Gestão: qualquer pessoa do time vê o portal de qualquer
    embaixador, sem precisar da senha dele — só pra conferência. */
+function CriarAcessoPortalModal({ embaixador, onClose }) {
+  const { criarPortalEmbaixador } = useApp();
+  const [portal, setPortal] = useState({ email:'', senha:'', contratoUrl:'', lpUrl:'' });
+  const [materiais, setMateriais] = useState([]);
+  const [novoMaterial, setNovoMaterial] = useState({ nome:'', url:'' });
+  const [err, setErr] = useState('');
+  const [salvando, setSalvando] = useState(false);
+  const setP = (k,v) => { setPortal(x=>({...x,[k]:v})); setErr(''); };
+
+  const adicionarMaterial = () => {
+    if (!novoMaterial.nome.trim() || !novoMaterial.url.trim()) return setErr('Preencha nome e link do material.');
+    let url = novoMaterial.url.trim();
+    if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+    setMateriais(m => [...m, { nome: novoMaterial.nome.trim(), url }]);
+    setNovoMaterial({ nome:'', url:'' }); setErr('');
+  };
+  const removerMaterial = i => setMateriais(m => m.filter((_,ix)=>ix!==i));
+
+  const salvar = async () => {
+    if (!portal.email.trim()) return setErr('Preencha o e-mail de acesso.');
+    if (!portal.senha || portal.senha.length<6) return setErr('A senha inicial precisa ter pelo menos 6 caracteres.');
+    setSalvando(true);
+    const r = await criarPortalEmbaixador({
+      email: portal.email.trim(), nome: embaixador.nome, foto: embaixador.foto || '',
+      contratoUrl: portal.contratoUrl.trim(), lpUrl: portal.lpUrl.trim(), materiais,
+    }, portal.senha);
+    setSalvando(false);
+    if (!r.ok) { setErr(r.erro); return; }
+    onClose();
+  };
+
+  return (
+    <Modal onClose={onClose} width={460}>
+      <div style={{padding:'22px 24px 16px',borderBottom:'1px solid '+NB.bdSoft}}>
+        <h2 style={{fontSize:17,fontWeight:600,color:NB.txt}}>Criar acesso ao portal</h2>
+        <p style={{fontSize:12.5,color:NB.mut,marginTop:4}}>Pra {embaixador.nome} — o cadastro dela já existe, isso só libera o login.</p>
+      </div>
+      <div style={{padding:'20px 24px',display:'flex',flexDirection:'column',gap:12,maxHeight:'56vh',overflowY:'auto'}}>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+          <input type="email" value={portal.email} onChange={e=>setP('email',e.target.value)} placeholder="E-mail de acesso" style={{...inp,padding:'9px 12px',fontSize:13.5}}/>
+          <input type="text" value={portal.senha} onChange={e=>setP('senha',e.target.value)} placeholder="Senha inicial (mín. 6)" style={{...inp,padding:'9px 12px',fontSize:13.5}}/>
+        </div>
+        <input value={portal.contratoUrl} onChange={e=>setP('contratoUrl',e.target.value)} placeholder="Link do contrato (opcional)" style={{...inp,padding:'9px 12px',fontSize:13.5}}/>
+        <input value={portal.lpUrl} onChange={e=>setP('lpUrl',e.target.value)} placeholder="Link da LP personalizada (opcional)" style={{...inp,padding:'9px 12px',fontSize:13.5}}/>
+        <div>
+          <div style={{fontSize:11,fontWeight:600,color:NB.mut,marginBottom:7,textTransform:'uppercase',letterSpacing:'0.05em'}}>Materiais pra divulgar</div>
+          {materiais.length>0 && (
+            <div style={{display:'flex',flexDirection:'column',gap:6,marginBottom:9}}>
+              {materiais.map((m,i)=>(
+                <div key={i} style={{display:'flex',alignItems:'center',gap:8,background:NB.col,border:'1px solid '+NB.bd,borderRadius:8,padding:'6px 10px'}}>
+                  <span style={{fontSize:12.5,color:NB.txt,flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{m.nome}</span>
+                  <button type="button" onClick={()=>removerMaterial(i)} style={{fontSize:11,color:'#B4232A',background:'none',border:'none'}}>Remover</button>
+                </div>
+              ))}
+            </div>
+          )}
+          <div style={{display:'flex',gap:7}}>
+            <input value={novoMaterial.nome} onChange={e=>{setNovoMaterial(v=>({...v,nome:e.target.value})); setErr('');}} placeholder="Nome" style={{...inp,padding:'7px 10px',fontSize:12,flex:1}}/>
+            <input value={novoMaterial.url} onChange={e=>{setNovoMaterial(v=>({...v,url:e.target.value})); setErr('');}} placeholder="Link" style={{...inp,padding:'7px 10px',fontSize:12,flex:1}}/>
+            <button type="button" onClick={adicionarMaterial} style={{padding:'7px 12px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:8,fontSize:11.5,fontWeight:500,color:NB.pink,flexShrink:0}}>+</button>
+          </div>
+        </div>
+        {err && <p style={{fontSize:12.5,color:'#B4232A'}}>{err}</p>}
+      </div>
+      <div style={{padding:'16px 24px',borderTop:'1px solid '+NB.bdSoft,display:'flex',justifyContent:'flex-end',gap:10}}>
+        <button onClick={onClose} style={{padding:'10px 16px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:9,fontSize:13,fontWeight:500,color:NB.mut}}>Cancelar</button>
+        <button onClick={salvar} disabled={salvando} style={{padding:'10px 20px',background:NB.azul,border:'none',borderRadius:9,fontSize:13,fontWeight:500,color:'#fff',opacity:salvando?0.7:1}}>{salvando?'Criando…':'Criar acesso'}</button>
+      </div>
+    </Modal>
+  );
+}
+
 function PortalEmbaixadorGestaoView() {
-  const { portaisEmbaixador, todosEnviosFotos, removerEnvioFoto } = useApp();
+  const { embaixadores, portaisEmbaixador, todosEnviosFotos, removerEnvioFoto } = useApp();
   const [selId, setSelId] = useState(null);
+  const [criarAcessoPara, setCriarAcessoPara] = useState(null);
+  const [novoEmb, setNovoEmb] = useState(false);
+  const normaliza = s => (s||'').trim().toLowerCase();
   const selecionado = portaisEmbaixador.find(p=>p.id===selId) || null;
 
-  if (portaisEmbaixador.length===0) {
-    return (
-      <div style={{padding:30}}>
-        <div style={{background:'#fff',border:'1px dashed '+NB.bd,borderRadius:16,padding:'40px 24px',textAlign:'center'}}>
-          <p style={{fontSize:13.5,color:NB.mut}}>Nenhum embaixador com acesso ao portal ainda. Crie um em Central de Informações → Embaixadores.</p>
-        </div>
-      </div>
-    );
-  }
+  /* Todo embaixador cadastrado aparece aqui — com ou sem portal.
+     O match é pelo nome porque embaixadores/embaixadoresPortal são
+     coleções separadas, sem um id em comum entre elas. */
+  const lista = embaixadores.map(e => ({
+    embaixador: e,
+    portal: portaisEmbaixador.find(p => normaliza(p.nome) === normaliza(e.nome)) || null,
+  }));
 
   if (selecionado) {
     const enviosDela = todosEnviosFotos.filter(f=>f.email===selecionado.email);
@@ -6149,23 +6222,45 @@ function PortalEmbaixadorGestaoView() {
 
   return (
     <div style={{padding:'22px 30px 30px',overflowY:'auto',height:'100%'}}>
-      <div style={{marginBottom:18}}>
-        <span style={{fontSize:13.5,color:NB.mut}}>{portaisEmbaixador.length} embaixador(es) com acesso ao portal</span>
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:18,flexWrap:'wrap',gap:10}}>
+        <span style={{fontSize:13.5,color:NB.mut}}>{embaixadores.length} embaixador(es) cadastrado(s) · {portaisEmbaixador.length} com portal ativo</span>
+        <button onClick={()=>setNovoEmb(true)}
+          style={{display:'flex',alignItems:'center',gap:7,padding:'9px 15px',background:NB.azul,border:'none',borderRadius:9,fontSize:13,fontWeight:500,color:'#fff'}}>
+          <IPlus s={13}/> Novo embaixador
+        </button>
       </div>
-      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(220px,1fr))',gap:14}}>
-        {portaisEmbaixador.map(p=>(
-          <button key={p.id} onClick={()=>setSelId(p.id)}
-            style={{textAlign:'left',background:'#fff',border:'1px solid '+NB.bd,borderRadius:14,padding:'16px 18px',display:'flex',alignItems:'center',gap:12}}>
-            <div style={{width:38,height:38,borderRadius:'50%',background:NB.pink,color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',fontSize:13,fontWeight:600,flexShrink:0}}>
-              {(p.nome||'').split(/\s+/).filter(Boolean).map(s=>s[0]).slice(0,2).join('').toUpperCase()}
+      {lista.length===0 ? (
+        <div style={{background:'#fff',border:'1px dashed '+NB.bd,borderRadius:16,padding:'40px 24px',textAlign:'center'}}>
+          <p style={{fontSize:13.5,color:NB.mut}}>Nenhum embaixador cadastrado ainda.</p>
+        </div>
+      ) : (
+        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(240px,1fr))',gap:14}}>
+          {lista.map(({embaixador:e, portal:p}) => (
+            <div key={e.id} style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:14,padding:'16px 18px',display:'flex',flexDirection:'column',gap:10}}>
+              <button onClick={()=>p && setSelId(p.id)} disabled={!p}
+                style={{textAlign:'left',background:'none',border:'none',padding:0,display:'flex',alignItems:'center',gap:12,cursor:p?'pointer':'default'}}>
+                <div style={{width:38,height:38,borderRadius:'50%',overflow:'hidden',background:NB.pink,color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',fontSize:13,fontWeight:600,flexShrink:0}}>
+                  {e.foto ? <img src={e.foto} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/> : (e.nome||'').split(/\s+/).filter(Boolean).map(s=>s[0]).slice(0,2).join('').toUpperCase()}
+                </div>
+                <div style={{minWidth:0}}>
+                  <div style={{fontSize:13.5,fontWeight:600,color:NB.txt,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{e.nome}</div>
+                  <div style={{fontSize:11.5,color:NB.mut2,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p ? p.email : (e.cargo || 'sem portal ainda')}</div>
+                </div>
+              </button>
+              {p ? (
+                <span style={{fontSize:11,fontWeight:600,color:'#0F6E56',background:'#E1F5EE',borderRadius:6,padding:'4px 9px',alignSelf:'flex-start'}}>Portal ativo</span>
+              ) : (
+                <button onClick={()=>setCriarAcessoPara(e)}
+                  style={{fontSize:12,fontWeight:600,color:NB.azul,background:'#EAF3FD',border:'none',borderRadius:8,padding:'8px 12px',alignSelf:'flex-start'}}>
+                  Criar acesso ao portal
+                </button>
+              )}
             </div>
-            <div style={{minWidth:0}}>
-              <div style={{fontSize:13.5,fontWeight:600,color:NB.txt,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p.nome}</div>
-              <div style={{fontSize:11.5,color:NB.mut2,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p.email}</div>
-            </div>
-          </button>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
+      {novoEmb && <EmbaixadorModal onClose={()=>setNovoEmb(false)}/>}
+      {criarAcessoPara && <CriarAcessoPortalModal embaixador={criarAcessoPara} onClose={()=>setCriarAcessoPara(null)}/>}
     </div>
   );
 }
