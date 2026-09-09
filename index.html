@@ -542,11 +542,37 @@ function Provider({ children }) {
 
   /* Cada arquivo vira um documento próprio na coleção anexos, para que
      um anexo grande nunca comprometa o documento da demanda. */
-  const uploadFile = useCallback((demand, file, onProgress) => {
+  const comprimirImagem = file => new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const maxLado = 1000;
+      const escala = Math.min(1, maxLado / Math.max(img.width, img.height));
+      const w = Math.round(img.width * escala), h = Math.round(img.height * escala);
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, w, h);
+      ctx.drawImage(img, 0, 0, w, h);
+      canvas.toBlob(blob => {
+        if (!blob) return reject(new Error('Não consegui comprimir a imagem.'));
+        resolve(new File([blob], file.name.replace(/\.\w+$/, '')+'.jpg', { type:'image/jpeg' }));
+      }, 'image/jpeg', 0.82);
+    };
+    img.onerror = reject;
+    img.src = URL.createObjectURL(file);
+  });
+
+  const uploadFile = useCallback(async (demand, file, onProgress) => {
     const db = dbRef.current;
     if (!db) return Promise.reject(new Error('Sem conexão com o banco.'));
-    if (file.size > MAX_FILE) return Promise.reject(new Error(
-      '"'+file.name+'" tem '+fmtBytes(file.size)+' e o limite é '+fmtBytes(MAX_FILE)+'. Suba no Drive ou Canva e anexe o link.'));
+    let arquivo = file;
+    if (file.size > MAX_FILE && file.type && file.type.startsWith('image/')) {
+      try { arquivo = await comprimirImagem(file); }
+      catch (e) { /* se não der pra comprimir, segue com o original e deixa o check abaixo barrar */ }
+    }
+    if (arquivo.size > MAX_FILE) return Promise.reject(new Error(
+      '"'+file.name+'" tem '+fmtBytes(arquivo.size)+' e o limite é '+fmtBytes(MAX_FILE)+'. Suba no Drive ou Canva e anexe o link.'));
     return new Promise((resolve, reject) => {
       const rd = new FileReader();
       rd.onprogress = e => { if (e.lengthComputable && onProgress) onProgress(Math.round(e.loaded/e.total*70)); };
@@ -554,17 +580,17 @@ function Provider({ children }) {
       rd.onload = () => {
         onProgress && onProgress(80);
         db.collection('anexos').add({
-          demandaId: demand.id, name: file.name, size: file.size,
-          mime: file.type || 'application/octet-stream', data: rd.result, at: new Date().toISOString(),
+          demandaId: demand.id, name: file.name, size: arquivo.size,
+          mime: arquivo.type || 'application/octet-stream', data: rd.result, at: new Date().toISOString(),
         }).then(ref => {
           onProgress && onProgress(100);
-          resolve({ kind:'file', name:file.name, size:file.size, mime:file.type, anexoId: ref.id });
+          resolve({ kind:'file', name:file.name, size:arquivo.size, mime:arquivo.type, anexoId: ref.id });
         }).catch(e => reject(new Error(
           e.code === 'permission-denied'
             ? 'Sem permissão para gravar anexos. Republique as regras do Firestore.'
             : 'Não foi possível salvar o arquivo: ' + e.message)));
       };
-      rd.readAsDataURL(file);
+      rd.readAsDataURL(arquivo);
     });
   }, []);
 
@@ -5941,20 +5967,40 @@ function EnvioFotosEmbaixador() {
   const [err, setErr] = useState('');
   const [ok, setOk] = useState(false);
 
-  const escolher = e => {
+  const comprimirImagem = file => new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const maxLado = 900;
+      const escala = Math.min(1, maxLado / Math.max(img.width, img.height));
+      const w = Math.round(img.width * escala), h = Math.round(img.height * escala);
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, w, h);
+      ctx.drawImage(img, 0, 0, w, h);
+      resolve(canvas.toDataURL('image/jpeg', 0.82));
+    };
+    img.onerror = reject;
+    img.src = URL.createObjectURL(file);
+  });
+
+  const escolher = async e => {
     const file = e.target.files && e.target.files[0];
     e.target.value = '';
     if (!file) return;
-    if (file.size > MAX_FILE) return setErr('A foto tem '+Math.round(file.size/1024)+'KB e o limite é '+Math.round(MAX_FILE/1024)+'KB — tenta uma menor.');
+    if (file.size > 10*1024*1024) return setErr('A foto tem '+Math.round(file.size/1024)+'KB — tenta uma bem menor (até uns 10MB de origem).');
     setErr(''); setOk(false); setEnviando(true);
-    const reader = new FileReader();
-    reader.onload = async () => {
-      const r = await enviarFotoEmbaixador(reader.result);
+    try {
+      const dataUrl = await comprimirImagem(file);
+      if (dataUrl.length > MAX_FILE) throw new Error('A foto ficou grande demais mesmo depois de comprimida — tenta outra.');
+      const r = await enviarFotoEmbaixador(dataUrl);
       setEnviando(false);
       if (!r.ok) setErr(r.erro); else { setOk(true); setTimeout(()=>setOk(false), 3000); }
-    };
-    reader.onerror = () => { setEnviando(false); setErr('Não foi possível ler a imagem.'); };
-    reader.readAsDataURL(file);
+    } catch (err) {
+      setEnviando(false);
+      setErr(err && err.message ? err.message : 'Não foi possível processar essa foto.');
+    }
   };
 
   return (
