@@ -735,9 +735,10 @@ function Provider({ children }) {
 
   /* ---------- Embaixadores ---------- */
   const addEmbaixador = useCallback((dados) => {
-    const db = dbRef.current; if (!db) return;
-    db.collection('embaixadores').add({ ...dados, criadoPor:(user&&user.name)||'', criadoEm:new Date().toISOString() })
-      .catch(e => setDbErro('Não foi possível salvar: '+e.message));
+    const db = dbRef.current; if (!db) return Promise.resolve({ ok:false, erro:'Sem conexão com o banco.' });
+    return db.collection('embaixadores').add({ ...dados, criadoPor:(user&&user.name)||'', criadoEm:new Date().toISOString() })
+      .then(()=>({ ok:true }))
+      .catch(e => { setDbErro('Não foi possível salvar: '+e.message); return { ok:false, erro:e.message }; });
   }, [user]);
   const removeEmbaixador = useCallback((id) => {
     const db = dbRef.current; if (!db) return;
@@ -2504,24 +2505,31 @@ function EmbaixadorModal({ onClose }) {
   const escolherFoto = async e => {
     const file = e.target.files && e.target.files[0];
     if (!file) return;
-    if (file.size > MAX_FILE*3) return setErr('A foto tem '+Math.round(file.size/1024)+'KB — tenta uma bem menor (até uns '+Math.round(MAX_FILE*3/1024)+'KB).');
+    if (file.size > 4*1024*1024) return setErr('A foto tem '+Math.round(file.size/1024)+'KB — tenta uma bem menor (até uns 4MB de origem).');
     setErr(''); setRemovendoFundo(true);
+    const paraDataUrl = blob => new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+    const verificarTamanho = dataUrl => {
+      if (dataUrl.length > MAX_FILE) throw new Error('A foto ficou com '+Math.round(dataUrl.length/1024)+'KB depois de processada — o limite é '+Math.round(MAX_FILE/1024)+'KB. Tenta uma foto de origem menor ou mais simples.');
+      return dataUrl;
+    };
     try {
       const { default: removerFundo } = await import('https://esm.sh/@imgly/background-removal@1.5.7');
       const blobSemFundo = await removerFundo(file);
-      if (blobSemFundo.size > MAX_FILE) throw new Error('A foto processada ficou grande demais pra salvar — tenta uma imagem de origem menor.');
-      const dataUrl = await new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = reject;
-        reader.readAsDataURL(blobSemFundo);
-      });
+      const dataUrl = verificarTamanho(await paraDataUrl(blobSemFundo));
       setF(x=>({...x, foto: dataUrl}));
     } catch (err) {
-      setErr('Não deu pra remover o fundo automaticamente ('+(err&&err.message?err.message:'erro desconhecido')+'). Sobe a foto já sem fundo, se preferir.');
-      const reader = new FileReader();
-      reader.onload = () => setF(x=>({...x, foto: reader.result}));
-      reader.readAsDataURL(file);
+      try {
+        const dataUrl = verificarTamanho(await paraDataUrl(file));
+        setF(x=>({...x, foto: dataUrl}));
+        setErr('Não deu pra remover o fundo automaticamente ('+(err&&err.message?err.message:'erro desconhecido')+') — a foto foi salva do jeito que veio.');
+      } catch (err2) {
+        setErr(err2 && err2.message ? err2.message : 'Não foi possível processar essa foto.');
+      }
     } finally {
       setRemovendoFundo(false);
     }
@@ -2550,7 +2558,8 @@ function EmbaixadorModal({ onClose }) {
       if (!portal.senha || portal.senha.length<6) return setErr('A senha inicial precisa ter pelo menos 6 caracteres.');
     }
     setSalvando(true);
-    addEmbaixador(f);
+    const rEmb = await addEmbaixador(f);
+    if (!rEmb.ok) { setErr('Não foi possível salvar: '+rEmb.erro); setSalvando(false); return; }
     if (comPortal) {
       const r = await criarPortalEmbaixador({
         email: portal.email.trim(), nome: f.nome.trim(), foto: f.foto,
