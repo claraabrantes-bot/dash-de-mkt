@@ -2024,8 +2024,14 @@ function CampanhaPublicCard({ camp, pecasDaCampanha, indice=0 }) {
       onMouseEnter={e=>{e.currentTarget.style.boxShadow='0 16px 32px rgba(16,20,31,0.08)'; e.currentTarget.style.transform='translateY(-2px)';}}
       onMouseLeave={e=>{e.currentTarget.style.boxShadow='none'; e.currentTarget.style.transform='none';}}>
 
-      <div style={{aspectRatio:'16/10',background:'linear-gradient(135deg,'+c1+','+c2+')',position:'relative',display:'flex',alignItems:'flex-end',padding:16,color:'#fff'}}>
-        <div style={{position:'absolute',top:14,right:14,width:30,height:30,background:'rgba(255,255,255,0.18)',borderRadius:8,display:'flex',alignItems:'center',justifyContent:'center',fontSize:14}}>
+      <div style={{aspectRatio:'16/10',background: camp.foto ? '#000' : 'linear-gradient(135deg,'+c1+','+c2+')',position:'relative',display:'flex',alignItems:'flex-end',padding:16,color:'#fff',overflow:'hidden'}}>
+        {camp.foto && (
+          <React.Fragment>
+            <img src={camp.foto} alt="" style={{position:'absolute',inset:0,width:'100%',height:'100%',objectFit:'cover'}}/>
+            <div style={{position:'absolute',inset:0,background:'linear-gradient(0deg, rgba(0,0,0,0.55), rgba(0,0,0,0.05) 55%)'}}/>
+          </React.Fragment>
+        )}
+        <div style={{position:'absolute',top:14,right:14,width:30,height:30,background:'rgba(255,255,255,0.18)',borderRadius:8,display:'flex',alignItems:'center',justifyContent:'center',fontSize:14,zIndex:2}}>
           {jornada ? jornada.emoji : <ITarget s={15}/>}
         </div>
         <div style={{fontFamily:"'Poppins',sans-serif",fontWeight:600,fontSize:16,position:'relative',zIndex:2}}>{camp.titulo}</div>
@@ -3011,16 +3017,43 @@ function AbordagemTab() {
 
 /* =========== CAMPANHAS — gestão, só quem tem permissão ============ */
 function CampanhaEditModal({ camp, onClose }) {
-  const { updateCampanha } = useApp();
+  const { updateCampanha, MAX_FILE } = useApp();
   const [form, setForm] = useState({
     titulo: camp.titulo || '', descricao: camp.descricao || '',
     desconto: camp.desconto || '', jornada: camp.jornada || 'empresa',
-    instagramLink: camp.instagramLink || '',
+    instagramLink: camp.instagramLink || '', foto: camp.foto || '',
   });
   const [pecas, setPecas] = useState(camp.pecasDemanda || []);
   const [novaPeca, setNovaPeca] = useState({ nome:'', url:'' });
   const [err, setErr] = useState('');
+  const [comprimindo, setComprimindo] = useState(false);
   const set = (k,v) => { setForm(f=>({...f,[k]:v})); setErr(''); };
+
+  const escolherFoto = e => {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    if (file.size > 8*1024*1024) return setErr('A foto tem '+Math.round(file.size/1024)+'KB — tenta uma bem menor (até uns 8MB de origem).');
+    setErr(''); setComprimindo(true);
+    const img = new Image();
+    img.onload = () => {
+      const maxLado = 900;
+      const escala = Math.min(1, maxLado / Math.max(img.width, img.height));
+      const w = Math.round(img.width * escala), h = Math.round(img.height * escala);
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, w, h);
+      ctx.drawImage(img, 0, 0, w, h);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
+      setComprimindo(false);
+      if (dataUrl.length > MAX_FILE) { setErr('A foto ficou grande demais mesmo comprimida — tenta outra imagem.'); return; }
+      set('foto', dataUrl);
+    };
+    img.onerror = () => { setComprimindo(false); setErr('Não foi possível processar essa foto.'); };
+    img.src = URL.createObjectURL(file);
+  };
 
   const adicionarPeca = () => {
     if (!novaPeca.nome.trim() || !novaPeca.url.trim()) return setErr('Preencha nome e link da peça.');
@@ -3037,7 +3070,7 @@ function CampanhaEditModal({ camp, onClose }) {
     if (link && !/^https?:\/\//i.test(link)) link = 'https://' + link;
     updateCampanha(camp.id, {
       titulo: form.titulo.trim(), descricao: form.descricao.trim(),
-      desconto: form.desconto.trim(), jornada: form.jornada, instagramLink: link,
+      desconto: form.desconto.trim(), jornada: form.jornada, instagramLink: link, foto: form.foto,
       pecasDemanda: pecas,
     });
     onClose();
@@ -3050,6 +3083,26 @@ function CampanhaEditModal({ camp, onClose }) {
         <p style={{fontSize:12.5,color:NB.mut}}>Pra corrigir algo que veio errado da demanda — não recria, só ajusta.</p>
       </div>
       <div style={{padding:'20px 24px',display:'flex',flexDirection:'column',gap:14,maxHeight:'60vh',overflowY:'auto'}}>
+        <div>
+          <div style={{...lbl,marginBottom:6}}>Foto principal (opcional)</div>
+          <div style={{display:'flex',alignItems:'center',gap:14}}>
+            <div style={{width:64,height:44,borderRadius:8,overflow:'hidden',background:NB.col,border:'1px solid '+NB.bd,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+              {comprimindo ? (
+                <div style={{width:14,height:14,border:'2px solid '+NB.bd,borderTopColor:NB.azul,borderRadius:'50%',animation:'nb-spin 0.8s linear infinite'}}/>
+              ) : form.foto ? (
+                <img src={form.foto} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>
+              ) : <IPhoto s={16} color={NB.mut2}/>}
+            </div>
+            <label style={{fontSize:12.5,fontWeight:600,color:comprimindo?NB.mut2:NB.azul,cursor:comprimindo?'default':'pointer',padding:'8px 14px',border:'1px solid '+NB.bd,borderRadius:9}}>
+              {comprimindo ? 'Comprimindo…' : (form.foto ? 'Trocar foto' : 'Adicionar foto')}
+              <input type="file" accept="image/*" onChange={escolherFoto} disabled={comprimindo} style={{display:'none'}}/>
+            </label>
+            {form.foto && !comprimindo && (
+              <button type="button" onClick={()=>set('foto','')} style={{fontSize:12,color:'#B4232A',background:'none',border:'none'}}>Remover</button>
+            )}
+          </div>
+          <p style={{fontSize:11,color:NB.mut2,marginTop:6}}>Comprimida automaticamente pra não pesar no banco. Sem foto, mantém o fundo colorido.</p>
+        </div>
         <div>
           <div style={{...lbl,marginBottom:6}}>Título</div>
           <input value={form.titulo} onChange={e=>set('titulo',e.target.value)} style={{...inp,padding:'9px 12px',fontSize:13.5}}/>
@@ -3116,7 +3169,13 @@ function CampanhaManagerCard({ camp }) {
   const podeGerenciar = !!user.canPublishCampaigns;
 
   return (
-    <div style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:13,padding:'16px 18px'}}>
+    <div style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:13,padding:'16px 18px',display:'flex',gap:14}}>
+      {camp.foto && (
+        <div style={{width:64,height:44,borderRadius:8,overflow:'hidden',flexShrink:0,background:NB.col}}>
+          <img src={camp.foto} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>
+        </div>
+      )}
+      <div style={{flex:1,minWidth:0}}>
       <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:10,marginBottom:9}}>
         <div>
           <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:5,flexWrap:'wrap'}}>
@@ -3156,6 +3215,7 @@ function CampanhaManagerCard({ camp }) {
         ))}
       </div>
       {editar && <CampanhaEditModal camp={camp} onClose={()=>setEditar(false)}/>}
+      </div>
     </div>
   );
 }
