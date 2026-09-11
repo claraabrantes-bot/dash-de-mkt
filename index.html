@@ -1063,7 +1063,7 @@ function Sidebar() {
   /* Quem tem uma área fixa (todo mundo, menos a Mariana, que acompanha
      tudo) vê os próprios números — não os da empresa inteira. */
   const meuSetorFixo = areas.includes(efetivo.area) ? efetivo.area : null;
-  const escopoStats = meuSetorFixo ? active.filter(d=>d.area===meuSetorFixo) : active;
+  const escopoStats = area!=='Todas' ? active.filter(d=>d.area===area) : active;
   const vencidas = escopoStats.filter(d => { const s=getSla(d.deadline); return s && s.type!=='ok'; }).length;
   const emAprovacao = active.filter(d => {
     const st = (pipes[d.area]||[]).find(x => x.id === d.stageId);
