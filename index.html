@@ -212,6 +212,7 @@ function Provider({ children }) {
   const [reqFilter, setReqFilter] = useState([]);
   const [modal, setModal]   = useState(null);
   const [newOpen, setNewOpen] = useState(false);
+  const [presetNovo, setPresetNovo] = useState(null); // { area, stageId } | null
   const [pacoteOpen, setPacoteOpen] = useState(false);
   const [notifyPending, setNotifyPending] = useState(null);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -436,7 +437,7 @@ function Provider({ children }) {
     const db = dbRef.current; if (!db) return;
     const nums = (window.__nbDem || []).map(d => parseInt(String(d.code).replace(/\D/g,''),10)).filter(n=>!isNaN(n));
     const code = 'DEM-' + ((nums.length ? Math.max(...nums) : 100) + 1);
-    const nd = { ...data, code, stageId: pipesRef.current[data.area][0].id, createdAt: new Date().toISOString(), comments: [], links: [] };
+    const nd = { ...data, code, stageId: data.stageId || pipesRef.current[data.area][0].id, createdAt: new Date().toISOString(), comments: [], links: [] };
     db.collection('demandas').add(nd).then(ref => {
       const who = data.assignees && data.assignees.length ? mentionNames(data.assignees) : 'equipe de '+data.area;
       feed({ code, area:data.area }, 'Nova demanda criada',
@@ -886,7 +887,7 @@ function Provider({ children }) {
   window.__nbDem = demands;
   window.__nbPosts = posts;
 
-  return <Ctx.Provider value={{ demands, active, archived, filtered, slack, user, isTeamMember, authReady, authError, setAuthError, preferirCentral, setPreferirCentral, dbReady, dbErro, seed, pedidos, aceitarPedido, recusarPedido, posts, addPost, updatePost, deletePost, campanhas, updateCampanha, publicarCampanha, despublicarCampanha, deleteCampanha, enviarCampanhaDeDemanda, pecas, addPeca, removePeca, redesSociais, salvarRedesSociais, arquivos, addArquivo, removeArquivo, embaixadores, addEmbaixador, removeEmbaixador, pacotes, salvarPacote, removePacote, meuPortalEmbaixador, portalCarregado, isEmbaixador, criarPortalEmbaixador, removerPortalEmbaixador, portaisEmbaixador, meusEnviosFotos, todosEnviosFotos, enviarFotoEmbaixador, removerEnvioFoto, view, setView, layout, setLayout, area, setArea, query, setQuery, priFilter, setPriFilter, reqFilter, setReqFilter, selDemand, setModal, newOpen, setNewOpen, pacoteOpen, setPacoteOpen, notifyPending, setNotifyPending, profileOpen, setProfileOpen, editStages, setEditStages, dragging, setDragging, previewMember, setPreviewMember, photos, googlePhotos, profiles, pipes, salvarPipes, attach, comments, storageWarn, MAX_FILE, addAttachment, uploadFile, migrarLocal, carregarAnexo, removeAttachment, addComment, removeComment, logout, savePhoto, removePhoto, saveProfile, addDemand, moveStage, moveArea, setAssignees, updateDemand, archiveDemand, restoreDemand, delDemand }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ demands, active, archived, filtered, slack, user, isTeamMember, authReady, authError, setAuthError, preferirCentral, setPreferirCentral, dbReady, dbErro, seed, pedidos, aceitarPedido, recusarPedido, posts, addPost, updatePost, deletePost, campanhas, updateCampanha, publicarCampanha, despublicarCampanha, deleteCampanha, enviarCampanhaDeDemanda, pecas, addPeca, removePeca, redesSociais, salvarRedesSociais, arquivos, addArquivo, removeArquivo, embaixadores, addEmbaixador, removeEmbaixador, pacotes, salvarPacote, removePacote, meuPortalEmbaixador, portalCarregado, isEmbaixador, criarPortalEmbaixador, removerPortalEmbaixador, portaisEmbaixador, meusEnviosFotos, todosEnviosFotos, enviarFotoEmbaixador, removerEnvioFoto, view, setView, layout, setLayout, area, setArea, query, setQuery, priFilter, setPriFilter, reqFilter, setReqFilter, selDemand, setModal, newOpen, setNewOpen, presetNovo, setPresetNovo, pacoteOpen, setPacoteOpen, notifyPending, setNotifyPending, profileOpen, setProfileOpen, editStages, setEditStages, dragging, setDragging, previewMember, setPreviewMember, photos, googlePhotos, profiles, pipes, salvarPipes, attach, comments, storageWarn, MAX_FILE, addAttachment, uploadFile, migrarLocal, carregarAnexo, removeAttachment, addComment, removeComment, logout, savePhoto, removePhoto, saveProfile, addDemand, moveStage, moveArea, setAssignees, updateDemand, archiveDemand, restoreDemand, delDemand }}>{children}</Ctx.Provider>;
 }
 
 const useApp = () => useContext(Ctx);
@@ -1059,7 +1060,7 @@ function NavItem({ label, Icon, iconColor, count, active, onClick, indent }) {
 
 /* =========== SIDEBAR =========== */
 function Sidebar() {
-  const { view, setView, area, setArea, user, active, slack, archived, pipes, pedidos, posts, campanhas, setNewOpen, setPacoteOpen, setProfileOpen, logout, previewMember, setPreviewMember, setPreferirCentral, setModal } = useApp();
+  const { view, setView, area, setArea, user, active, slack, archived, pipes, pedidos, posts, campanhas, setNewOpen, setPresetNovo, setPacoteOpen, setProfileOpen, logout, previewMember, setPreviewMember, setPreferirCentral, setModal } = useApp();
   const [popStats, setPopStats] = useState(null); // null | 'ativas' | 'vencidas'
   const areas = ['Social','Design','Mídia Paga','Produto','RevOps','Eventos'];
   const efetivo = previewMember || user;
@@ -1092,7 +1093,7 @@ function Sidebar() {
       </div>
 
       <div style={{padding:'18px 20px 16px',borderBottom:'1px solid '+NB.bdSoft}}>
-        <button onClick={()=>setNewOpen(true)}
+        <button onClick={()=>{setPresetNovo(null); setNewOpen(true);}}
           style={{width:'100%',display:'flex',alignItems:'center',justifyContent:'center',gap:9,padding:'13px 16px',background:NB.azul,border:'none',borderRadius:11,color:'#fff',fontSize:14,fontWeight:600,boxShadow:'0 3px 12px rgba(0,132,255,0.28)',marginBottom:14}}
           onMouseEnter={e=>{e.currentTarget.style.background='#0082E8';}}
           onMouseLeave={e=>{e.currentTarget.style.background=NB.azul;}}>
@@ -1514,7 +1515,7 @@ function stageVisuals(stages) {
 }
 
 function StageColumn({ stage, cards, compact, areaName, visual }) {
-  const { dragging, setDragging, moveStage, moveArea, setNotifyPending } = useApp();
+  const { dragging, setDragging, moveStage, moveArea, setNotifyPending, setArea, setNewOpen, setPresetNovo } = useApp();
   const [over, setOver] = useState(false);
   const v = visual || STAGE_CYCLE[0];
   const Icon = v.Icon;
@@ -1563,6 +1564,13 @@ function StageColumn({ stage, cards, compact, areaName, visual }) {
           <div style={{border:'1.5px dashed '+(over&&canDrop?accent:v.bd),borderRadius:10,padding:'22px 10px',textAlign:'center',color:over&&canDrop?accent:NB.mut2,fontSize:12.5,transition:'all 0.12s',display:'flex',flexDirection:'column',alignItems:'center',gap:8}}>
             {!(over&&canDrop) && <span style={{color:v.ic,opacity:0.35,display:'flex'}}><Icon s={22}/></span>}
             {over&&canDrop ? (otherArea ? 'Passar para '+areaName : 'Soltar aqui') : 'Nenhuma demanda'}
+            {!(over&&canDrop) && (
+              <button onClick={()=>{ setArea(areaName); setPresetNovo({area:areaName, stageId:stage.id}); setNewOpen(true); }}
+                title={'Adicionar demanda direto em '+stage.name}
+                style={{display:'flex',alignItems:'center',gap:5,marginTop:2,padding:'5px 11px',background:'#fff',border:'1px solid '+v.bd,borderRadius:20,fontSize:11.5,fontWeight:600,color:v.ic}}>
+                <IPlus s={11}/> Adicionar aqui
+              </button>
+            )}
           </div>
         )}
         {cards.length>0 && over && canDrop && otherArea && (
@@ -5772,27 +5780,30 @@ function PacoteEditModal({ id, pacote, onClose, onSaved }) {
 }
 
 function NewModal() {
-  const { newOpen, setNewOpen, addDemand, user, area, pipes } = useApp();
-  const initArea = area!=='Todas' ? area : 'Social';
+  const { newOpen, setNewOpen, addDemand, user, area, pipes, presetNovo, setPresetNovo } = useApp();
+  const initArea = presetNovo ? presetNovo.area : (area!=='Todas' ? area : 'Social');
   const [form, setForm] = useState({ title:'', area:initArea, priority:'Média', deadline:dStr(7), description:'', requester:user.name, assignees:[],
     ehCampanha:false, campanhaDesconto:'', campanhaJornada:'empresa' });
 
   useEffect(() => {
-    if (newOpen) setForm(f=>({ ...f, title:'', area:area!=='Todas'?area:'Social', requester:user.name, assignees:[], description:'',
+    if (newOpen) setForm(f=>({ ...f, title:'', area: presetNovo ? presetNovo.area : (area!=='Todas'?area:'Social'), requester:user.name, assignees:[], description:'',
       ehCampanha:false, campanhaDesconto:'', campanhaJornada:'empresa' }));
-  }, [newOpen, area, user]);
+  }, [newOpen, area, user, presetNovo]);
 
   if (!newOpen) return null;
 
   const set = (k,v) => setForm(f=>({...f,[k]:v}));
   const toggleAssignee = init => setForm(f => ({ ...f, assignees: f.assignees.includes(init) ? f.assignees.filter(i=>i!==init) : [...f.assignees, init] }));
   const valid = form.title.trim() && form.assignees.length>0;
+  const etapaPreset = presetNovo && presetNovo.area===form.area
+    ? (pipes[form.area]||[]).find(s=>s.id===presetNovo.stageId) : null;
 
   const submit = () => {
     if (!valid) return;
     addDemand({ title:form.title, area:form.area, priority:form.priority, deadline:form.deadline, description:form.description, requester:form.requester, assignees:form.assignees,
+      stageId: etapaPreset ? etapaPreset.id : undefined,
       ehCampanha:form.ehCampanha, campanhaDesconto:form.ehCampanha?form.campanhaDesconto:'', campanhaJornada:form.ehCampanha?form.campanhaJornada:'' });
-    setNewOpen(false);
+    setNewOpen(false); setPresetNovo(null);
   };
 
   return (
@@ -5800,9 +5811,12 @@ function NewModal() {
       <div style={{padding:'24px 28px 18px',borderBottom:'1px solid '+NB.bdSoft,display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:14}}>
         <div>
           <h2 style={{fontSize:20,fontWeight:600,color:NB.txt,marginBottom:5,letterSpacing:'-0.01em'}}>Nova demanda</h2>
-          <p style={{fontSize:13.5,color:NB.mut}}>A demanda será solicitada no Slack para quem você escolher.</p>
+          <p style={{fontSize:13.5,color:NB.mut}}>
+            {etapaPreset ? <React.Fragment>Vai entrar direto em <b style={{color:NB.txt}}>{etapaPreset.name}</b>, dentro de {form.area}.</React.Fragment>
+              : 'A demanda será solicitada no Slack para quem você escolher.'}
+          </p>
         </div>
-        <button onClick={()=>setNewOpen(false)} style={{padding:8,background:'#fff',border:'1px solid '+NB.bd,borderRadius:9,color:NB.mut,display:'flex',flexShrink:0}}><IX/></button>
+        <button onClick={()=>{setNewOpen(false); setPresetNovo(null);}} style={{padding:8,background:'#fff',border:'1px solid '+NB.bd,borderRadius:9,color:NB.mut,display:'flex',flexShrink:0}}><IX/></button>
       </div>
 
       <div style={{padding:'22px 28px',display:'flex',flexDirection:'column',gap:18}}>
