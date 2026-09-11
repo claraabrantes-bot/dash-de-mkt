@@ -5331,10 +5331,11 @@ function CardModal() {
                 onKeyDown={e=>{if(e.key==='Enter') adicionarItemChecklist();}}/>
               <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
                 {ACTIVE_TEAM.map(m=>(
-                  <button key={m.id} type="button" onClick={()=>setNovoItem(v=>({...v,responsavel:m.initials}))}
-                    style={{padding:'4px 10px',borderRadius:20,border:'1px solid '+(novoItem.responsavel===m.initials?NB.azul:NB.bd),background:novoItem.responsavel===m.initials?'#EAF3FD':'#fff',fontSize:11.5,fontWeight:500,color:novoItem.responsavel===m.initials?NB.azul:NB.mut}}>
-                    {m.initials}
-                  </button>
+                   <button key={m.id} type="button" onClick={()=>setNovoItem(v=>({...v,responsavel:m.initials}))}
+                     style={{display:'flex',alignItems:'center',gap:6,padding:'3px 10px 3px 3px',borderRadius:20,border:'1.5px solid '+(novoItem.responsavel===m.initials?NB.azul:NB.bd),background:novoItem.responsavel===m.initials?'#EAF3FD':'#fff',fontSize:12,fontWeight:500,color:novoItem.responsavel===m.initials?NB.azul:NB.mut,transition:'all 0.12s'}}>
+                     <Avatar member={m} size={22} ring={false} style={{boxShadow:'0 0 0 1.5px '+m.color,border:'none'}}/>
+                     {m.name.split(' ')[0]}
+                   </button>
                 ))}
               </div>
               <div style={{display:'flex',gap:8,justifyContent:'flex-end'}}>
@@ -6180,10 +6181,11 @@ function NewModal() {
                 onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault(); adicionarItemChecklist();}}}/>
               <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
                 {ACTIVE_TEAM.map(m=>(
-                  <button key={m.id} type="button" onClick={()=>setNovoItem(v=>({...v,responsavel:m.initials}))}
-                    style={{padding:'4px 10px',borderRadius:20,border:'1px solid '+(novoItem.responsavel===m.initials?NB.azul:NB.bd),background:novoItem.responsavel===m.initials?'#EAF3FD':'#fff',fontSize:11.5,fontWeight:500,color:novoItem.responsavel===m.initials?NB.azul:NB.mut}}>
-                    {m.initials}
-                  </button>
+                   <button key={m.id} type="button" onClick={()=>setNovoItem(v=>({...v,responsavel:m.initials}))}
+                     style={{display:'flex',alignItems:'center',gap:6,padding:'3px 10px 3px 3px',borderRadius:20,border:'1.5px solid '+(novoItem.responsavel===m.initials?NB.azul:NB.bd),background:novoItem.responsavel===m.initials?'#EAF3FD':'#fff',fontSize:12,fontWeight:500,color:novoItem.responsavel===m.initials?NB.azul:NB.mut,transition:'all 0.12s'}}>
+                     <Avatar member={m} size={22} ring={false} style={{boxShadow:'0 0 0 1.5px '+m.color,border:'none'}}/>
+                     {m.name.split(' ')[0]}
+                   </button>
                 ))}
               </div>
               <div style={{display:'flex',gap:8,justifyContent:'flex-end'}}>
