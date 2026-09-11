@@ -208,6 +208,7 @@ function Provider({ children }) {
   const [area, setArea]     = useState('Todas');
   const abriuRef = useRef(false);
   const [query, setQuery]   = useState('');
+  const [mesFiltro, setMesFiltro] = useState('todos'); // 'todos' | 'YYYY-MM'
   const [priFilter, setPriFilter] = useState([]);
   const [reqFilter, setReqFilter] = useState([]);
   const [modal, setModal]   = useState(null);
@@ -883,6 +884,7 @@ function Provider({ children }) {
 
   const filtered = active.filter(d => {
     if (area !== 'Todas' && d.area !== area) return false;
+    if (mesFiltro!=='todos' && !(d.createdAt||'').startsWith(mesFiltro)) return false;
     if (priFilter.length && !priFilter.includes(d.priority)) return false;
     if (reqFilter.length && !reqFilter.includes(d.requester)) return false;
     if (query.trim()) { const q=query.toLowerCase(); return (d.title||'').toLowerCase().includes(q)||(d.code||'').toLowerCase().includes(q); }
@@ -895,7 +897,7 @@ function Provider({ children }) {
   window.__nbDem = demands;
   window.__nbPosts = posts;
 
-  return <Ctx.Provider value={{ demands, active, archived, filtered, slack, user, isTeamMember, authReady, authError, setAuthError, preferirCentral, setPreferirCentral, dbReady, dbErro, seed, pedidos, aceitarPedido, recusarPedido, posts, addPost, updatePost, deletePost, campanhas, updateCampanha, publicarCampanha, despublicarCampanha, deleteCampanha, enviarCampanhaDeDemanda, pecas, addPeca, removePeca, redesSociais, salvarRedesSociais, arquivos, addArquivo, removeArquivo, embaixadores, addEmbaixador, removeEmbaixador, pacotes, salvarPacote, removePacote, meuPortalEmbaixador, portalCarregado, isEmbaixador, criarPortalEmbaixador, removerPortalEmbaixador, portaisEmbaixador, meusEnviosFotos, todosEnviosFotos, enviarFotoEmbaixador, removerEnvioFoto, view, setView, layout, setLayout, area, setArea, query, setQuery, priFilter, setPriFilter, reqFilter, setReqFilter, selDemand, setModal, newOpen, setNewOpen, presetNovo, setPresetNovo, pacoteOpen, setPacoteOpen, notifyPending, setNotifyPending, profileOpen, setProfileOpen, editStages, setEditStages, dragging, setDragging, previewMember, setPreviewMember, photos, googlePhotos, profiles, pipes, salvarPipes, attach, comments, storageWarn, MAX_FILE, addAttachment, uploadFile, migrarLocal, carregarAnexo, removeAttachment, addComment, removeComment, logout, savePhoto, removePhoto, saveProfile, addDemand, moveStage, moveArea, reordenarCards, setAssignees, updateDemand, archiveDemand, restoreDemand, delDemand }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ demands, active, archived, filtered, slack, user, isTeamMember, authReady, authError, setAuthError, preferirCentral, setPreferirCentral, dbReady, dbErro, seed, pedidos, aceitarPedido, recusarPedido, posts, addPost, updatePost, deletePost, campanhas, updateCampanha, publicarCampanha, despublicarCampanha, deleteCampanha, enviarCampanhaDeDemanda, pecas, addPeca, removePeca, redesSociais, salvarRedesSociais, arquivos, addArquivo, removeArquivo, embaixadores, addEmbaixador, removeEmbaixador, pacotes, salvarPacote, removePacote, meuPortalEmbaixador, portalCarregado, isEmbaixador, criarPortalEmbaixador, removerPortalEmbaixador, portaisEmbaixador, meusEnviosFotos, todosEnviosFotos, enviarFotoEmbaixador, removerEnvioFoto, view, setView, layout, setLayout, area, setArea, query, setQuery, mesFiltro, setMesFiltro, priFilter, setPriFilter, reqFilter, setReqFilter, selDemand, setModal, newOpen, setNewOpen, presetNovo, setPresetNovo, pacoteOpen, setPacoteOpen, notifyPending, setNotifyPending, profileOpen, setProfileOpen, editStages, setEditStages, dragging, setDragging, previewMember, setPreviewMember, photos, googlePhotos, profiles, pipes, salvarPipes, attach, comments, storageWarn, MAX_FILE, addAttachment, uploadFile, migrarLocal, carregarAnexo, removeAttachment, addComment, removeComment, logout, savePhoto, removePhoto, saveProfile, addDemand, moveStage, moveArea, reordenarCards, setAssignees, updateDemand, archiveDemand, restoreDemand, delDemand }}>{children}</Ctx.Provider>;
 }
 
 const useApp = () => useContext(Ctx);
@@ -1190,6 +1192,8 @@ function Sidebar() {
             count={emAprovacao||undefined} active={view==='gestao'} onClick={()=>setView('gestao')}/>
           <NavItem label="Minhas subtarefas" Icon={ICheck} iconColor={NB.mut}
             count={minhasSubPendentes||undefined} active={view==='minhasSubtarefas'} onClick={()=>setView('minhasSubtarefas')}/>
+          <NavItem label="Resumo" Icon={ITrend} iconColor={NB.mut}
+            active={view==='resumo'} onClick={()=>setView('resumo')}/>
         </div>
 
         <div style={secLbl}>Central</div>
@@ -1297,7 +1301,7 @@ function Sidebar() {
 
 /* =========== CABEÇALHO DO CONTEÚDO =========== */
 function ContentHeader() {
-  const { view, area, query, setQuery, layout, setLayout, priFilter, setPriFilter, reqFilter, setReqFilter, active, seed, demands } = useApp();
+  const { view, area, query, setQuery, mesFiltro, setMesFiltro, layout, setLayout, priFilter, setPriFilter, reqFilter, setReqFilter, active, seed, demands } = useApp();
   const [fOpen, setFOpen] = useState(false);
 
   const titles = {
@@ -1334,6 +1338,17 @@ function ContentHeader() {
               style={{width:'100%',background:'#fff',border:'1px solid '+NB.bd,borderRadius:9,padding:'9px 13px 9px 36px',fontSize:13.5,color:NB.txt,outline:'none'}}
               onFocus={e=>{e.target.style.borderColor=NB.azul;}} onBlur={e=>{e.target.style.borderColor=NB.bd;}}/>
           </div>
+
+          <select value={mesFiltro} onChange={e=>setMesFiltro(e.target.value)}
+            style={{background:mesFiltro!=='todos'?'#EAF3FD':'#fff',border:'1px solid '+(mesFiltro!=='todos'?NB.azul:NB.bd),borderRadius:9,padding:'9px 12px',fontSize:13,color:mesFiltro!=='todos'?NB.azul:NB.txt,fontWeight:mesFiltro!=='todos'?600:400,outline:'none',flexShrink:0}}>
+            <option value="todos">Todos os meses</option>
+            {Array.from({length:12}).map((_,i)=>{
+              const d = new Date(); d.setDate(1); d.setMonth(d.getMonth()-i);
+              const ym = d.toISOString().slice(0,7);
+              const label = d.toLocaleDateString('pt-BR', {month:'long', year:'numeric'});
+              return <option key={ym} value={ym}>{label.charAt(0).toUpperCase()+label.slice(1)}</option>;
+            })}
+          </select>
 
           <div style={{position:'relative'}}>
             {fOpen && <div onClick={()=>setFOpen(false)} style={{position:'fixed',inset:0,zIndex:29}}/>}
@@ -5017,7 +5032,7 @@ function AssigneeChip({ initials, onRemove }) {
 }
 
 function CardModal() {
-  const { selDemand, setModal, moveStage, moveArea, delDemand, archiveDemand, setNotifyPending, setAssignees, updateDemand, attach, comments, pipes, enviarCampanhaDeDemanda } = useApp();
+  const { selDemand, setModal, moveStage, moveArea, delDemand, archiveDemand, setNotifyPending, setAssignees, updateDemand, attach, comments, pipes, enviarCampanhaDeDemanda, demands } = useApp();
   const [picker, setPicker] = useState(false);
   const [confirmDel, setConfirmDel] = useState(false);
   const [tab, setTab] = useState('anexos');
@@ -5041,6 +5056,7 @@ function CardModal() {
   const nComments = (comments[openId] || []).length;
 
   const d = selDemand;
+  const espelhos = d.espelhoGrupoId ? demands.filter(x=>x.espelhoGrupoId===d.espelhoGrupoId && x.id!==d.id) : [];
   const stages = pipes[d.area]||[];
   const stage = stages.find(s=>s.id===d.stageId);
   const ps  = PRI_STL[d.priority]||PRI_STL.Baixa;
@@ -5111,6 +5127,20 @@ function CardModal() {
           <EditableText value={d.title} required
             onSave={v=>updateDemand(d.id,{title:v})}
             textStyle={{fontSize:19,fontWeight:600,color:NB.txt,lineHeight:1.32,letterSpacing:'-0.01em'}}/>
+          {espelhos.length>0 && (
+            <div style={{marginTop:9,display:'flex',alignItems:'center',gap:7,flexWrap:'wrap'}}>
+              <span style={{fontSize:11.5,color:NB.mut2}}>Espelhada também em:</span>
+              {espelhos.map(e=>{
+                const EIcon = AREA_ICON[e.area];
+                return (
+                  <button key={e.id} onClick={()=>setModal(e.id)}
+                    style={{display:'inline-flex',alignItems:'center',gap:5,fontSize:11.5,fontWeight:600,color:AREA_CLR[e.area]||NB.azul,background:NB.col,border:'1px solid '+NB.bd,borderRadius:20,padding:'3px 10px'}}>
+                    <EIcon s={11}/> {e.area}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
         <button onClick={()=>setModal(null)} style={{padding:8,background:'#fff',border:'1px solid '+NB.bd,borderRadius:9,color:NB.mut,display:'flex',flexShrink:0}}><IX/></button>
       </div>
@@ -5916,25 +5946,32 @@ function NewModal() {
   const initArea = presetNovo ? presetNovo.area : (area!=='Todas' ? area : 'Social');
   const [form, setForm] = useState({ title:'', area:initArea, priority:'Média', deadline:dStr(7), description:'', requester:user.name, assignees:[],
     ehCampanha:false, campanhaDesconto:'', campanhaJornada:'empresa' });
+  const [areasEspelho, setAreasEspelho] = useState([]);
 
   useEffect(() => {
-    if (newOpen) setForm(f=>({ ...f, title:'', area: presetNovo ? presetNovo.area : (area!=='Todas'?area:'Social'), requester:user.name, assignees:[], description:'',
-      ehCampanha:false, campanhaDesconto:'', campanhaJornada:'empresa' }));
+    if (newOpen) { setForm(f=>({ ...f, title:'', area: presetNovo ? presetNovo.area : (area!=='Todas'?area:'Social'), requester:user.name, assignees:[], description:'',
+      ehCampanha:false, campanhaDesconto:'', campanhaJornada:'empresa' })); setAreasEspelho([]); }
   }, [newOpen, area, user, presetNovo]);
 
   if (!newOpen) return null;
 
   const set = (k,v) => setForm(f=>({...f,[k]:v}));
   const toggleAssignee = init => setForm(f => ({ ...f, assignees: f.assignees.includes(init) ? f.assignees.filter(i=>i!==init) : [...f.assignees, init] }));
+  const toggleEspelho = a => setAreasEspelho(v => v.includes(a) ? v.filter(x=>x!==a) : [...v, a]);
   const valid = form.title.trim() && form.assignees.length>0;
   const etapaPreset = presetNovo && presetNovo.area===form.area
     ? (pipes[form.area]||[]).find(s=>s.id===presetNovo.stageId) : null;
 
   const submit = () => {
     if (!valid) return;
-    addDemand({ title:form.title, area:form.area, priority:form.priority, deadline:form.deadline, description:form.description, requester:form.requester, assignees:form.assignees,
-      stageId: etapaPreset ? etapaPreset.id : undefined,
-      ehCampanha:form.ehCampanha, campanhaDesconto:form.ehCampanha?form.campanhaDesconto:'', campanhaJornada:form.ehCampanha?form.campanhaJornada:'' });
+    const todasAreas = [form.area, ...areasEspelho];
+    const espelhoGrupoId = todasAreas.length>1 ? 'esp'+Date.now() : undefined;
+    todasAreas.forEach(a => {
+      addDemand({ title:form.title, area:a, priority:form.priority, deadline:form.deadline, description:form.description, requester:form.requester, assignees:form.assignees,
+        stageId: (a===form.area && etapaPreset) ? etapaPreset.id : undefined,
+        espelhoGrupoId, espelhoAreas: espelhoGrupoId ? todasAreas : undefined,
+        ehCampanha: a===form.area ? form.ehCampanha : false, campanhaDesconto: (a===form.area && form.ehCampanha)?form.campanhaDesconto:'', campanhaJornada: (a===form.area && form.ehCampanha)?form.campanhaJornada:'' });
+    });
     setNewOpen(false); setPresetNovo(null);
   };
 
@@ -5991,6 +6028,19 @@ function NewModal() {
           <div>
             <div style={lbl}>Prazo</div>
             <input type="date" value={form.deadline} onChange={e=>set('deadline',e.target.value)} style={inp}/>
+          </div>
+        </div>
+
+        <div>
+          <div style={{...lbl,marginBottom:8}}>Espelhar também em outra área? (opcional)</div>
+          <p style={{fontSize:11.5,color:NB.mut2,marginBottom:9,marginTop:-4}}>Cria uma cópia independente da demanda em cada área marcada — cada uma segue seu próprio pipeline e responsável.</p>
+          <div style={{display:'flex',flexWrap:'wrap',gap:7}}>
+            {Object.keys(pipes).filter(a=>a!==form.area).map(a=>(
+              <button key={a} type="button" onClick={()=>toggleEspelho(a)}
+                style={{padding:'6px 12px',borderRadius:20,border:'1px solid '+(areasEspelho.includes(a)?NB.azul:NB.bd),background:areasEspelho.includes(a)?'#EAF3FD':'#fff',fontSize:12.5,fontWeight:500,color:areasEspelho.includes(a)?NB.azul:NB.mut}}>
+                {a}
+              </button>
+            ))}
           </div>
         </div>
 
@@ -6519,6 +6569,96 @@ function EmbaixadorPortalView() {
 
 /* Visualização da Gestão: qualquer pessoa do time vê o portal de qualquer
    embaixador, sem precisar da senha dele — só pra conferência. */
+function BarraMetrica({ label, valor, max, cor }) {
+  const pct = max>0 ? Math.round((valor/max)*100) : 0;
+  return (
+    <div style={{display:'flex',alignItems:'center',gap:12}}>
+      <span style={{fontSize:12.5,color:NB.mut,width:110,flexShrink:0,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{label}</span>
+      <div style={{flex:1,height:10,background:NB.col,borderRadius:6,overflow:'hidden'}}>
+        <div style={{width:pct+'%',height:'100%',background:cor,borderRadius:6,transition:'width 0.3s'}}/>
+      </div>
+      <span style={{fontSize:12.5,fontWeight:600,color:NB.txt,width:22,textAlign:'right',flexShrink:0}}>{valor}</span>
+    </div>
+  );
+}
+
+function ResumoView() {
+  const { active, mesFiltro, setMesFiltro } = useApp();
+
+  const escopo = mesFiltro==='todos' ? active : active.filter(d=>(d.createdAt||'').startsWith(mesFiltro));
+  const porArea = {};
+  const porResponsavel = {};
+  let vencidas = 0;
+  escopo.forEach(d => {
+    porArea[d.area] = (porArea[d.area]||0) + 1;
+    (d.assignees||[]).forEach(a => { porResponsavel[a] = (porResponsavel[a]||0) + 1; });
+    const s = getSla(d.deadline);
+    if (s && s.type!=='ok') vencidas++;
+  });
+  const maxArea = Math.max(1, ...Object.values(porArea));
+  const maxResp = Math.max(1, ...Object.values(porResponsavel));
+  const areasComDados = Object.keys(porArea).sort((a,b)=>porArea[b]-porArea[a]);
+  const respsComDados = Object.entries(porResponsavel).sort((a,b)=>b[1]-a[1]).slice(0,8);
+
+  return (
+    <div style={{padding:'22px 30px 30px',overflowY:'auto',height:'100%'}}>
+      <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',marginBottom:22,flexWrap:'wrap',gap:12}}>
+        <div>
+          <h2 style={{fontSize:20,fontWeight:600,color:NB.txt,marginBottom:4}}>Resumo</h2>
+          <p style={{fontSize:13,color:NB.mut}}>Visão geral das demandas {mesFiltro==='todos' ? '(todo o período)' : ''}.</p>
+        </div>
+        <select value={mesFiltro} onChange={e=>setMesFiltro(e.target.value)}
+          style={{background:mesFiltro!=='todos'?'#EAF3FD':'#fff',border:'1px solid '+(mesFiltro!=='todos'?NB.azul:NB.bd),borderRadius:9,padding:'9px 12px',fontSize:13,color:mesFiltro!=='todos'?NB.azul:NB.txt,fontWeight:mesFiltro!=='todos'?600:400,outline:'none'}}>
+          <option value="todos">Todos os meses</option>
+          {Array.from({length:12}).map((_,i)=>{
+            const d = new Date(); d.setDate(1); d.setMonth(d.getMonth()-i);
+            const ym = d.toISOString().slice(0,7);
+            const label = d.toLocaleDateString('pt-BR', {month:'long', year:'numeric'});
+            return <option key={ym} value={ym}>{label.charAt(0).toUpperCase()+label.slice(1)}</option>;
+          })}
+        </select>
+      </div>
+
+      <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:14,marginBottom:26,maxWidth:820}}>
+        <div style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:14,padding:'16px 18px'}}>
+          <div style={{fontSize:24,fontWeight:700,color:NB.txt}}>{escopo.length}</div>
+          <div style={{fontSize:12,color:NB.mut}}>demandas ativas</div>
+        </div>
+        <div style={{background:vencidas?'#FEECEC':'#fff',border:'1px solid '+(vencidas?'#F5C2C2':NB.bd),borderRadius:14,padding:'16px 18px'}}>
+          <div style={{fontSize:24,fontWeight:700,color:vencidas?'#B4232A':NB.txt}}>{vencidas}</div>
+          <div style={{fontSize:12,color:vencidas?'#B4232A':NB.mut}}>vencidas</div>
+        </div>
+        <div style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:14,padding:'16px 18px'}}>
+          <div style={{fontSize:24,fontWeight:700,color:NB.txt}}>{escopo.length ? Math.round((1-vencidas/escopo.length)*100) : 100}%</div>
+          <div style={{fontSize:12,color:NB.mut}}>dentro do prazo</div>
+        </div>
+      </div>
+
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:24,maxWidth:820}}>
+        <div style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:14,padding:'18px 20px'}}>
+          <h3 style={{fontSize:14,fontWeight:600,color:NB.txt,marginBottom:14}}>Demandas por área</h3>
+          {areasComDados.length===0 ? <p style={{fontSize:12.5,color:NB.mut2}}>Nada nesse período.</p> : (
+            <div style={{display:'flex',flexDirection:'column',gap:11}}>
+              {areasComDados.map(a=><BarraMetrica key={a} label={a} valor={porArea[a]} max={maxArea} cor={AREA_CLR[a]||NB.azul}/>)}
+            </div>
+          )}
+        </div>
+        <div style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:14,padding:'18px 20px'}}>
+          <h3 style={{fontSize:14,fontWeight:600,color:NB.txt,marginBottom:14}}>Por responsável</h3>
+          {respsComDados.length===0 ? <p style={{fontSize:12.5,color:NB.mut2}}>Nada nesse período.</p> : (
+            <div style={{display:'flex',flexDirection:'column',gap:11}}>
+              {respsComDados.map(([init,n])=>{
+                const mb = ACTIVE_TEAM.find(m=>m.initials===init);
+                return <BarraMetrica key={init} label={mb?mb.name:init} valor={n} max={maxResp} cor={NB.azul}/>;
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function MinhasSubtarefasView() {
   const { active, user, setModal, updateDemand } = useApp();
 
@@ -6847,6 +6987,7 @@ function AppContent() {
               {view==='campanhas'  && <CampanhasManagerView/>}
               {view==='portalEmbaixador' && <PortalEmbaixadorGestaoView/>}
               {view==='minhasSubtarefas' && <MinhasSubtarefasView/>}
+              {view==='resumo' && <ResumoView/>}
             </React.Fragment>
           )}
         </main>
