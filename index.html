@@ -433,6 +433,14 @@ function Provider({ children }) {
     return db.collection('demandas').doc(id).update(campos).catch(e=>setDbErro('Não foi possível salvar: '+e.message));
   }, []);
 
+  /* Reordenar cards dentro da mesma coluna via arrastar-e-soltar. */
+  const reordenarCards = useCallback((idsEmOrdem) => {
+    const db = dbRef.current; if (!db) return;
+    const batch = db.batch();
+    idsEmOrdem.forEach((id, i) => { batch.update(db.collection('demandas').doc(id), { ordem: i }); });
+    batch.commit().catch(e=>setDbErro('Não foi possível reordenar: '+e.message));
+  }, []);
+
   const addDemand = useCallback((data) => {
     const db = dbRef.current; if (!db) return;
     const nums = (window.__nbDem || []).map(d => parseInt(String(d.code).replace(/\D/g,''),10)).filter(n=>!isNaN(n));
@@ -887,7 +895,7 @@ function Provider({ children }) {
   window.__nbDem = demands;
   window.__nbPosts = posts;
 
-  return <Ctx.Provider value={{ demands, active, archived, filtered, slack, user, isTeamMember, authReady, authError, setAuthError, preferirCentral, setPreferirCentral, dbReady, dbErro, seed, pedidos, aceitarPedido, recusarPedido, posts, addPost, updatePost, deletePost, campanhas, updateCampanha, publicarCampanha, despublicarCampanha, deleteCampanha, enviarCampanhaDeDemanda, pecas, addPeca, removePeca, redesSociais, salvarRedesSociais, arquivos, addArquivo, removeArquivo, embaixadores, addEmbaixador, removeEmbaixador, pacotes, salvarPacote, removePacote, meuPortalEmbaixador, portalCarregado, isEmbaixador, criarPortalEmbaixador, removerPortalEmbaixador, portaisEmbaixador, meusEnviosFotos, todosEnviosFotos, enviarFotoEmbaixador, removerEnvioFoto, view, setView, layout, setLayout, area, setArea, query, setQuery, priFilter, setPriFilter, reqFilter, setReqFilter, selDemand, setModal, newOpen, setNewOpen, presetNovo, setPresetNovo, pacoteOpen, setPacoteOpen, notifyPending, setNotifyPending, profileOpen, setProfileOpen, editStages, setEditStages, dragging, setDragging, previewMember, setPreviewMember, photos, googlePhotos, profiles, pipes, salvarPipes, attach, comments, storageWarn, MAX_FILE, addAttachment, uploadFile, migrarLocal, carregarAnexo, removeAttachment, addComment, removeComment, logout, savePhoto, removePhoto, saveProfile, addDemand, moveStage, moveArea, setAssignees, updateDemand, archiveDemand, restoreDemand, delDemand }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ demands, active, archived, filtered, slack, user, isTeamMember, authReady, authError, setAuthError, preferirCentral, setPreferirCentral, dbReady, dbErro, seed, pedidos, aceitarPedido, recusarPedido, posts, addPost, updatePost, deletePost, campanhas, updateCampanha, publicarCampanha, despublicarCampanha, deleteCampanha, enviarCampanhaDeDemanda, pecas, addPeca, removePeca, redesSociais, salvarRedesSociais, arquivos, addArquivo, removeArquivo, embaixadores, addEmbaixador, removeEmbaixador, pacotes, salvarPacote, removePacote, meuPortalEmbaixador, portalCarregado, isEmbaixador, criarPortalEmbaixador, removerPortalEmbaixador, portaisEmbaixador, meusEnviosFotos, todosEnviosFotos, enviarFotoEmbaixador, removerEnvioFoto, view, setView, layout, setLayout, area, setArea, query, setQuery, priFilter, setPriFilter, reqFilter, setReqFilter, selDemand, setModal, newOpen, setNewOpen, presetNovo, setPresetNovo, pacoteOpen, setPacoteOpen, notifyPending, setNotifyPending, profileOpen, setProfileOpen, editStages, setEditStages, dragging, setDragging, previewMember, setPreviewMember, photos, googlePhotos, profiles, pipes, salvarPipes, attach, comments, storageWarn, MAX_FILE, addAttachment, uploadFile, migrarLocal, carregarAnexo, removeAttachment, addComment, removeComment, logout, savePhoto, removePhoto, saveProfile, addDemand, moveStage, moveArea, reordenarCards, setAssignees, updateDemand, archiveDemand, restoreDemand, delDemand }}>{children}</Ctx.Provider>;
 }
 
 const useApp = () => useContext(Ctx);
@@ -1392,13 +1400,26 @@ function CardAvatar({ initials, offset }) {
   return <Avatar member={mb} size={28} style={{marginLeft:offset>0?-9:0,zIndex:10-offset}}/>;
 }
 
-function DemandCard({ demand }) {
-  const { setModal, dragging, setDragging, attach, comments, pipes, user, previewMember, moveStage, setNotifyPending, addComment } = useApp();
+function DemandCard({ demand, colunaOrdenada }) {
+  const { setModal, dragging, setDragging, attach, comments, pipes, user, previewMember, moveStage, setNotifyPending, addComment, reordenarCards } = useApp();
   const sla = getSla(demand.deadline);
   const ps  = PRI_STL[demand.priority] || PRI_STL.Baixa;
   const isDragging = dragging && dragging.id === demand.id;
   const nA = (attach[demand.id]||[]).length;
   const nC = (comments[demand.id]||[]).length;
+  const [overPos, setOverPos] = useState(null); // 'antes' | 'depois' | null
+
+  const mesmaColuna = !!dragging && !isDragging && colunaOrdenada
+    && dragging.area === demand.area && dragging.stageId === demand.stageId;
+
+  const reordenarAqui = pos => {
+    if (!mesmaColuna) return;
+    const idsAtuais = colunaOrdenada.map(c=>c.id).filter(id=>id!==dragging.id);
+    const idxAlvo = idsAtuais.indexOf(demand.id);
+    const novosIds = [...idsAtuais];
+    novosIds.splice(pos==='antes'?idxAlvo:idxAlvo+1, 0, dragging.id);
+    reordenarCards(novosIds);
+  };
 
   const stages = pipes[demand.area] || [];
   const idx    = stages.findIndex(s => s.id === demand.stageId);
@@ -1432,9 +1453,23 @@ function DemandCard({ demand }) {
         e.dataTransfer.effectAllowed = 'move';
         try { e.dataTransfer.setData('text/plain', demand.id); } catch(err) {}
       }}
-      onDragEnd={()=>setDragging(null)}
+      onDragEnd={()=>{setDragging(null); setOverPos(null);}}
+      onDragOver={e=>{
+        if (!mesmaColuna) return;
+        e.preventDefault();
+        const r = e.currentTarget.getBoundingClientRect();
+        setOverPos(e.clientY - r.top < r.height/2 ? 'antes' : 'depois');
+      }}
+      onDragLeave={()=>setOverPos(null)}
+      onDrop={e=>{
+        if (!mesmaColuna) return;
+        e.preventDefault(); e.stopPropagation();
+        reordenarAqui(overPos||'depois');
+        setDragging(null); setOverPos(null);
+      }}
       onClick={()=>setModal(demand.id)}
-      style={{background:'#fff',borderRadius:11,border:'1px solid '+NB.bd,padding:'14px 15px 13px',cursor:isDragging?'grabbing':'grab',transition:'box-shadow 0.14s, border-color 0.14s, transform 0.14s, opacity 0.14s',marginBottom:10,opacity:isDragging?0.4:1}}
+      style={{background:'#fff',borderRadius:11,border:'1px solid '+NB.bd,padding:'14px 15px 13px',cursor:isDragging?'grabbing':'grab',transition:'box-shadow 0.14s, border-color 0.14s, transform 0.14s, opacity 0.14s',marginBottom:10,opacity:isDragging?0.4:1,
+        boxShadow: overPos==='antes' ? 'inset 0 3px 0 0 '+NB.azul : overPos==='depois' ? 'inset 0 -3px 0 0 '+NB.azul : 'none'}}
       onMouseEnter={e=>{ if(!dragging){ e.currentTarget.style.boxShadow='0 4px 16px rgba(11,42,92,0.09)'; e.currentTarget.style.borderColor='#CFDCF0'; e.currentTarget.style.transform='translateY(-1px)'; } }}
       onMouseLeave={e=>{e.currentTarget.style.boxShadow='none'; e.currentTarget.style.borderColor=NB.bd; e.currentTarget.style.transform='none';}}>
 
@@ -1518,10 +1553,16 @@ function stageVisuals(stages) {
 }
 
 function StageColumn({ stage, cards, compact, areaName, visual }) {
-  const { dragging, setDragging, moveStage, moveArea, setNotifyPending, setArea, setNewOpen, setPresetNovo } = useApp();
+  const { dragging, setDragging, moveStage, moveArea, setNotifyPending, setArea, setNewOpen, setPresetNovo, reordenarCards } = useApp();
   const [over, setOver] = useState(false);
   const v = visual || STAGE_CYCLE[0];
   const Icon = v.Icon;
+  const cardsOrdenados = [...cards].sort((a,b) => {
+    if (a.ordem!=null && b.ordem!=null) return a.ordem-b.ordem;
+    if (a.ordem!=null) return -1;
+    if (b.ordem!=null) return 1;
+    return (a.createdAt||'').localeCompare(b.createdAt||'');
+  });
 
   const otherArea = !!dragging && dragging.area !== areaName;
   /* Aceita qualquer etapa do próprio pipeline, ou qualquer etapa de outro (troca de área) */
@@ -1562,7 +1603,7 @@ function StageColumn({ stage, cards, compact, areaName, visual }) {
         <span style={{fontSize:11.5,color:NB.mut,fontWeight:600,flexShrink:0,background:'#fff',border:'1px solid '+v.bd,borderRadius:20,padding:'1px 8px'}}>{cards.length}</span>
       </div>
       <div style={{flex:1,minHeight:0,padding:compact?'11px 11px 0':'12px 13px 0'}}>
-        {cards.map(c=><DemandCard key={c.id} demand={c}/>)}
+        {cardsOrdenados.map(c=><DemandCard key={c.id} demand={c} colunaOrdenada={cardsOrdenados}/>)}
         {cards.length>0 && !(over&&canDrop) && (
           <button onClick={()=>{ setArea(areaName); setPresetNovo({area:areaName, stageId:stage.id}); setNewOpen(true); }}
             title={'Adicionar demanda direto em '+stage.name}
