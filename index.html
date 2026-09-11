@@ -1323,7 +1323,7 @@ function ContentHeader() {
     campanhas:  ['Campanhas', 'Crie e publique campanhas — o que estiver "Publicada" aparece pra todo o Nibo na Central de Informações.'],
   };
   const [title, sub] = titles[view] || [
-    area==='Todas' ? 'Todos os Pipelines' : 'Pipeline — '+area,
+    area==='Todas' ? 'Todos os Pipelines' : area,
     area==='Todas' ? 'Visualize e gerencie todas as demandas do marketing.' : 'Acompanhe e mova as demandas de '+area+'.',
   ];
 
