@@ -6012,7 +6012,7 @@ function NewModal() {
               <AssigneePick key={m.id} member={m} checked={form.assignees.includes(m.initials)} onToggle={()=>toggleAssignee(m.initials)}/>
             ))}
           </div>
-          {form.assignees.length===0 && <p style={{fontSize:12.5,color:'#B4232A',marginTop:8,fontWeight:500}}>⚠ Escolha ao menos uma pessoa para receber a demanda — o botão só libera depois disso.</p>}
+          {form.assignees.length===0 && <p style={{fontSize:12.5,color:'#B4232A',marginTop:8}}>Escolha pelo menos um responsável.</p>}
         </div>
 
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:13}}>
