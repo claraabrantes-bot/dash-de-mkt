@@ -56,7 +56,7 @@ const NIBO_DOMAIN = '@nibo.com.br';
 
 const TEAM = [
   { id: 'u1', name: 'Mariana Araújo',    initials: 'MA', area: 'Gestão',     areasExtra:['Social','Design','Mídia Paga','Produto','RevOps','Eventos'], isApprover: true,  canPublishCampaigns:true,  email: 'mariana.araujo'+NIBO_DOMAIN,    color: '#0072CE' },
-  { id: 'u2', name: 'Clara Abrantes',    initials: 'CA', area: 'Social',     isApprover: false, canPublishCampaigns:true,  email: 'clara.abrantes'+NIBO_DOMAIN,    color: '#6431E2' },
+  { id: 'u2', name: 'Clara Abrantes',    initials: 'CA', area: 'Social',     areasExtra:['Eventos'], isApprover: false, canPublishCampaigns:true,  email: 'clara.abrantes'+NIBO_DOMAIN,    color: '#6431E2' },
   { id: 'u3', name: 'Millena Barros',    initials: 'MB', area: 'Design',     isApprover: false, email: 'millena.barros'+NIBO_DOMAIN,    color: '#0EA5E9' },
   { id: 'u4', name: 'Roberta Rocha',     initials: 'RO', area: 'Produto',    isApprover: false, canPublishCampaigns:true, email: 'roberta.rocha'+NIBO_DOMAIN,     color: '#D97706' },
   { id: 'u5', name: 'Mikaella Nicomedes',initials: 'MK', area: 'Design',     isApprover: false, email: 'mikaella.nicomedes'+NIBO_DOMAIN,color: '#059669' },
@@ -1078,6 +1078,7 @@ function Sidebar() {
   /* Quem tem uma área fixa (todo mundo, menos a Mariana, que acompanha
      tudo) vê os próprios números — não os da empresa inteira. */
   const meuSetorFixo = areas.includes(efetivo.area) ? efetivo.area : null;
+  const minhasAreasPrioridade = meuSetorFixo ? Array.from(new Set([meuSetorFixo, ...((efetivo.areasExtra||[]).filter(a=>areas.includes(a)))])) : areas;
   const escopoStats = area!=='Todas' ? active.filter(d=>d.area===area) : active;
   const vencidas = escopoStats.filter(d => { const s=getSla(d.deadline); return s && s.type!=='ok'; }).length;
   const emAprovacao = active.filter(d => {
@@ -1180,7 +1181,7 @@ function Sidebar() {
               count={active.length} active={area==='Todas'&&view==='kanban'}
               onClick={()=>{setArea('Todas'); setView('kanban');}}/>
           )}
-          {(meuSetorFixo && !mostrarTodasAreas ? [meuSetorFixo] : areas).map(a=>(
+          {(meuSetorFixo && !mostrarTodasAreas ? minhasAreasPrioridade : areas).map(a=>(
             <NavItem key={a} label={a} Icon={AREA_ICON[a]} iconColor={AREA_CLR[a]}
               count={active.filter(d=>d.area===a).length}
               active={area===a && view==='kanban'}
