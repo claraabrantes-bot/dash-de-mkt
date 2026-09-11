@@ -2289,45 +2289,91 @@ function CampanhasBuscaTab({ onIrPara }) {
             ))}
           </div>
           <a href="/solicitar.html" target="_blank" rel="noopener noreferrer"
-            style={{display:'inline-flex',alignItems:'center',gap:8,background:NB.navy1,color:'#fff',padding:'13px 22px',borderRadius:10,fontWeight:600,fontSize:13.5,textDecoration:'none'}}>
-            Solicitar demanda ao marketing <IArrowR s={13}/>
+            style={{display:'inline-flex',alignItems:'center',gap:6,fontSize:12,color:NB.mut2,textDecoration:'none'}}>
+            Prefere abrir numa aba separada? <IExt s={11}/>
           </a>
         </div>
-        <div style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:16,padding:22,display:'flex',flexDirection:'column',gap:14,boxShadow:'0 6px 20px rgba(11,42,92,0.06)'}}>
-          <div>
-            <div style={{fontSize:11,fontWeight:600,color:NB.mut,marginBottom:6,textTransform:'uppercase',letterSpacing:'0.05em'}}>O que você precisa</div>
-            <div style={{background:NB.col,border:'1.5px solid '+NB.bd,borderRadius:9,padding:'9px 12px',fontSize:12.5,color:NB.mut2}}>Ex: banner para a campanha de vagas</div>
-          </div>
-          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
-            <div>
-              <div style={{fontSize:11,fontWeight:600,color:NB.mut,marginBottom:6,textTransform:'uppercase',letterSpacing:'0.05em'}}>Seu setor</div>
-              <div style={{background:NB.col,border:'1.5px solid '+NB.bd,borderRadius:9,padding:'9px 12px',fontSize:12.5,color:NB.mut2}}>Selecionar área</div>
-            </div>
-            <div>
-              <div style={{fontSize:11,fontWeight:600,color:NB.mut,marginBottom:6,textTransform:'uppercase',letterSpacing:'0.05em'}}>Tipo de material</div>
-              <div style={{background:NB.col,border:'1.5px solid '+NB.bd,borderRadius:9,padding:'9px 12px',fontSize:12.5,color:NB.mut2}}>Selecionar tipo</div>
-            </div>
-          </div>
-          <div>
-            <div style={{fontSize:11,fontWeight:600,color:NB.mut,marginBottom:6,textTransform:'uppercase',letterSpacing:'0.05em'}}>Contexto e objetivo</div>
-            <div style={{background:NB.col,border:'1.5px solid '+NB.bd,borderRadius:9,padding:'9px 12px',fontSize:12.5,color:NB.mut2}}>Para que serve, onde vai ser usado...</div>
-          </div>
-          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
-            <div>
-              <div style={{fontSize:11,fontWeight:600,color:NB.mut,marginBottom:6,textTransform:'uppercase',letterSpacing:'0.05em'}}>Precisa para quando</div>
-              <div style={{background:NB.col,border:'1.5px solid '+NB.bd,borderRadius:9,padding:'9px 12px',fontSize:12.5,color:NB.mut2}}>Selecionar data</div>
-            </div>
-            <div>
-              <div style={{fontSize:11,fontWeight:600,color:NB.mut,marginBottom:6,textTransform:'uppercase',letterSpacing:'0.05em'}}>Link de referência</div>
-              <div style={{background:NB.col,border:'1.5px solid '+NB.bd,borderRadius:9,padding:'9px 12px',fontSize:12.5,color:NB.mut2}}>Drive, Figma...</div>
-            </div>
-          </div>
-        </div>
+        <SolicitarPecaInline/>
       </div>
     </div>
   );
 }
 
+function SolicitarPecaInline() {
+  const { user } = useApp();
+  const [f, setF] = useState({ titulo:'', setor:'', tipo:'', descricao:'', prazo:'', referencia:'' });
+  const [err, setErr] = useState('');
+  const [enviando, setEnviando] = useState(false);
+  const [enviado, setEnviado] = useState(false);
+  const set = (k,v) => { setF(x=>({...x,[k]:v})); setErr(''); };
+
+  const enviar = async () => {
+    if (!f.titulo.trim()) return setErr('Conta o que você precisa.');
+    if (!f.setor.trim()) return setErr('Preenche o seu setor.');
+    if (!f.descricao.trim()) return setErr('Descreve o contexto e o objetivo — isso ajuda bastante o time a entender rápido.');
+    setEnviando(true);
+    try {
+      const db = firebase.firestore();
+      await db.collection('solicitacoes').add({
+        titulo: f.titulo.trim(), setor: f.setor.trim(), tipo: f.tipo.trim(),
+        descricao: f.descricao.trim(), prazo: f.prazo || '', referencia: f.referencia.trim(),
+        solicitante: user.name, email: user.email, status: 'novo', criadoEm: new Date().toISOString(),
+      });
+      setEnviado(true);
+      setF({ titulo:'', setor:'', tipo:'', descricao:'', prazo:'', referencia:'' });
+      setTimeout(()=>setEnviado(false), 4000);
+    } catch (e) {
+      setErr(e && e.message ? 'Não foi possível enviar: '+e.message : 'Não foi possível enviar.');
+    } finally {
+      setEnviando(false);
+    }
+  };
+
+  return (
+    <div style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:16,padding:22,display:'flex',flexDirection:'column',gap:14,boxShadow:'0 6px 20px rgba(11,42,92,0.06)'}}>
+      <div>
+        <div style={{fontSize:11,fontWeight:600,color:NB.mut,marginBottom:6,textTransform:'uppercase',letterSpacing:'0.05em'}}>O que você precisa</div>
+        <input value={f.titulo} onChange={e=>set('titulo',e.target.value)} placeholder="Ex: banner para a campanha de vagas"
+          style={{width:'100%',background:NB.col,border:'1.5px solid '+NB.bd,borderRadius:9,padding:'9px 12px',fontSize:12.5,color:NB.txt,outline:'none',boxSizing:'border-box'}}/>
+      </div>
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+        <div>
+          <div style={{fontSize:11,fontWeight:600,color:NB.mut,marginBottom:6,textTransform:'uppercase',letterSpacing:'0.05em'}}>Seu setor</div>
+          <input value={f.setor} onChange={e=>set('setor',e.target.value)} placeholder="Ex: Vendas, Suporte..."
+            style={{width:'100%',background:NB.col,border:'1.5px solid '+NB.bd,borderRadius:9,padding:'9px 12px',fontSize:12.5,color:NB.txt,outline:'none',boxSizing:'border-box'}}/>
+        </div>
+        <div>
+          <div style={{fontSize:11,fontWeight:600,color:NB.mut,marginBottom:6,textTransform:'uppercase',letterSpacing:'0.05em'}}>Tipo de material</div>
+          <input value={f.tipo} onChange={e=>set('tipo',e.target.value)} placeholder="Ex: Post, banner, vídeo..."
+            style={{width:'100%',background:NB.col,border:'1.5px solid '+NB.bd,borderRadius:9,padding:'9px 12px',fontSize:12.5,color:NB.txt,outline:'none',boxSizing:'border-box'}}/>
+        </div>
+      </div>
+      <div>
+        <div style={{fontSize:11,fontWeight:600,color:NB.mut,marginBottom:6,textTransform:'uppercase',letterSpacing:'0.05em'}}>Contexto e objetivo</div>
+        <textarea value={f.descricao} onChange={e=>set('descricao',e.target.value)} rows={2} placeholder="Para que serve, onde vai ser usado..."
+          style={{width:'100%',background:NB.col,border:'1.5px solid '+NB.bd,borderRadius:9,padding:'9px 12px',fontSize:12.5,color:NB.txt,outline:'none',boxSizing:'border-box',resize:'vertical',fontFamily:'inherit'}}/>
+      </div>
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+        <div>
+          <div style={{fontSize:11,fontWeight:600,color:NB.mut,marginBottom:6,textTransform:'uppercase',letterSpacing:'0.05em'}}>Precisa para quando</div>
+          <input type="date" value={f.prazo} onChange={e=>set('prazo',e.target.value)}
+            style={{width:'100%',background:NB.col,border:'1.5px solid '+NB.bd,borderRadius:9,padding:'9px 12px',fontSize:12.5,color:NB.txt,outline:'none',boxSizing:'border-box'}}/>
+        </div>
+        <div>
+          <div style={{fontSize:11,fontWeight:600,color:NB.mut,marginBottom:6,textTransform:'uppercase',letterSpacing:'0.05em'}}>Link de referência</div>
+          <input value={f.referencia} onChange={e=>set('referencia',e.target.value)} placeholder="Drive, Figma..."
+            style={{width:'100%',background:NB.col,border:'1.5px solid '+NB.bd,borderRadius:9,padding:'9px 12px',fontSize:12.5,color:NB.txt,outline:'none',boxSizing:'border-box'}}/>
+        </div>
+      </div>
+      {err && <p style={{fontSize:12.5,color:'#B4232A',margin:0}}>{err}</p>}
+      {enviado && <p style={{fontSize:12.5,color:'#0F6E56',margin:0}}>Pedido enviado! O time de Marketing já recebeu.</p>}
+      <button onClick={enviar} disabled={enviando}
+        style={{display:'flex',alignItems:'center',justifyContent:'center',gap:8,background:NB.navy1,color:'#fff',padding:'12px 22px',border:'none',borderRadius:10,fontWeight:600,fontSize:13.5,opacity:enviando?0.7:1,cursor:enviando?'wait':'pointer'}}>
+        {enviando ? 'Enviando…' : 'Solicitar demanda ao marketing'} {!enviando && <IArrowR s={13}/>}
+      </button>
+    </div>
+  );
+}
 function RedesSociaisTab({ podeEditar }) {
   const { redesSociais, salvarRedesSociais } = useApp();
   const [editandoHandle, setEditandoHandle] = useState(false);
