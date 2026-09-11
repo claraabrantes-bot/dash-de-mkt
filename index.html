@@ -1073,6 +1073,7 @@ function Sidebar() {
     const st = (pipes[d.area]||[]).find(x => x.id === d.stageId);
     return st && st.isApproval;
   }).length + pedidos.filter(p => p.status === 'novo').length;
+  const minhasSubPendentes = active.reduce((n,d)=>n+(d.checklist||[]).filter(it=>it.responsavel===user.initials && !it.feita).length, 0);
   const [menu, setMenu] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
 
@@ -1179,6 +1180,8 @@ function Sidebar() {
         <div style={{marginBottom:20}}>
           <NavItem label="Aprovações e pedidos" Icon={IStamp} iconColor={emAprovacao?'#C98A00':NB.mut}
             count={emAprovacao||undefined} active={view==='gestao'} onClick={()=>setView('gestao')}/>
+          <NavItem label="Minhas subtarefas" Icon={ICheck} iconColor={NB.mut}
+            count={minhasSubPendentes||undefined} active={view==='minhasSubtarefas'} onClick={()=>setView('minhasSubtarefas')}/>
         </div>
 
         <div style={secLbl}>Central</div>
@@ -4974,6 +4977,8 @@ function CardModal() {
   const [tgtArea, setTgtArea]   = useState(null);
   const [tgtStage, setTgtStage] = useState(null);
   const [enviando, setEnviando] = useState(false);
+  const [novoItem, setNovoItem] = useState({ titulo:'', responsavel:'' });
+  const [addingItem, setAddingItem] = useState(false);
   const openId = selDemand ? selDemand.id : null;
 
   /* Reabrir outro card não pode herdar o estado do anterior */
@@ -5021,6 +5026,23 @@ function CardModal() {
   const reabrirSubtarefa = subId => {
     const novas = (d.subtarefas||[]).map(s => s.id===subId ? {...s, status:'pendente'} : s);
     updateDemand(d.id, { subtarefas: novas });
+  };
+
+  /* Checklist simples e independente — qualquer tarefa pode ter, sem
+     precisar vir de um pacote pronto. Cada item tem um responsável e
+     aparece pra ele em "Minhas subtarefas", em qualquer demanda. */
+  const adicionarItemChecklist = () => {
+    if (!novoItem.titulo.trim() || !novoItem.responsavel) return;
+    const item = { id:'chk'+Date.now()+Math.random().toString(36).slice(2,6), titulo:novoItem.titulo.trim(), responsavel:novoItem.responsavel, feita:false };
+    updateDemand(d.id, { checklist:[...(d.checklist||[]), item] });
+    setNovoItem({ titulo:'', responsavel:'' }); setAddingItem(false);
+  };
+  const toggleItemChecklist = itemId => {
+    const novos = (d.checklist||[]).map(it => it.id===itemId ? {...it, feita:!it.feita} : it);
+    updateDemand(d.id, { checklist: novos });
+  };
+  const removerItemChecklist = itemId => {
+    updateDemand(d.id, { checklist: (d.checklist||[]).filter(it=>it.id!==itemId) });
   };
 
   const toggle = init => {
@@ -5125,6 +5147,60 @@ function CardModal() {
             </div>
           </div>
         )}
+
+        <div style={{marginBottom:22}}>
+          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10}}>
+            <span style={lbl}>Checklist</span>
+            {(d.checklist||[]).length>0 && (
+              <span style={{fontSize:11.5,color:NB.mut2}}>{d.checklist.filter(it=>it.feita).length}/{d.checklist.length} feitas</span>
+            )}
+          </div>
+          {(d.checklist||[]).length>0 && (
+            <div style={{display:'flex',flexDirection:'column',gap:7,marginBottom:10}}>
+              {d.checklist.map(it=>{
+                const resp = ACTIVE_TEAM.find(m=>m.initials===it.responsavel);
+                return (
+                  <div key={it.id} style={{display:'flex',alignItems:'center',gap:10,padding:'9px 12px',background: it.feita ? '#E1F5EE' : NB.col, border:'1px solid '+(it.feita?'#A7E8CC':NB.bd), borderRadius:9}}>
+                    <button onClick={()=>toggleItemChecklist(it.id)}
+                      style={{width:18,height:18,borderRadius:5,border:'1.5px solid '+(it.feita?'#0F6E56':NB.bd),background:it.feita?'#0F6E56':'#fff',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                      {it.feita && <span style={{color:'#fff',display:'flex'}}><ICheck s={11}/></span>}
+                    </button>
+                    <span style={{fontSize:13,flex:1,color: it.feita?'#0F6E56':NB.txt, textDecoration: it.feita?'line-through':'none'}}>{it.titulo}</span>
+                    {resp && <span title={resp.name} style={{fontSize:11,fontWeight:600,color: it.feita?'#0F6E56':NB.azul,flexShrink:0}}>{resp.initials}</span>}
+                    <button onClick={()=>removerItemChecklist(it.id)} title="Remover" style={{color:NB.mut2,background:'none',border:'none',display:'flex',flexShrink:0}}><IX s={12}/></button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          {addingItem ? (
+            <div style={{display:'flex',flexDirection:'column',gap:8,padding:'10px 12px',background:NB.col,border:'1px dashed '+NB.bd,borderRadius:9}}>
+              <input value={novoItem.titulo} onChange={e=>setNovoItem(v=>({...v,titulo:e.target.value}))} placeholder="O que precisa ser feito?"
+                autoFocus style={{...inp,padding:'7px 10px',fontSize:12.5,background:'#fff'}}
+                onKeyDown={e=>{if(e.key==='Enter') adicionarItemChecklist();}}/>
+              <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
+                {ACTIVE_TEAM.map(m=>(
+                  <button key={m.id} type="button" onClick={()=>setNovoItem(v=>({...v,responsavel:m.initials}))}
+                    style={{padding:'4px 10px',borderRadius:20,border:'1px solid '+(novoItem.responsavel===m.initials?NB.azul:NB.bd),background:novoItem.responsavel===m.initials?'#EAF3FD':'#fff',fontSize:11.5,fontWeight:500,color:novoItem.responsavel===m.initials?NB.azul:NB.mut}}>
+                    {m.initials}
+                  </button>
+                ))}
+              </div>
+              <div style={{display:'flex',gap:8,justifyContent:'flex-end'}}>
+                <button onClick={()=>{setAddingItem(false); setNovoItem({titulo:'',responsavel:''});}} style={{padding:'6px 12px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:7,fontSize:12,color:NB.mut}}>Cancelar</button>
+                <button onClick={adicionarItemChecklist} disabled={!novoItem.titulo.trim()||!novoItem.responsavel}
+                  style={{padding:'6px 14px',background:NB.azul,border:'none',borderRadius:7,fontSize:12,fontWeight:500,color:'#fff',opacity:(!novoItem.titulo.trim()||!novoItem.responsavel)?0.5:1}}>
+                  Adicionar
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button onClick={()=>setAddingItem(true)}
+              style={{display:'flex',alignItems:'center',gap:6,fontSize:12.5,color:NB.azul,background:'none',border:'none',fontWeight:500}}>
+              <IPlus s={12}/> Adicionar subtarefa
+            </button>
+          )}
+        </div>
 
         <div style={{marginBottom:22}}>
           <div style={lbl}>Descrição</div>
@@ -6395,6 +6471,70 @@ function EmbaixadorPortalView() {
 
 /* Visualização da Gestão: qualquer pessoa do time vê o portal de qualquer
    embaixador, sem precisar da senha dele — só pra conferência. */
+function MinhasSubtarefasView() {
+  const { active, user, setModal, updateDemand } = useApp();
+
+  const itens = [];
+  active.forEach(d => {
+    (d.checklist||[]).forEach(it => {
+      if (it.responsavel === user.initials) itens.push({ ...it, demanda:d });
+    });
+  });
+  const pendentes = itens.filter(it=>!it.feita).sort((a,b)=>(a.demanda.deadline||'').localeCompare(b.demanda.deadline||''));
+  const feitas = itens.filter(it=>it.feita);
+
+  const toggle = (demanda, itemId) => {
+    const novos = (demanda.checklist||[]).map(it => it.id===itemId ? {...it, feita:!it.feita} : it);
+    updateDemand(demanda.id, { checklist: novos });
+  };
+
+  const Linha = ({ it }) => {
+    const Icon = AREA_ICON[it.demanda.area] || ILayers;
+    return (
+      <div style={{display:'flex',alignItems:'center',gap:12,background:'#fff',border:'1px solid '+NB.bd,borderRadius:12,padding:'13px 16px'}}>
+        <button onClick={()=>toggle(it.demanda, it.id)}
+          style={{width:19,height:19,borderRadius:6,border:'1.5px solid '+(it.feita?'#0F6E56':NB.bd),background:it.feita?'#0F6E56':'#fff',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+          {it.feita && <span style={{color:'#fff',display:'flex'}}><ICheck s={11}/></span>}
+        </button>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontSize:13.5,color:it.feita?NB.mut2:NB.txt,textDecoration:it.feita?'line-through':'none'}}>{it.titulo}</div>
+          <button onClick={()=>setModal(it.demanda.id)}
+            style={{display:'inline-flex',alignItems:'center',gap:5,fontSize:11.5,color:NB.mut,background:'none',border:'none',marginTop:2}}>
+            <Icon s={11}/> {it.demanda.title}
+          </button>
+        </div>
+        <span style={{fontSize:11,color:AREA_CLR[it.demanda.area]||NB.mut2,fontWeight:600,flexShrink:0}}>{it.demanda.area}</span>
+      </div>
+    );
+  };
+
+  return (
+    <div style={{padding:'22px 30px 30px',overflowY:'auto',height:'100%'}}>
+      <div style={{marginBottom:20}}>
+        <h2 style={{fontSize:20,fontWeight:600,color:NB.txt,marginBottom:4}}>Minhas subtarefas</h2>
+        <p style={{fontSize:13,color:NB.mut}}>Itens de checklist que outras pessoas te atribuíram, de qualquer demanda.</p>
+      </div>
+      {pendentes.length===0 && feitas.length===0 ? (
+        <div style={{background:'#fff',border:'1px dashed '+NB.bd,borderRadius:16,padding:'40px 24px',textAlign:'center'}}>
+          <p style={{fontSize:13.5,color:NB.mut}}>Nenhuma subtarefa atribuída a você por enquanto.</p>
+        </div>
+      ) : (
+        <div style={{display:'flex',flexDirection:'column',gap:9,maxWidth:640}}>
+          {pendentes.map(it=><Linha key={it.demanda.id+it.id} it={it}/>)}
+          {feitas.length>0 && (
+            <div style={{marginTop:18}}>
+              <div style={{fontSize:11.5,color:NB.mut2,marginBottom:9,textTransform:'uppercase',letterSpacing:'0.05em',fontWeight:600}}>Concluídas ({feitas.length})</div>
+              <div style={{display:'flex',flexDirection:'column',gap:9}}>
+                {feitas.map(it=><Linha key={it.demanda.id+it.id} it={it}/>)}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function CriarAcessoPortalModal({ embaixador, onClose }) {
   const { criarPortalEmbaixador } = useApp();
   const [portal, setPortal] = useState({ email:'', senha:'', contratoUrl:'', lpUrl:'' });
@@ -6658,6 +6798,7 @@ function AppContent() {
               {view==='central'    && <InfoCentralView/>}
               {view==='campanhas'  && <CampanhasManagerView/>}
               {view==='portalEmbaixador' && <PortalEmbaixadorGestaoView/>}
+              {view==='minhasSubtarefas' && <MinhasSubtarefasView/>}
             </React.Fragment>
           )}
         </main>
