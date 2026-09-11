@@ -3940,26 +3940,33 @@ function EditableText({ value, onSave, multiline, placeholder, required, textSty
     if (editing && ref.current) { ref.current.focus(); if (ref.current.select) ref.current.select(); }
   }, [editing]);
 
+  const [invalido, setInvalido] = useState(false);
+
   const commit = () => {
     const v = (draft || '').trim();
-    setEditing(false);
-    if (required && !v) return;          // título não pode ficar vazio
+    if (required && !v) { setInvalido(true); return; }   // não fecha - fica esperando um texto válido
+    setEditing(false); setInvalido(false);
     if (v !== (value || '')) onSave(v);
   };
 
   const keys = e => {
-    if (e.key === 'Escape') { e.preventDefault(); setEditing(false); }
+    if (e.key === 'Escape') { e.preventDefault(); setEditing(false); setInvalido(false); setDraft(value||''); }
     if (e.key === 'Enter' && !multiline) { e.preventDefault(); commit(); }
     if (e.key === 'Enter' && multiline && (e.metaKey || e.ctrlKey)) { e.preventDefault(); commit(); }
   };
 
   if (editing) {
     const common = {
-      ref, value:draft, onChange:e=>setDraft(e.target.value), onBlur:commit, onKeyDown:keys,
-      style:{ ...inp, ...textStyle, borderColor:NB.azul, background:'#fff', width:'100%',
+      ref, value:draft, onChange:e=>{setDraft(e.target.value); setInvalido(false);}, onBlur:commit, onKeyDown:keys,
+      style:{ ...inp, ...textStyle, borderColor: invalido?'#E4534A':NB.azul, background:'#fff', width:'100%',
               resize: multiline?'vertical':undefined, lineHeight: multiline?1.65:undefined }
     };
-    return multiline ? <textarea rows={rows||3} {...common}/> : <input {...common}/>;
+    return (
+      <div>
+        {multiline ? <textarea rows={rows||3} {...common}/> : <input {...common}/>}
+        {invalido && <div style={{fontSize:11,color:'#E4534A',marginTop:4}}>Precisa de um texto — ou aperta Esc pra cancelar.</div>}
+      </div>
+    );
   }
 
   const empty = !value;
