@@ -1086,6 +1086,7 @@ function Sidebar() {
   }).length + pedidos.filter(p => p.status === 'novo').length;
   const minhasSubPendentes = active.reduce((n,d)=>n+(d.checklist||[]).filter(it=>it.responsavel===user.initials && !it.feita).length, 0);
   const [menu, setMenu] = useState(false);
+  const [mostrarTodasAreas, setMostrarTodasAreas] = useState(!meuSetorFixo);
   const [previewOpen, setPreviewOpen] = useState(false);
 
   const secLbl = { fontSize:10.5, fontWeight:600, letterSpacing:'0.1em', color:NB.mut2, textTransform:'uppercase', padding:'0 12px', marginBottom:8 };
@@ -1164,12 +1165,12 @@ function Sidebar() {
         <div style={{display:'flex',flexDirection:'column',gap:2,marginBottom:20}}>
           {meuSetorFixo ? (
             area==='Todas' && view==='kanban' ? (
-              <button onClick={()=>{setArea(meuSetorFixo); setView('kanban');}}
+              <button onClick={()=>{setArea(meuSetorFixo); setView('kanban'); setMostrarTodasAreas(false);}}
                 style={{display:'flex',alignItems:'center',gap:7,padding:'6px 12px 10px',background:'none',border:'none',fontSize:11.5,color:NB.azul,fontWeight:600,textAlign:'left'}}>
                 <IArrowL s={11}/> Voltar pro meu setor
               </button>
             ) : (
-              <button onClick={()=>{setArea('Todas'); setView('kanban');}}
+              <button onClick={()=>{setArea('Todas'); setView('kanban'); setMostrarTodasAreas(true);}}
                 style={{display:'flex',alignItems:'center',gap:7,padding:'6px 12px 10px',background:'none',border:'none',fontSize:11.5,color:NB.mut2,fontWeight:500,textAlign:'left'}}>
                 <IFunnel s={11}/> Ver todas as áreas ({active.length})
               </button>
@@ -1179,7 +1180,7 @@ function Sidebar() {
               count={active.length} active={area==='Todas'&&view==='kanban'}
               onClick={()=>{setArea('Todas'); setView('kanban');}}/>
           )}
-          {areas.map(a=>(
+          {(meuSetorFixo && !mostrarTodasAreas ? [meuSetorFixo] : areas).map(a=>(
             <NavItem key={a} label={a} Icon={AREA_ICON[a]} iconColor={AREA_CLR[a]}
               count={active.filter(d=>d.area===a).length}
               active={area===a && view==='kanban'}
