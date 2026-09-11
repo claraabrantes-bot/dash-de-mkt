@@ -447,6 +447,7 @@ function Provider({ children }) {
     const nums = (window.__nbDem || []).map(d => parseInt(String(d.code).replace(/\D/g,''),10)).filter(n=>!isNaN(n));
     const code = 'DEM-' + ((nums.length ? Math.max(...nums) : 100) + 1);
     const nd = { ...data, code, stageId: data.stageId || pipesRef.current[data.area][0].id, createdAt: new Date().toISOString(), comments: [], links: [] };
+    Object.keys(nd).forEach(k => { if (nd[k]===undefined) delete nd[k]; });   // Firestore recusa campos undefined
     db.collection('demandas').add(nd).then(ref => {
       const who = data.assignees && data.assignees.length ? mentionNames(data.assignees) : 'equipe de '+data.area;
       feed({ code, area:data.area }, 'Nova demanda criada',
@@ -5968,12 +5969,13 @@ function NewModal() {
   const submit = () => {
     if (!valid) return;
     const todasAreas = [form.area, ...areasEspelho];
-    const espelhoGrupoId = todasAreas.length>1 ? 'esp'+Date.now() : undefined;
+    const espelhoGrupoId = todasAreas.length>1 ? 'esp'+Date.now() : null;
     todasAreas.forEach(a => {
-      addDemand({ title:form.title, area:a, priority:form.priority, deadline:form.deadline, description:form.description, requester:form.requester, assignees:form.assignees,
-        stageId: (a===form.area && etapaPreset) ? etapaPreset.id : undefined,
-        espelhoGrupoId, espelhoAreas: espelhoGrupoId ? todasAreas : undefined,
-        ehCampanha: a===form.area ? form.ehCampanha : false, campanhaDesconto: (a===form.area && form.ehCampanha)?form.campanhaDesconto:'', campanhaJornada: (a===form.area && form.ehCampanha)?form.campanhaJornada:'' });
+      const dados = { title:form.title, area:a, priority:form.priority, deadline:form.deadline, description:form.description, requester:form.requester, assignees:form.assignees,
+        ehCampanha: a===form.area ? form.ehCampanha : false, campanhaDesconto: (a===form.area && form.ehCampanha)?form.campanhaDesconto:'', campanhaJornada: (a===form.area && form.ehCampanha)?form.campanhaJornada:'' };
+      if (a===form.area && etapaPreset) dados.stageId = etapaPreset.id;
+      if (espelhoGrupoId) { dados.espelhoGrupoId = espelhoGrupoId; dados.espelhoAreas = todasAreas; }
+      addDemand(dados);
     });
     setNewOpen(false); setPresetNovo(null);
   };
