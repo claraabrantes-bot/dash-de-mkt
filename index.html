@@ -1194,8 +1194,10 @@ function Sidebar() {
             count={emAprovacao||undefined} active={view==='gestao'} onClick={()=>setView('gestao')}/>
           <NavItem label="Minhas subtarefas" Icon={ICheck} iconColor={NB.mut}
             count={minhasSubPendentes||undefined} active={view==='minhasSubtarefas'} onClick={()=>setView('minhasSubtarefas')}/>
-          <NavItem label="Resumo" Icon={ITrend} iconColor={NB.mut}
-            active={view==='resumo'} onClick={()=>setView('resumo')}/>
+          {!meuSetorFixo && (
+            <NavItem label="Resumo" Icon={ITrend} iconColor={NB.mut}
+              active={view==='resumo'} onClick={()=>setView('resumo')}/>
+          )}
         </div>
 
         <div style={secLbl}>Central</div>
@@ -6662,8 +6664,34 @@ function BarraMetrica({ label, valor, max, cor }) {
   );
 }
 
+function PieChart({ dados, size=150 }) {
+  const total = dados.reduce((s,d)=>s+d.valor,0);
+  if (total===0) return <div style={{width:size,height:size,borderRadius:'50%',background:NB.col,border:'1px solid '+NB.bd}}/>;
+  let acc = 0;
+  const partes = dados.map(d => {
+    const inicio = acc/total*360;
+    acc += d.valor;
+    const fim = acc/total*360;
+    return d.cor+' '+inicio.toFixed(1)+'deg '+fim.toFixed(1)+'deg';
+  });
+  return (
+    <div style={{width:size,height:size,borderRadius:'50%',background:'conic-gradient('+partes.join(', ')+')',flexShrink:0,boxShadow:'0 0 0 1px '+NB.bd+' inset'}}/>
+  );
+}
+
 function ResumoView() {
-  const { active, mesFiltro, setMesFiltro } = useApp();
+  const { active, mesFiltro, setMesFiltro, user, previewMember, pipes, campanhas } = useApp();
+  const AREAS_REAIS = ['Social','Design','Mídia Paga','Produto','RevOps','Eventos'];
+  const efetivo = previewMember || user;
+  const ehGestora = !AREAS_REAIS.includes(efetivo.area);
+
+  if (!ehGestora) {
+    return (
+      <div style={{padding:'60px 30px',textAlign:'center'}}>
+        <p style={{fontSize:13.5,color:NB.mut}}>Essa área é só da gestão.</p>
+      </div>
+    );
+  }
 
   const escopo = mesFiltro==='todos' ? active : active.filter(d=>(d.createdAt||'').startsWith(mesFiltro));
   const porArea = {};
@@ -6679,6 +6707,21 @@ function ResumoView() {
   const maxResp = Math.max(1, ...Object.values(porResponsavel));
   const areasComDados = Object.keys(porArea).sort((a,b)=>porArea[b]-porArea[a]);
   const respsComDados = Object.entries(porResponsavel).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  const pieDados = areasComDados.map(a=>({ label:a, valor:porArea[a], cor:AREA_CLR[a]||NB.azul }));
+
+  /* Por etapa: agrupa em aprovacao / concluida / em andamento, olhando o pipeline de cada área. */
+  let emAprovacaoN=0, concluidasN=0, andamentoN=0;
+  escopo.forEach(d => {
+    const st = (pipes[d.area]||[]).find(s=>s.id===d.stageId);
+    if (st && st.isApproval) emAprovacaoN++;
+    else if (st && st.isDone) concluidasN++;
+    else andamentoN++;
+  });
+
+  const campanhasNoMes = (campanhas||[]).filter(c => mesFiltro==='todos' || (c.criadaEm||'').startsWith(mesFiltro));
+  const campanhasPublicadas = campanhasNoMes.filter(c=>c.status==='publicada').length;
+
+  const tabela = [...escopo].sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||''));
 
   return (
     <div style={{padding:'22px 30px 30px',overflowY:'auto',height:'100%'}}>
@@ -6699,7 +6742,7 @@ function ResumoView() {
         </select>
       </div>
 
-      <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:14,marginBottom:26,maxWidth:820}}>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:14,marginBottom:26,maxWidth:1020}}>
         <div style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:14,padding:'16px 18px'}}>
           <div style={{fontSize:24,fontWeight:700,color:NB.txt}}>{escopo.length}</div>
           <div style={{fontSize:12,color:NB.mut}}>demandas ativas</div>
@@ -6712,9 +6755,40 @@ function ResumoView() {
           <div style={{fontSize:24,fontWeight:700,color:NB.txt}}>{escopo.length ? Math.round((1-vencidas/escopo.length)*100) : 100}%</div>
           <div style={{fontSize:12,color:NB.mut}}>dentro do prazo</div>
         </div>
+        <div style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:14,padding:'16px 18px'}}>
+          <div style={{fontSize:24,fontWeight:700,color:NB.txt}}>{campanhasPublicadas}</div>
+          <div style={{fontSize:12,color:NB.mut}}>campanhas publicadas</div>
+        </div>
       </div>
 
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:24,maxWidth:820}}>
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:24,maxWidth:1020,marginBottom:24}}>
+        <div style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:14,padding:'18px 20px'}}>
+          <h3 style={{fontSize:14,fontWeight:600,color:NB.txt,marginBottom:14}}>Distribuição por área</h3>
+          {pieDados.length===0 ? <p style={{fontSize:12.5,color:NB.mut2}}>Nada nesse período.</p> : (
+            <div style={{display:'flex',alignItems:'center',gap:22}}>
+              <PieChart dados={pieDados}/>
+              <div style={{display:'flex',flexDirection:'column',gap:8}}>
+                {pieDados.map(p=>(
+                  <div key={p.label} style={{display:'flex',alignItems:'center',gap:8,fontSize:12.5,color:NB.txt}}>
+                    <span style={{width:10,height:10,borderRadius:3,background:p.cor,flexShrink:0}}/>
+                    {p.label} <span style={{color:NB.mut2}}>({p.valor})</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+        <div style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:14,padding:'18px 20px'}}>
+          <h3 style={{fontSize:14,fontWeight:600,color:NB.txt,marginBottom:14}}>Por etapa</h3>
+          <div style={{display:'flex',flexDirection:'column',gap:11}}>
+            <BarraMetrica label="Em andamento" valor={andamentoN} max={Math.max(1,escopo.length)} cor={NB.azul}/>
+            <BarraMetrica label="Em aprovação" valor={emAprovacaoN} max={Math.max(1,escopo.length)} cor="#C98A00"/>
+            <BarraMetrica label="Concluídas" valor={concluidasN} max={Math.max(1,escopo.length)} cor="#0F6E56"/>
+          </div>
+        </div>
+      </div>
+
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:24,maxWidth:1020,marginBottom:24}}>
         <div style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:14,padding:'18px 20px'}}>
           <h3 style={{fontSize:14,fontWeight:600,color:NB.txt,marginBottom:14}}>Demandas por área</h3>
           {areasComDados.length===0 ? <p style={{fontSize:12.5,color:NB.mut2}}>Nada nesse período.</p> : (
@@ -6734,6 +6808,73 @@ function ResumoView() {
             </div>
           )}
         </div>
+      </div>
+
+      <div style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:14,padding:'18px 20px',maxWidth:1020}}>
+        <h3 style={{fontSize:14,fontWeight:600,color:NB.txt,marginBottom:4}}>Demandas do período ({tabela.length})</h3>
+        <p style={{fontSize:12,color:NB.mut2,marginBottom:14}}>Pra puxar direto na reunião de update, sem precisar caçar uma por uma.</p>
+        {tabela.length===0 ? <p style={{fontSize:12.5,color:NB.mut2}}>Nada nesse período.</p> : (
+          <div style={{overflowX:'auto'}}>
+            <table style={{width:'100%',borderCollapse:'collapse',fontSize:12.5}}>
+              <thead>
+                <tr style={{borderBottom:'1px solid '+NB.bdSoft,textAlign:'left'}}>
+                  <th style={{padding:'6px 10px',color:NB.mut2,fontWeight:600}}>Demanda</th>
+                  <th style={{padding:'6px 10px',color:NB.mut2,fontWeight:600}}>Área</th>
+                  <th style={{padding:'6px 10px',color:NB.mut2,fontWeight:600}}>Etapa</th>
+                  <th style={{padding:'6px 10px',color:NB.mut2,fontWeight:600}}>Responsáveis</th>
+                  <th style={{padding:'6px 10px',color:NB.mut2,fontWeight:600}}>Prazo</th>
+                </tr>
+              </thead>
+              <tbody>
+                {tabela.map(d=>{
+                  const st = (pipes[d.area]||[]).find(s=>s.id===d.stageId);
+                  const s = getSla(d.deadline);
+                  return (
+                    <tr key={d.id} style={{borderBottom:'1px solid '+NB.bdSoft}}>
+                      <td style={{padding:'8px 10px',color:NB.txt,fontWeight:500,maxWidth:260,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{d.title}</td>
+                      <td style={{padding:'8px 10px'}}><span style={{color:AREA_CLR[d.area]||NB.mut,fontWeight:600}}>{d.area}</span></td>
+                      <td style={{padding:'8px 10px',color:NB.mut}}>{st ? st.name : '—'}</td>
+                      <td style={{padding:'8px 10px',color:NB.mut}}>{(d.assignees||[]).join(', ')||'—'}</td>
+                      <td style={{padding:'8px 10px',color: s&&s.type!=='ok' ? '#B4232A' : NB.mut, fontWeight: s&&s.type!=='ok' ? 600 : 400}}>{d.deadline ? fmtDate(d.deadline) : '—'}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function PizzaChart({ dados, tamanho=140 }) {
+  // dados: [{ label, valor, cor }]
+  const total = dados.reduce((s,d)=>s+d.valor,0) || 1;
+  let acumulado = 0;
+  const fatias = dados.map(d => {
+    const inicio = (acumulado/total)*360;
+    acumulado += d.valor;
+    const fim = (acumulado/total)*360;
+    return d.cor+' '+inicio.toFixed(2)+'deg '+fim.toFixed(2)+'deg';
+  });
+  const gradient = dados.every(d=>d.valor===0) ? NB.bd : 'conic-gradient(' + fatias.join(', ') + ')';
+  return (
+    <div style={{display:'flex',alignItems:'center',gap:22,flexWrap:'wrap'}}>
+      <div style={{width:tamanho,height:tamanho,borderRadius:'50%',background:gradient,flexShrink:0,position:'relative'}}>
+        <div style={{position:'absolute',inset:tamanho*0.28,borderRadius:'50%',background:'#fff',display:'flex',alignItems:'center',justifyContent:'center',flexDirection:'column'}}>
+          <span style={{fontSize:17,fontWeight:700,color:NB.txt}}>{total}</span>
+          <span style={{fontSize:9.5,color:NB.mut2}}>total</span>
+        </div>
+      </div>
+      <div style={{display:'flex',flexDirection:'column',gap:7}}>
+        {dados.map(d=>(
+          <div key={d.label} style={{display:'flex',alignItems:'center',gap:8}}>
+            <span style={{width:9,height:9,borderRadius:3,background:d.cor,flexShrink:0}}/>
+            <span style={{fontSize:12.5,color:NB.txt,minWidth:90}}>{d.label}</span>
+            <span style={{fontSize:12.5,fontWeight:600,color:NB.mut}}>{d.valor} ({total?Math.round(d.valor/total*100):0}%)</span>
+          </div>
+        ))}
       </div>
     </div>
   );
