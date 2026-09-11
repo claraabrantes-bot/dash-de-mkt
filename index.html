@@ -208,6 +208,7 @@ function Provider({ children }) {
   const abriuRef = useRef(false);
   const [query, setQuery]   = useState('');
   const [priFilter, setPriFilter] = useState([]);
+  const [soVencidas, setSoVencidas] = useState(false);
   const [reqFilter, setReqFilter] = useState([]);
   const [modal, setModal]   = useState(null);
   const [newOpen, setNewOpen] = useState(false);
@@ -873,6 +874,7 @@ function Provider({ children }) {
 
   const filtered = active.filter(d => {
     if (area !== 'Todas' && d.area !== area) return false;
+    if (soVencidas) { const s=getSla(d.deadline); if (!s || s.type==='ok') return false; }
     if (priFilter.length && !priFilter.includes(d.priority)) return false;
     if (reqFilter.length && !reqFilter.includes(d.requester)) return false;
     if (query.trim()) { const q=query.toLowerCase(); return (d.title||'').toLowerCase().includes(q)||(d.code||'').toLowerCase().includes(q); }
@@ -885,7 +887,7 @@ function Provider({ children }) {
   window.__nbDem = demands;
   window.__nbPosts = posts;
 
-  return <Ctx.Provider value={{ demands, active, archived, filtered, slack, user, isTeamMember, authReady, authError, setAuthError, preferirCentral, setPreferirCentral, dbReady, dbErro, seed, pedidos, aceitarPedido, recusarPedido, posts, addPost, updatePost, deletePost, campanhas, updateCampanha, publicarCampanha, despublicarCampanha, deleteCampanha, enviarCampanhaDeDemanda, pecas, addPeca, removePeca, redesSociais, salvarRedesSociais, arquivos, addArquivo, removeArquivo, embaixadores, addEmbaixador, removeEmbaixador, pacotes, salvarPacote, removePacote, meuPortalEmbaixador, portalCarregado, isEmbaixador, criarPortalEmbaixador, removerPortalEmbaixador, portaisEmbaixador, meusEnviosFotos, todosEnviosFotos, enviarFotoEmbaixador, removerEnvioFoto, view, setView, layout, setLayout, area, setArea, query, setQuery, priFilter, setPriFilter, reqFilter, setReqFilter, selDemand, setModal, newOpen, setNewOpen, pacoteOpen, setPacoteOpen, notifyPending, setNotifyPending, profileOpen, setProfileOpen, editStages, setEditStages, dragging, setDragging, previewMember, setPreviewMember, photos, googlePhotos, profiles, pipes, salvarPipes, attach, comments, storageWarn, MAX_FILE, addAttachment, uploadFile, migrarLocal, carregarAnexo, removeAttachment, addComment, removeComment, logout, savePhoto, removePhoto, saveProfile, addDemand, moveStage, moveArea, setAssignees, updateDemand, archiveDemand, restoreDemand, delDemand }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ demands, active, archived, filtered, slack, user, isTeamMember, authReady, authError, setAuthError, preferirCentral, setPreferirCentral, dbReady, dbErro, seed, pedidos, aceitarPedido, recusarPedido, posts, addPost, updatePost, deletePost, campanhas, updateCampanha, publicarCampanha, despublicarCampanha, deleteCampanha, enviarCampanhaDeDemanda, pecas, addPeca, removePeca, redesSociais, salvarRedesSociais, arquivos, addArquivo, removeArquivo, embaixadores, addEmbaixador, removeEmbaixador, pacotes, salvarPacote, removePacote, meuPortalEmbaixador, portalCarregado, isEmbaixador, criarPortalEmbaixador, removerPortalEmbaixador, portaisEmbaixador, meusEnviosFotos, todosEnviosFotos, enviarFotoEmbaixador, removerEnvioFoto, view, setView, layout, setLayout, area, setArea, query, setQuery, priFilter, setPriFilter, soVencidas, setSoVencidas, reqFilter, setReqFilter, selDemand, setModal, newOpen, setNewOpen, pacoteOpen, setPacoteOpen, notifyPending, setNotifyPending, profileOpen, setProfileOpen, editStages, setEditStages, dragging, setDragging, previewMember, setPreviewMember, photos, googlePhotos, profiles, pipes, salvarPipes, attach, comments, storageWarn, MAX_FILE, addAttachment, uploadFile, migrarLocal, carregarAnexo, removeAttachment, addComment, removeComment, logout, savePhoto, removePhoto, saveProfile, addDemand, moveStage, moveArea, setAssignees, updateDemand, archiveDemand, restoreDemand, delDemand }}>{children}</Ctx.Provider>;
 }
 
 const useApp = () => useContext(Ctx);
@@ -1057,7 +1059,7 @@ function NavItem({ label, Icon, iconColor, count, active, onClick, indent }) {
 
 /* =========== SIDEBAR =========== */
 function Sidebar() {
-  const { view, setView, area, setArea, user, active, slack, archived, pipes, pedidos, posts, campanhas, setNewOpen, setPacoteOpen, setProfileOpen, logout, previewMember, setPreviewMember, setPreferirCentral } = useApp();
+  const { view, setView, area, setArea, user, active, slack, archived, pipes, pedidos, posts, campanhas, setNewOpen, setPacoteOpen, setProfileOpen, logout, previewMember, setPreviewMember, setPreferirCentral, setSoVencidas } = useApp();
   const areas = ['Social','Design','Mídia Paga','Produto','RevOps'];
   const efetivo = previewMember || user;
   /* Quem tem uma área fixa (todo mundo, menos a Mariana, que acompanha
@@ -1100,14 +1102,16 @@ function Sidebar() {
           <ILayers s={13}/> Criar pacote de tarefas
         </button>
         <div style={{display:'flex',gap:9}}>
-          <div style={{flex:1,background:NB.col,borderRadius:10,padding:'9px 11px'}}>
+          <button onClick={()=>{setSoVencidas(false); setView('kanban');}}
+            style={{flex:1,textAlign:'left',background:NB.col,border:'none',borderRadius:10,padding:'9px 11px',cursor:'pointer'}}>
             <div style={{fontSize:17,fontWeight:700,color:NB.txt,lineHeight:1.1}}>{escopoStats.length}</div>
             <div style={{fontSize:10.5,color:NB.mut,fontWeight:500}}>ativas</div>
-          </div>
-          <div style={{flex:1,background:vencidas?'#FEECEC':NB.col,borderRadius:10,padding:'9px 11px'}}>
+          </button>
+          <button onClick={()=>{setSoVencidas(true); setView('kanban');}}
+            style={{flex:1,textAlign:'left',background:vencidas?'#FEECEC':NB.col,border:'none',borderRadius:10,padding:'9px 11px',cursor:'pointer'}}>
             <div style={{fontSize:17,fontWeight:700,color:vencidas?'#B4232A':NB.txt,lineHeight:1.1}}>{vencidas}</div>
             <div style={{fontSize:10.5,color:vencidas?'#B4232A':NB.mut,fontWeight:500}}>vencidas</div>
-          </div>
+          </button>
         </div>
       </div>
 
@@ -1250,7 +1254,7 @@ function Sidebar() {
 
 /* =========== CABEÇALHO DO CONTEÚDO =========== */
 function ContentHeader() {
-  const { view, area, query, setQuery, layout, setLayout, priFilter, setPriFilter, reqFilter, setReqFilter, active, seed, demands } = useApp();
+  const { view, area, query, setQuery, layout, setLayout, priFilter, setPriFilter, soVencidas, setSoVencidas, reqFilter, setReqFilter, active, seed, demands } = useApp();
   const [fOpen, setFOpen] = useState(false);
 
   const titles = {
@@ -1281,6 +1285,12 @@ function ContentHeader() {
 
       {view==='kanban' && (
         <React.Fragment>
+          {soVencidas && (
+            <button onClick={()=>setSoVencidas(false)}
+              style={{display:'flex',alignItems:'center',gap:7,padding:'8px 12px',background:'#FEECEC',border:'1px solid #F5C2C2',borderRadius:9,fontSize:12.5,fontWeight:600,color:'#B4232A',whiteSpace:'nowrap'}}>
+              Só vencidas <span style={{fontSize:14,lineHeight:1}}>×</span>
+            </button>
+          )}
           <div style={{position:'relative',flex:'0 1 250px',minWidth:150}}>
             <span style={{position:'absolute',left:12,top:'50%',transform:'translateY(-50%)',color:NB.mut2,pointerEvents:'none',display:'flex'}}><ISearch s={15}/></span>
             <input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Buscar demanda..."
