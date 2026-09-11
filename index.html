@@ -3514,14 +3514,21 @@ function ApprovalCard({ demand }) {
 
 function GestaoView() {
   const { active, user, previewMember, pipes, pedidos } = useApp();
+  const AREAS_REAIS = ['Social','Design','Mídia Paga','Produto','RevOps','Eventos'];
+  const efetivo = previewMember || user;
+  const meuSetorFixo = AREAS_REAIS.includes(efetivo.area) ? efetivo.area : null;
+  const [verTudo, setVerTudo] = useState(!meuSetorFixo);
+  useEffect(() => { setVerTudo(!meuSetorFixo); }, [efetivo.id]);
+
   const novos = pedidos.filter(p => p.status === 'novo');
   const [copiado, setCopiado] = useState(false);
   const linkForm = window.location.origin + '/solicitar.html';
-  const emAprovacao = active.filter(d => {
+  const escopo = (!verTudo && meuSetorFixo) ? active.filter(d=>d.area===meuSetorFixo) : active;
+  const emAprovacao = escopo.filter(d => {
     const st = (pipes[d.area]||[]).find(s => s.id === d.stageId);
     return st && st.isApproval;
   });
-  const concluidas = active.filter(d => {
+  const concluidas = escopo.filter(d => {
     const st = (pipes[d.area]||[]).find(s => s.id === d.stageId);
     return st && st.isDone;
   });
@@ -3560,6 +3567,12 @@ function GestaoView() {
         <span style={{fontSize:13.5,color:NB.mut}}>
           {emAprovacao.length===0 ? 'nada parado' : emAprovacao.length + (emAprovacao.length===1?' demanda':' demandas')}
         </span>
+        {meuSetorFixo && (
+          <button onClick={()=>setVerTudo(v=>!v)}
+            style={{fontSize:12,fontWeight:600,color:NB.azul,background:'#EAF3FD',border:'none',borderRadius:20,padding:'5px 12px'}}>
+            {verTudo ? 'Ver só '+meuSetorFixo : 'Ver todos os setores'}
+          </button>
+        )}
         {!(previewMember ? previewMember.isApprover : user.isApprover) && (
           <span style={{fontSize:12,color:NB.mut2,background:NB.col,border:'1px solid '+NB.bd,borderRadius:8,padding:'4px 10px'}}>
             Você acompanha; quem decide é a Mariana
