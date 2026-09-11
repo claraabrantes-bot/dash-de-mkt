@@ -3886,17 +3886,36 @@ function ListRow({ demand }) {
 
 function ListView() {
   const { filtered } = useApp();
+  const [sortDir, setSortDir] = useState(null); // null | 'asc' | 'desc'
+
+  const toggleSort = () => setSortDir(d => d === 'asc' ? 'desc' : d === 'desc' ? null : 'asc');
+
+  const rows = sortDir
+    ? [...filtered].sort((a, b) => {
+        const da = a.deadline || '9999';
+        const db = b.deadline || '9999';
+        return sortDir === 'asc' ? da.localeCompare(db) : db.localeCompare(da);
+      })
+    : filtered;
+
   const th = { padding:'12px 14px', fontSize:11, fontWeight:500, color:NB.mut2, textTransform:'uppercase', letterSpacing:'0.09em', textAlign:'left', whiteSpace:'nowrap' };
+  const sortIcon = sortDir === 'asc' ? ' ↑' : sortDir === 'desc' ? ' ↓' : ' ↕';
+
   return (
     <div style={{background:'#fff',borderRadius:16,border:'1px solid '+NB.bd,overflow:'hidden',boxShadow:'0 1px 3px rgba(11,42,92,0.04)'}}>
       <table style={{width:'100%',borderCollapse:'collapse'}}>
         <thead><tr style={{background:NB.col}}>
           <th style={th}>Demanda</th><th style={th}>Área</th><th style={th}>Etapa</th>
-          <th style={th}>Prioridade</th><th style={th}>Solicitante</th><th style={th}>Prazo</th><th style={{...th,textAlign:'right'}}>Responsáveis</th>
+          <th style={th}>Prioridade</th><th style={th}>Solicitante</th>
+          <th style={{...th,cursor:'pointer',userSelect:'none',color:sortDir?NB.azul:NB.mut2,borderBottom:sortDir?'2px solid '+NB.azul:'none'}}
+              onClick={toggleSort}>
+            Prazo{sortIcon}
+          </th>
+          <th style={{...th,textAlign:'right'}}>Responsáveis</th>
         </tr></thead>
-        <tbody>{filtered.map(d=><ListRow key={d.id} demand={d}/>)}</tbody>
+        <tbody>{rows.map(d=><ListRow key={d.id} demand={d}/>)}</tbody>
       </table>
-      {filtered.length===0 && (
+      {rows.length===0 && (
         <div style={{padding:'56px 20px',textAlign:'center',color:NB.mut2,fontSize:14}}>Nenhuma demanda encontrada.</div>
       )}
     </div>
