@@ -463,7 +463,8 @@ function Provider({ children }) {
     const newStage = stages.find(s=>s.id===newStageId);
     let assignees = d.assignees || [];
     if (newStage && newStage.isApproval && !assignees.includes('MA')) assignees = [...assignees, 'MA'];
-    patch(demId, { stageId:newStageId, assignees });
+    const extra = newStage && newStage.isDone ? { completedAt: new Date().toISOString() } : {};
+    patch(demId, { stageId:newStageId, assignees, ...extra });
 
     const auto = AUTO[d.area] && AUTO[d.area][newStageId];
     let action = auto ? auto.action : '"'+d.title+'" avançou para '+(newStage?newStage.name:'nova etapa');
@@ -1104,7 +1105,11 @@ function Sidebar() {
      tudo) vê os próprios números — não os da empresa inteira. */
   const meuSetorFixo = areas.includes(efetivo.area) ? efetivo.area : null;
   const minhasAreasPrioridade = meuSetorFixo ? Array.from(new Set([meuSetorFixo, ...((efetivo.areasExtra||[]).filter(a=>areas.includes(a)))])) : areas;
-  const escopoStats = area!=='Todas' ? active.filter(d=>d.area===area) : active;
+  const escopoAtivas = active.filter(d => {
+    const st = (pipes[d.area]||[]).find(s=>s.id===d.stageId);
+    return !st || !st.isDone;
+  });
+  const escopoStats = area!=='Todas' ? escopoAtivas.filter(d=>d.area===area) : escopoAtivas;
   const vencidas = escopoStats.filter(d => { const s=getSla(d.deadline); return s && s.type!=='ok'; }).length;
   const emAprovacao = active.filter(d => {
     const st = (pipes[d.area]||[]).find(x => x.id === d.stageId);
@@ -6792,7 +6797,8 @@ function ResumoView() {
   const proxMesLabel = proxMes.toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
   const entreguesEsteMes = active.filter(d => {
     const st = (pipes[d.area]||[]).find(s=>s.id===d.stageId);
-    return st && st.isDone && (d.deadline||'').startsWith(mesAtualYM);
+    const refData = d.completedAt || d.deadline || '';
+    return st && st.isDone && refData.startsWith(mesAtualYM);
   });
   const previstasProxMes = active.filter(d => (d.deadline||'').startsWith(proxMesYM));
 
