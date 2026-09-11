@@ -3944,7 +3944,8 @@ function EditableText({ value, onSave, multiline, placeholder, required, textSty
 
   const commit = () => {
     const v = (draft || '').trim();
-    if (required && !v) { setInvalido(true); return; }   // não fecha - fica esperando um texto válido
+    const apagouTudo = (value || '').trim() && !v;   // tinha texto, ficou vazio — provável acidente
+    if ((required || apagouTudo) && !v) { setInvalido(true); return; }
     setEditing(false); setInvalido(false);
     if (v !== (value || '')) onSave(v);
   };
@@ -3964,7 +3965,7 @@ function EditableText({ value, onSave, multiline, placeholder, required, textSty
     return (
       <div>
         {multiline ? <textarea rows={rows||3} {...common}/> : <input {...common}/>}
-        {invalido && <div style={{fontSize:11,color:'#E4534A',marginTop:4}}>Precisa de um texto — ou aperta Esc pra cancelar.</div>}
+        {invalido && <div style={{fontSize:11,color:'#E4534A',marginTop:4}}>Ficou vazio — escreve algo ou aperta Esc pra descartar e voltar como estava.</div>}
       </div>
     );
   }
