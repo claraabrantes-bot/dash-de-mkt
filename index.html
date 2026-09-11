@@ -883,6 +883,31 @@ function Provider({ children }) {
   const archived = demands.filter(d => d.archivedAt)
                           .sort((a,b) => (a.archivedAt < b.archivedAt ? 1 : -1));
 
+  /* Atividades recorrentes: quando o ciclo vence, gera uma cópia nova e
+     empurra a data do próximo ciclo — sem precisar de servidor externo,
+     roda sempre que alguém tem o app aberto. A trava usa um carimbo
+     gravado no próprio documento (não só uma ref em memória), porque
+     "active" é recriado a cada render e o efeito pode rodar de novo
+     antes do Firestore confirmar a atualização da data. */
+  const gerouRecorrenciaRef = useRef(new Set());
+  useEffect(() => {
+    if (!dbReady) return;
+    const hojeStr = dStr(0);
+    const agora = Date.now();
+    active.forEach(d => {
+      if (!d.recorrente || !d.proximaRecorrencia) return;
+      if (d.proximaRecorrencia > hojeStr) return;
+      if (gerouRecorrenciaRef.current.has(d.id)) return;
+      if (d.ultimaGeracaoRecorrencia && agora - new Date(d.ultimaGeracaoRecorrencia).getTime() < 5*60*1000) return;
+      gerouRecorrenciaRef.current.add(d.id);
+      addDemand({
+        title: d.title, area: d.area, priority: d.priority, deadline: dStr(d.frequenciaDias||30),
+        description: d.description||'', requester: d.requester, assignees: d.assignees||[],
+      });
+      patch(d.id, { proximaRecorrencia: dStr(d.frequenciaDias||30), ultimaGeracaoRecorrencia: new Date().toISOString() });
+    });
+  }, [active, dbReady]);
+
   const filtered = active.filter(d => {
     if (area !== 'Todas' && d.area !== area) return false;
     if (mesFiltro!=='todos' && !(d.createdAt||'').startsWith(mesFiltro)) return false;
@@ -1499,6 +1524,7 @@ function DemandCard({ demand, colunaOrdenada }) {
       onMouseLeave={e=>{e.currentTarget.style.boxShadow='none'; e.currentTarget.style.borderColor=NB.bd; e.currentTarget.style.transform='none';}}>
 
       <p style={{fontSize:14,fontWeight:500,color:NB.txt,lineHeight:1.45,display:'-webkit-box',WebkitLineClamp:2,WebkitBoxOrient:'vertical',overflow:'hidden',marginBottom:13}}>
+        {demand.recorrente && <span title="Atividade recorrente" style={{color:NB.azul,display:'inline-flex',verticalAlign:'-2px',marginRight:5}}><IRefresh s={13}/></span>}
         {demand.title}
       </p>
 
@@ -5970,7 +5996,7 @@ function NewModal() {
   const { newOpen, setNewOpen, addDemand, user, area, pipes, presetNovo, setPresetNovo } = useApp();
   const initArea = presetNovo ? presetNovo.area : (area!=='Todas' ? area : 'Social');
   const [form, setForm] = useState({ title:'', area:initArea, priority:'Média', deadline:dStr(7), description:'', requester:user.name, assignees:[],
-    ehCampanha:false, campanhaDesconto:'', campanhaJornada:'empresa' });
+    ehCampanha:false, campanhaDesconto:'', campanhaJornada:'empresa', recorrente:false, frequenciaDias:30 });
   const [areasEspelho, setAreasEspelho] = useState([]);
   const [checklist, setChecklist] = useState([]);
   const [novoItem, setNovoItem] = useState({ titulo:'', responsavel:'' });
@@ -5978,7 +6004,7 @@ function NewModal() {
 
   useEffect(() => {
     if (newOpen) { setForm(f=>({ ...f, title:'', area: presetNovo ? presetNovo.area : (area!=='Todas'?area:'Social'), requester:user.name, assignees:[], description:'',
-      ehCampanha:false, campanhaDesconto:'', campanhaJornada:'empresa' })); setAreasEspelho([]); setChecklist([]); setAddingItem(false); }
+      ehCampanha:false, campanhaDesconto:'', campanhaJornada:'empresa', recorrente:false, frequenciaDias:30 })); setAreasEspelho([]); setChecklist([]); setAddingItem(false); }
   }, [newOpen, area, user, presetNovo]);
 
   if (!newOpen) return null;
@@ -6005,6 +6031,11 @@ function NewModal() {
         ehCampanha: a===form.area ? form.ehCampanha : false, campanhaDesconto: (a===form.area && form.ehCampanha)?form.campanhaDesconto:'', campanhaJornada: (a===form.area && form.ehCampanha)?form.campanhaJornada:'' };
       if (a===form.area && etapaPreset) dados.stageId = etapaPreset.id;
       if (a===form.area && checklist.length>0) dados.checklist = checklist;
+      if (a===form.area && form.recorrente) {
+        dados.recorrente = true;
+        dados.frequenciaDias = form.frequenciaDias;
+        dados.proximaRecorrencia = dStr(form.frequenciaDias);
+      }
       if (espelhoGrupoId) { dados.espelhoGrupoId = espelhoGrupoId; dados.espelhoAreas = todasAreas; }
       addDemand(dados);
     });
@@ -6065,6 +6096,27 @@ function NewModal() {
             <div style={lbl}>Prazo</div>
             <input type="date" value={form.deadline} onChange={e=>set('deadline',e.target.value)} style={inp}/>
           </div>
+        </div>
+
+        <div style={{background:form.recorrente?'#EAF3FD':NB.col,border:'1px solid '+(form.recorrente?NB.azul:NB.bd),borderRadius:11,padding:'14px 15px'}}>
+          <label style={{display:'flex',alignItems:'center',gap:10,cursor:'pointer'}}>
+            <input type="checkbox" checked={form.recorrente} onChange={e=>set('recorrente',e.target.checked)} style={{width:16,height:16,accentColor:NB.azul}}/>
+            <span style={{fontSize:13.5,fontWeight:500,color:NB.txt}}>Essa é uma atividade recorrente</span>
+          </label>
+          {form.recorrente && (
+            <div style={{marginTop:12}}>
+              <div style={lbl}>Repetir a cada</div>
+              <div style={{display:'flex',gap:7,marginTop:6}}>
+                {[{d:7,l:'Semanal'},{d:15,l:'Quinzenal'},{d:30,l:'Mensal'}].map(o=>(
+                  <button key={o.d} type="button" onClick={()=>set('frequenciaDias',o.d)}
+                    style={{padding:'6px 14px',borderRadius:20,border:'1px solid '+(form.frequenciaDias===o.d?NB.azul:NB.bd),background:'#fff',fontSize:12.5,fontWeight:500,color:form.frequenciaDias===o.d?NB.azul:NB.mut}}>
+                    {o.l}
+                  </button>
+                ))}
+              </div>
+              <p style={{fontSize:11.5,color:NB.mut2,marginTop:9}}>Quando essa demanda vencer, uma nova cópia é criada automaticamente pra continuar o ciclo.</p>
+            </div>
+          )}
         </div>
 
         <div>
