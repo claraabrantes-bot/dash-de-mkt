@@ -6701,6 +6701,10 @@ function ResumoView() {
     );
   }
 
+  const [filtroArea, setFiltroArea] = useState('todos');
+  const [filtroResp, setFiltroResp] = useState('todos');
+  const [filtroStatus, setFiltroStatus] = useState('todos');
+
   const escopo = mesFiltro==='todos' ? active : active.filter(d=>(d.createdAt||'').startsWith(mesFiltro));
   const porArea = {};
   const porResponsavel = {};
@@ -6725,11 +6729,35 @@ function ResumoView() {
     else if (st && st.isDone) concluidasN++;
     else andamentoN++;
   });
+  const pctConcluido = escopo.length ? Math.round(concluidasN/escopo.length*100) : 0;
+
+  /* Automático, sempre olhando o mês-calendário de verdade — não depende do filtro de mês
+     escolhido acima, já que é "o que já foi entregue" e "o que vem por aí" de fato. */
+  const hoje = new Date();
+  const mesAtualYM = hoje.toISOString().slice(0,7);
+  const proxMes = new Date(hoje.getFullYear(), hoje.getMonth()+1, 1);
+  const proxMesYM = proxMes.toISOString().slice(0,7);
+  const proxMesLabel = proxMes.toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+  const entreguesEsteMes = active.filter(d => {
+    const st = (pipes[d.area]||[]).find(s=>s.id===d.stageId);
+    return st && st.isDone && (d.deadline||'').startsWith(mesAtualYM);
+  });
+  const previstasProxMes = active.filter(d => (d.deadline||'').startsWith(proxMesYM));
 
   const campanhasNoMes = (campanhas||[]).filter(c => mesFiltro==='todos' || (c.criadaEm||'').startsWith(mesFiltro));
   const campanhasPublicadas = campanhasNoMes.filter(c=>c.status==='publicada').length;
 
-  const tabela = [...escopo].sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||''));
+  const tabela = escopo.filter(d => {
+    if (filtroArea!=='todos' && d.area!==filtroArea) return false;
+    if (filtroResp!=='todos' && !(d.assignees||[]).includes(filtroResp)) return false;
+    if (filtroStatus!=='todos') {
+      const st = (pipes[d.area]||[]).find(s=>s.id===d.stageId);
+      const s = getSla(d.deadline);
+      const status = st && st.isDone ? 'concluida' : st && st.isApproval ? 'aprovacao' : (s&&s.type!=='ok') ? 'vencida' : 'andamento';
+      if (status !== filtroStatus) return false;
+    }
+    return true;
+  }).sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||''));
 
   return (
     <div style={{padding:'22px 30px 30px',overflowY:'auto',height:'100%'}}>
@@ -6766,6 +6794,19 @@ function ResumoView() {
         <div style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:14,padding:'16px 18px'}}>
           <div style={{fontSize:24,fontWeight:700,color:NB.txt}}>{campanhasPublicadas}</div>
           <div style={{fontSize:12,color:NB.mut}}>campanhas publicadas</div>
+        </div>
+      </div>
+
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14,marginBottom:26,maxWidth:1020}}>
+        <div style={{background:'#E1F5EE',border:'1px solid #A7E8CC',borderRadius:14,padding:'16px 18px'}}>
+          <div style={{fontSize:11.5,fontWeight:600,color:'#0F6E56',textTransform:'uppercase',letterSpacing:'0.04em',marginBottom:6}}>Entregue este mês (automático)</div>
+          <div style={{fontSize:24,fontWeight:700,color:'#0F6E56'}}>{entreguesEsteMes.length}</div>
+          <div style={{fontSize:12,color:'#0F6E56'}}>demanda(s) concluída(s) com prazo em {hoje.toLocaleDateString('pt-BR',{month:'long'})}</div>
+        </div>
+        <div style={{background:'#FFF6DE',border:'1px solid #F3D98A',borderRadius:14,padding:'16px 18px'}}>
+          <div style={{fontSize:11.5,fontWeight:600,color:'#8A6206',textTransform:'uppercase',letterSpacing:'0.04em',marginBottom:6}}>Previsto pro mês que vem (automático)</div>
+          <div style={{fontSize:24,fontWeight:700,color:'#8A6206'}}>{previstasProxMes.length}</div>
+          <div style={{fontSize:12,color:'#8A6206'}}>demanda(s) com prazo em {proxMesLabel}</div>
         </div>
       </div>
 
@@ -6821,6 +6862,33 @@ function ResumoView() {
       <div style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:14,padding:'18px 20px',maxWidth:1020}}>
         <h3 style={{fontSize:14,fontWeight:600,color:NB.txt,marginBottom:4}}>Demandas do período ({tabela.length})</h3>
         <p style={{fontSize:12,color:NB.mut2,marginBottom:14}}>Só as demandas principais (sem contar subtarefas de checklist) — clica em qualquer linha pra abrir o card. Pra puxar direto na reunião de update.</p>
+
+        <div style={{display:'flex',gap:9,flexWrap:'wrap',marginBottom:16}}>
+          <select value={filtroArea} onChange={e=>setFiltroArea(e.target.value)}
+            style={{background:filtroArea!=='todos'?'#EAF3FD':'#fff',border:'1px solid '+(filtroArea!=='todos'?NB.azul:NB.bd),borderRadius:9,padding:'7px 11px',fontSize:12.5,color:filtroArea!=='todos'?NB.azul:NB.txt,outline:'none'}}>
+            <option value="todos">Todas as áreas</option>
+            {AREAS_REAIS.map(a=><option key={a} value={a}>{a}</option>)}
+          </select>
+          <select value={filtroResp} onChange={e=>setFiltroResp(e.target.value)}
+            style={{background:filtroResp!=='todos'?'#EAF3FD':'#fff',border:'1px solid '+(filtroResp!=='todos'?NB.azul:NB.bd),borderRadius:9,padding:'7px 11px',fontSize:12.5,color:filtroResp!=='todos'?NB.azul:NB.txt,outline:'none'}}>
+            <option value="todos">Todos os responsáveis</option>
+            {ACTIVE_TEAM.map(m=><option key={m.id} value={m.initials}>{m.name}</option>)}
+          </select>
+          <select value={filtroStatus} onChange={e=>setFiltroStatus(e.target.value)}
+            style={{background:filtroStatus!=='todos'?'#EAF3FD':'#fff',border:'1px solid '+(filtroStatus!=='todos'?NB.azul:NB.bd),borderRadius:9,padding:'7px 11px',fontSize:12.5,color:filtroStatus!=='todos'?NB.azul:NB.txt,outline:'none'}}>
+            <option value="todos">Todos os status</option>
+            <option value="andamento">Em andamento</option>
+            <option value="aprovacao">Em aprovação</option>
+            <option value="concluida">Concluída</option>
+            <option value="vencida">Vencida</option>
+          </select>
+          {(filtroArea!=='todos'||filtroResp!=='todos'||filtroStatus!=='todos') && (
+            <button onClick={()=>{setFiltroArea('todos'); setFiltroResp('todos'); setFiltroStatus('todos');}}
+              style={{fontSize:12.5,color:NB.mut,background:'none',border:'none',fontWeight:500}}>
+              Limpar filtros
+            </button>
+          )}
+        </div>
         {tabela.length===0 ? <p style={{fontSize:12.5,color:NB.mut2}}>Nada nesse período.</p> : (
           <div style={{overflowX:'auto'}}>
             <table style={{width:'100%',borderCollapse:'collapse',fontSize:12.5}}>
