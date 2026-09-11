@@ -74,6 +74,7 @@ const DEFAULT_PIPELINES = {
   'Mídia Paga':[{ id:'mid-1', name:'Solicitado' },{ id:'mid-2', name:'Configuração' },{ id:'mid-3', name:'Em Veiculação' },{ id:'mid-4', name:'Aprovação', isApproval:true },{ id:'mid-5', name:'Encerrado', isDone:true }],
   Produto:     [{ id:'pro-1', name:'Solicitado' },{ id:'pro-2', name:'Em Análise' },{ id:'pro-3', name:'Desenvolvimento' },{ id:'pro-4', name:'Homologação', isApproval:true },{ id:'pro-5', name:'Entregue', isDone:true }],
   RevOps:      [{ id:'rev-1', name:'Solicitado' },{ id:'rev-2', name:'Em Análise' },{ id:'rev-3', name:'Implementação' },{ id:'rev-4', name:'Validação', isApproval:true },{ id:'rev-5', name:'Produção', isDone:true }],
+  Eventos:     [{ id:'evt-1', name:'Solicitado' },{ id:'evt-2', name:'Planejamento' },{ id:'evt-3', name:'Execução' },{ id:'evt-4', name:'Aprovação', isApproval:true },{ id:'evt-5', name:'Realizado', isDone:true }],
 };
 
 const AUTO = {
@@ -119,7 +120,7 @@ const NB = {
   navy1:'#0B2A5C', navy2:'#071E45',
 };
 
-const AREA_CLR = { Social:NB.azul, Design:NB.roxo, 'Mídia Paga':NB.pink, Produto:NB.azulClaro, RevOps:NB.petroleo };
+const AREA_CLR = { Social:NB.azul, Design:NB.roxo, 'Mídia Paga':NB.pink, Produto:NB.azulClaro, RevOps:NB.petroleo, Eventos:'#B8860B' };
 
 const PRI_STL = {
   Urgente:{ bg:'#FFF3C4', txt:'#7A5C00', bdr:NB.amarelo },
@@ -911,6 +912,7 @@ const sw = { fill:'none', stroke:'currentColor', strokeWidth:1.8, strokeLinecap:
 
 const ILayers = ({s=18})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>;
 const IChat   = ({s=18})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8z"/></svg>;
+const ICalendar = ({s=18})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>;
 const IBrush  = ({s=18})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}><path d="M9.06 11.9l8.07-8.06a2.85 2.85 0 1 1 4.03 4.03l-8.06 8.08"/><path d="M7.07 14.94c-1.66 0-3 1.35-3 3.02 0 1.33-2.5 1.52-2 2.02 1.08 1.1 2.49 2.02 4 2.02 2.2 0 4-1.8 4-4.04a3.01 3.01 0 0 0-3-3.02z"/></svg>;
 const ITarget = ({s=18})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.4"/></svg>;
 const IBox    = ({s=18})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.3 7 12 12 20.7 7"/><line x1="12" y1="22" x2="12" y2="12"/></svg>;
@@ -979,7 +981,7 @@ const IArrowR  = ({s=14})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}
 const IArrowL  = ({s=14})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}><line x1="20" y1="12" x2="5" y2="12"/><polyline points="11 6 5 12 11 18"/></svg>;
 const IGoogle = ({size=20})=><svg width={size} height={size} viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>;
 
-const AREA_ICON = { Todas:ILayers, Social:IChat, Design:IBrush, 'Mídia Paga':ITarget, Produto:IBox, RevOps:ITrend };
+const AREA_ICON = { Todas:ILayers, Social:IChat, Design:IBrush, 'Mídia Paga':ITarget, Produto:IBox, RevOps:ITrend, Eventos:ICalendar };
 
 /* =========== MARCA =========== */
 /* Símbolo Nibo em SVG — vetorial, nítido em qualquer tamanho e recolorível. */
@@ -1059,7 +1061,7 @@ function NavItem({ label, Icon, iconColor, count, active, onClick, indent }) {
 function Sidebar() {
   const { view, setView, area, setArea, user, active, slack, archived, pipes, pedidos, posts, campanhas, setNewOpen, setPacoteOpen, setProfileOpen, logout, previewMember, setPreviewMember, setPreferirCentral, setModal } = useApp();
   const [popStats, setPopStats] = useState(null); // null | 'ativas' | 'vencidas'
-  const areas = ['Social','Design','Mídia Paga','Produto','RevOps'];
+  const areas = ['Social','Design','Mídia Paga','Produto','RevOps','Eventos'];
   const efetivo = previewMember || user;
   /* Quem tem uma área fixa (todo mundo, menos a Mariana, que acompanha
      tudo) vê os próprios números — não os da empresa inteira. */
@@ -5701,7 +5703,7 @@ function PacoteEditModal({ id, pacote, onClose, onSaved }) {
             <div>
               <div style={{...lbl,marginBottom:6}}>Área</div>
               <select value={form.area} onChange={e=>set('area',e.target.value)} style={{...inp,padding:'7px 9px',fontSize:12,background:'#fff'}}>
-                {['Social','Design','Mídia Paga','Produto','RevOps'].map(a=><option key={a}>{a}</option>)}
+                {['Social','Design','Mídia Paga','Produto','RevOps','Eventos'].map(a=><option key={a}>{a}</option>)}
               </select>
             </div>
             <div>
