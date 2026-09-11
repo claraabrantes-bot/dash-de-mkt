@@ -1059,7 +1059,12 @@ function NavItem({ label, Icon, iconColor, count, active, onClick, indent }) {
 function Sidebar() {
   const { view, setView, area, setArea, user, active, slack, archived, pipes, pedidos, posts, campanhas, setNewOpen, setPacoteOpen, setProfileOpen, logout, previewMember, setPreviewMember, setPreferirCentral } = useApp();
   const areas = ['Social','Design','Mídia Paga','Produto','RevOps'];
-  const vencidas = active.filter(d => { const s=getSla(d.deadline); return s && s.type!=='ok'; }).length;
+  const efetivo = previewMember || user;
+  /* Quem tem uma área fixa (todo mundo, menos a Mariana, que acompanha
+     tudo) vê os próprios números — não os da empresa inteira. */
+  const meuSetorFixo = areas.includes(efetivo.area) ? efetivo.area : null;
+  const escopoStats = meuSetorFixo ? active.filter(d=>d.area===meuSetorFixo) : active;
+  const vencidas = escopoStats.filter(d => { const s=getSla(d.deadline); return s && s.type!=='ok'; }).length;
   const emAprovacao = active.filter(d => {
     const st = (pipes[d.area]||[]).find(x => x.id === d.stageId);
     return st && st.isApproval;
@@ -1096,7 +1101,7 @@ function Sidebar() {
         </button>
         <div style={{display:'flex',gap:9}}>
           <div style={{flex:1,background:NB.col,borderRadius:10,padding:'9px 11px'}}>
-            <div style={{fontSize:17,fontWeight:700,color:NB.txt,lineHeight:1.1}}>{active.length}</div>
+            <div style={{fontSize:17,fontWeight:700,color:NB.txt,lineHeight:1.1}}>{escopoStats.length}</div>
             <div style={{fontSize:10.5,color:NB.mut,fontWeight:500}}>ativas</div>
           </div>
           <div style={{flex:1,background:vencidas?'#FEECEC':NB.col,borderRadius:10,padding:'9px 11px'}}>
@@ -1109,9 +1114,23 @@ function Sidebar() {
       <div style={{flex:1,overflowY:'auto',padding:'18px 12px'}} className="nb-scrollnone">
         <div style={secLbl}>Pipelines</div>
         <div style={{display:'flex',flexDirection:'column',gap:2,marginBottom:20}}>
-          <NavItem label="Todas" Icon={AREA_ICON.Todas} iconColor={NB.mut}
-            count={active.length} active={area==='Todas'&&view==='kanban'}
-            onClick={()=>{setArea('Todas'); setView('kanban');}}/>
+          {meuSetorFixo ? (
+            area==='Todas' && view==='kanban' ? (
+              <button onClick={()=>{setArea(meuSetorFixo); setView('kanban');}}
+                style={{display:'flex',alignItems:'center',gap:7,padding:'6px 12px 10px',background:'none',border:'none',fontSize:11.5,color:NB.azul,fontWeight:600,textAlign:'left'}}>
+                <IArrowL s={11}/> Voltar pro meu setor
+              </button>
+            ) : (
+              <button onClick={()=>{setArea('Todas'); setView('kanban');}}
+                style={{display:'flex',alignItems:'center',gap:7,padding:'6px 12px 10px',background:'none',border:'none',fontSize:11.5,color:NB.mut2,fontWeight:500,textAlign:'left'}}>
+                <IFunnel s={11}/> Ver todas as áreas ({active.length})
+              </button>
+            )
+          ) : (
+            <NavItem label="Todas" Icon={AREA_ICON.Todas} iconColor={NB.mut}
+              count={active.length} active={area==='Todas'&&view==='kanban'}
+              onClick={()=>{setArea('Todas'); setView('kanban');}}/>
+          )}
           {areas.map(a=>(
             <React.Fragment key={a}>
               <NavItem label={a} Icon={AREA_ICON[a]} iconColor={AREA_CLR[a]}
