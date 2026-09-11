@@ -236,12 +236,31 @@ function Provider({ children }) {
          Central de Informações (decidido lá embaixo em AppContent). */
       setAuthError('');
       const found = ACTIVE_TEAM.find(m => m.email === mail);
-      if (found && u.photoURL) setGooglePhotos(p => p[found.id]===u.photoURL ? p : {...p, [found.id]:u.photoURL});
+      if (found && u.photoURL) {
+        setGooglePhotos(p => p[found.id]===u.photoURL ? p : {...p, [found.id]:u.photoURL});
+        try { firebase.firestore().collection('fotosTime').doc(found.id).set({ photoURL: u.photoURL }, { merge:true }).catch(()=>{}); } catch(e){}
+      }
       setFbUser({ email: mail, photoURL: u.photoURL || null, displayName: u.displayName || '' });
       setAuthReady(true);
     });
     return unsub;
   }, []);
+
+  /* Fotos do Google de todo o time, compartilhadas via Firestore — antes
+     cada foto só existia no localStorage de quem tinha logado com ela. */
+  useEffect(() => {
+    if (!fbUser) return;
+    let db;
+    try { db = firebase.firestore(); } catch (e) { return; }
+    const un = db.collection('fotosTime').onSnapshot(snap => {
+      setGooglePhotos(prev => {
+        const novo = { ...prev };
+        snap.docs.forEach(d => { const v=d.data(); if (v && v.photoURL) novo[d.id] = v.photoURL; });
+        return novo;
+      });
+    }, () => {});
+    return () => un();
+  }, [fbUser]);
 
   const baseUser = fbUser ? ACTIVE_TEAM.find(m => m.email === fbUser.email) : null;
   const isTeamMember = !!baseUser;
@@ -1433,12 +1452,12 @@ function DemandCard({ demand }) {
 /* Etapas são editáveis por pipeline, então a cor/ícone nunca depende do
    nome — só da posição e das flags isApproval/isDone, que são estáveis. */
 const STAGE_CYCLE = [
-  { bg:'#EAF3FD', head:'#DCEAFB', bd:'#BFDDF7', ic:NB.azul,  Icon: IFile  },
-  { bg:'#F1ECFE', head:'#E7DFFC', bd:'#DDD0FB', ic:NB.roxo,  Icon: IPen   },
-  { bg:'#FFEAF6', head:'#FDDCEF', bd:'#FAC7E3', ic:NB.pink,  Icon: IBrush },
+  { bg:'#F4F9FE', head:'#EEF5FD', bd:'#D6E8FA', ic:NB.azul,  Icon: IFile  },
+  { bg:'#F8F5FE', head:'#F1ECFE', bd:'#E9E0FC', ic:NB.roxo,  Icon: IPen   },
+  { bg:'#FFF5FA', head:'#FEEDF6', bd:'#FCDCED', ic:NB.pink,  Icon: IBrush },
 ];
-const STAGE_APPROVAL = { bg:'#FFF6DE', head:'#FBEFC7', bd:'#F3D98A', ic:'#8A6206', Icon: ICheck };
-const STAGE_DONE     = { bg:'#ECFDF5', head:'#D8F5E6', bd:'#A7E8CC', ic:'#0F6E56', Icon: IRocket };
+const STAGE_APPROVAL = { bg:'#FFFBEF', head:'#FDF6DC', bd:'#F7E5AC', ic:'#8A6206', Icon: ICheck };
+const STAGE_DONE     = { bg:'#F5FEFA', head:'#E9FAF0', bd:'#C3EFDC', ic:'#0F6E56', Icon: IRocket };
 
 function stageVisuals(stages) {
   let regular = 0;
@@ -2522,11 +2541,21 @@ function EmbaixadorModal({ onClose }) {
   const [portal, setPortal] = useState({ email:'', senha:'', contratoUrl:'', lpUrl:'' });
   const [materiais, setMateriais] = useState([]);
   const [novoMaterial, setNovoMaterial] = useState({ nome:'', url:'' });
+  const [guias, setGuias] = useState([]);
+  const [novoGuia, setNovoGuia] = useState({ nome:'', url:'', descricao:'' });
   const [err, setErr] = useState('');
   const [salvando, setSalvando] = useState(false);
   const [removendoFundo, setRemovendoFundo] = useState(false);
   const set=(k,v)=>{setF(x=>({...x,[k]:v})); setErr('');};
   const setP=(k,v)=>{setPortal(x=>({...x,[k]:v})); setErr('');};
+  const adicionarGuia = () => {
+    if (!novoGuia.nome.trim() || !novoGuia.url.trim()) return setErr('Preencha nome e link do guia.');
+    let url = novoGuia.url.trim();
+    if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+    setGuias(g => [...g, { nome: novoGuia.nome.trim(), url, descricao: novoGuia.descricao.trim() }]);
+    setNovoGuia({ nome:'', url:'', descricao:'' }); setErr('');
+  };
+  const removerGuia = i => setGuias(g => g.filter((_,ix)=>ix!==i));
 
   const escolherFoto = async e => {
     const file = e.target.files && e.target.files[0];
@@ -2691,6 +2720,32 @@ function EmbaixadorModal({ onClose }) {
                   <input value={novoMaterial.nome} onChange={e=>{setNovoMaterial(v=>({...v,nome:e.target.value})); setErr('');}} placeholder="Nome" style={{...inp,padding:'7px 10px',fontSize:12,flex:1,background:'#fff'}}/>
                   <input value={novoMaterial.url} onChange={e=>{setNovoMaterial(v=>({...v,url:e.target.value})); setErr('');}} placeholder="Link" style={{...inp,padding:'7px 10px',fontSize:12,flex:1,background:'#fff'}}/>
                   <button type="button" onClick={adicionarMaterial} style={{padding:'7px 12px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:8,fontSize:11.5,fontWeight:500,color:NB.pink,flexShrink:0}}>+</button>
+                </div>
+              </div>
+
+              <div>
+                <div style={{fontSize:11,fontWeight:600,color:NB.mut,marginBottom:7,textTransform:'uppercase',letterSpacing:'0.05em'}}>Guias e materiais de apoio</div>
+                <p style={{fontSize:11,color:NB.mut2,marginBottom:8}}>O primeiro da lista aparece em destaque pra ela.</p>
+                {guias.length>0 && (
+                  <div style={{display:'flex',flexDirection:'column',gap:6,marginBottom:9}}>
+                    {guias.map((g,i)=>(
+                      <div key={i} style={{display:'flex',alignItems:'center',gap:8,background:'#fff',border:'1px solid '+NB.bd,borderRadius:8,padding:'6px 10px'}}>
+                        {i===0 && <span style={{fontSize:10,fontWeight:700,color:NB.pink}}>DESTAQUE</span>}
+                        <span style={{fontSize:12.5,color:NB.txt,flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{g.nome}</span>
+                        <button type="button" onClick={()=>removerGuia(i)} style={{fontSize:11,color:'#B4232A',background:'none',border:'none'}}>Remover</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div style={{display:'flex',flexDirection:'column',gap:7}}>
+                  <div style={{display:'flex',gap:7}}>
+                    <input value={novoGuia.nome} onChange={e=>{setNovoGuia(v=>({...v,nome:e.target.value})); setErr('');}} placeholder="Nome" style={{...inp,padding:'7px 10px',fontSize:12,flex:1,background:'#fff'}}/>
+                    <input value={novoGuia.url} onChange={e=>{setNovoGuia(v=>({...v,url:e.target.value})); setErr('');}} placeholder="Link" style={{...inp,padding:'7px 10px',fontSize:12,flex:1,background:'#fff'}}/>
+                  </div>
+                  <div style={{display:'flex',gap:7}}>
+                    <input value={novoGuia.descricao} onChange={e=>{setNovoGuia(v=>({...v,descricao:e.target.value})); setErr('');}} placeholder="Descrição (opcional, só o destaque usa)" style={{...inp,padding:'7px 10px',fontSize:12,flex:1,background:'#fff'}}/>
+                    <button type="button" onClick={adicionarGuia} style={{padding:'7px 12px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:8,fontSize:11.5,fontWeight:500,color:NB.pink,flexShrink:0}}>+</button>
+                  </div>
                 </div>
               </div>
               <p style={{fontSize:11.5,color:NB.mut2,lineHeight:1.5,margin:0}}>Exige que o login por e-mail/senha esteja habilitado no Firebase (Authentication → Sign-in method).</p>
@@ -5881,6 +5936,23 @@ function EmbaixadorPortalConteudo({ p }) {
 
   return (
     <div style={{display:'flex',flexDirection:'column',gap:28}}>
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}}>
+        <div style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:16,padding:'18px 20px',display:'flex',alignItems:'center',gap:14}}>
+          <div style={{width:38,height:38,borderRadius:10,background:NB.navy1,color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+            <IStamp s={16}/>
+          </div>
+          <div>
+            <div style={{fontSize:20,fontWeight:700,color:NB.txt,lineHeight:1.1}}>0</div>
+            <div style={{fontSize:12,color:NB.mut}}>indicações validadas este mês</div>
+          </div>
+        </div>
+        <div style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:16,padding:'18px 20px'}}>
+          <div style={{fontSize:11.5,color:NB.pink,fontWeight:600,marginBottom:4}}>Faltam para o próximo prêmio</div>
+          <div style={{fontSize:16,fontWeight:700,color:NB.txt}}>—</div>
+          <p style={{fontSize:11.5,color:NB.mut2,marginTop:2}}>Em breve por aqui.</p>
+        </div>
+      </div>
+
       <div>
         <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:16}}>
           <div>
@@ -5911,6 +5983,43 @@ function EmbaixadorPortalConteudo({ p }) {
           </div>
         )}
       </div>
+
+      {(p.guias||[]).length>0 && (
+        <div>
+          <h2 style={{fontSize:19,fontWeight:600,color:NB.txt,marginBottom:4}}>Guias e materiais de apoio</h2>
+          <p style={{fontSize:13.5,color:NB.mut,marginBottom:16}}>Passo a passo pra gravar conteúdos e indicar com mais naturalidade.</p>
+          <div style={{display:'grid',gridTemplateColumns:'1.4fr 1fr',gap:14,alignItems:'stretch'}}>
+            <a href={p.guias[0].url} target="_blank" rel="noopener noreferrer"
+              style={{display:'flex',gap:16,background:'#fff',border:'1px solid '+NB.bd,borderRadius:16,padding:'16px',textDecoration:'none'}}>
+              <div style={{width:110,aspectRatio:'3/4',borderRadius:12,background:'linear-gradient(160deg,'+NB.navy1+','+NB.azul+')',flexShrink:0,position:'relative',display:'flex',alignItems:'center',justifyContent:'center'}}>
+                <span style={{color:'rgba(255,255,255,0.9)',fontSize:11,fontWeight:600,textAlign:'center',padding:'0 8px',lineHeight:1.4}}>{p.guias[0].nome}</span>
+                <span style={{position:'absolute',bottom:-8,right:-8,width:28,height:28,borderRadius:'50%',background:NB.pink,color:'#fff',display:'flex',alignItems:'center',justifyContent:'center'}}>
+                  <IDown s={12}/>
+                </span>
+              </div>
+              <div style={{minWidth:0,display:'flex',flexDirection:'column',justifyContent:'center'}}>
+                <div style={{fontSize:14.5,fontWeight:600,color:NB.txt,marginBottom:6}}>{p.guias[0].nome}</div>
+                {p.guias[0].descricao && <p style={{fontSize:12.5,color:NB.mut,lineHeight:1.5,marginBottom:8}}>{p.guias[0].descricao}</p>}
+                <div style={{display:'flex',alignItems:'center',gap:6,fontSize:12,fontWeight:600,color:NB.azul}}>Baixar arquivo <IDown s={11}/></div>
+              </div>
+            </a>
+            <div style={{display:'flex',flexDirection:'column',gap:12}}>
+              {p.guias.slice(1).map((g,i)=>(
+                <a key={i} href={g.url} target="_blank" rel="noopener noreferrer"
+                  style={{display:'flex',gap:12,alignItems:'center',background:'#fff',border:'1px solid '+NB.bd,borderRadius:14,padding:'14px 16px',textDecoration:'none',flex:1}}>
+                  <div style={{width:36,height:36,borderRadius:10,background:NB.navy1,color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                    <IFile s={14}/>
+                  </div>
+                  <div style={{minWidth:0}}>
+                    <div style={{fontSize:13,fontWeight:600,color:NB.txt,marginBottom:3,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{g.nome}</div>
+                    <div style={{display:'flex',alignItems:'center',gap:5,fontSize:11.5,fontWeight:600,color:NB.azul}}>Baixar arquivo <IDown s={10}/></div>
+                  </div>
+                </a>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       <div>
         <h2 style={{fontSize:19,fontWeight:600,color:NB.txt,marginBottom:4}}>Seus dados contratuais</h2>
