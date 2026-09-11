@@ -1320,7 +1320,8 @@ function ContentHeader() {
 
   const togglePri = p => setPriFilter(v => v.includes(p) ? v.filter(x=>x!==p) : [...v,p]);
   const toggleReq = n => setReqFilter(v => v.includes(n) ? v.filter(x=>x!==n) : [...v,n]);
-  const solicitantes = Array.from(new Set(active.map(d=>d.requester).filter(Boolean))).sort();
+  const escopoFiltro = area!=='Todas' ? active.filter(d=>d.area===area) : active;
+  const solicitantes = Array.from(new Set(escopoFiltro.map(d=>d.requester).filter(Boolean))).sort();
   const nFiltros = priFilter.length + reqFilter.length;
 
   return (
@@ -5291,7 +5292,8 @@ function CardModal() {
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:13,marginBottom:22}}>
           <div style={{background:NB.col,borderRadius:11,padding:'13px 15px'}}>
             <div style={lbl}>Solicitante</div>
-            <div style={{fontSize:14.5,color:NB.txt,fontWeight:500}}>{d.requester}</div>
+            <EditableText value={d.requester} required onSave={v=>updateDemand(d.id,{requester:v})}
+              textStyle={{fontSize:14.5,color:NB.txt,fontWeight:500}}/>
           </div>
           <div style={{background:NB.col,borderRadius:11,padding:'13px 15px'}}>
             <div style={lbl}>Prazo</div>
@@ -5648,7 +5650,7 @@ function AssigneePick({ member, checked, onToggle }) {
 
 /* =========== PACOTE DE TAREFAS =========== */
 function PacoteModal() {
-  const { pacoteOpen, setPacoteOpen, addDemand, pacotes } = useApp();
+  const { pacoteOpen, setPacoteOpen, addDemand, pacotes, user } = useApp();
   const [pacoteId, setPacoteId] = useState('webinar');
   const [tema, setTema] = useState('');
   const [dataBase, setDataBase] = useState(dStr(20));
@@ -5690,8 +5692,9 @@ function PacoteModal() {
     }));
     addDemand({
       title: resolverTitulo(pacote.tituloPrincipal, tema.trim()),
-      area: pacote.area, priority: pacote.priority, deadline: dataBase, description: pacote.descricao||'',
-      requester: 'Pacote: '+pacote.nome, assignees: [pacote.responsavelPrincipal],
+      area: pacote.area, priority: pacote.priority, deadline: dataBase,
+      description: (pacote.descricao||'') + (pacote.descricao ? '\n\n' : '') + 'Criada a partir do pacote "'+pacote.nome+'".',
+      requester: user.name, assignees: [pacote.responsavelPrincipal],
       subtarefas,
     });
     setTimeout(() => { setCriando(false); setPacoteOpen(false); }, 700);
