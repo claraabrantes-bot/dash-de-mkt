@@ -2214,8 +2214,12 @@ function CampanhasBuscaTab({ onIrPara }) {
               )}
             </div>
             <div style={{padding:'1.5px',borderRadius:25.5,background:'linear-gradient(135deg, #2C7BE5 0%, #0A1B3D 100%)',boxShadow:'0 30px 60px rgba(0,0,0,0.35)'}}>
-              <div style={{aspectRatio:'16/11',borderRadius:24,position:'relative',overflow:'hidden',background:'linear-gradient(135deg,'+NB.azul+','+NB.azulClaro+')'}}>
-                <div style={{position:'absolute',inset:0,opacity:0.5,background:'radial-gradient(circle at 75% 20%, rgba(255,255,255,0.5), transparent 55%)'}}/>
+              <div style={{aspectRatio:'16/11',borderRadius:24,position:'relative',overflow:'hidden',background: destaque.foto ? '#000' : 'linear-gradient(135deg,'+NB.azul+','+NB.azulClaro+')'}}>
+                {destaque.foto ? (
+                  <img src={destaque.foto} alt="" style={{position:'absolute',inset:0,width:'100%',height:'100%',objectFit:'cover'}}/>
+                ) : (
+                  <div style={{position:'absolute',inset:0,opacity:0.5,background:'radial-gradient(circle at 75% 20%, rgba(255,255,255,0.5), transparent 55%)'}}/>
+                )}
                 <div style={{position:'absolute',bottom:0,left:0,right:0,padding:'22px 24px',background:'linear-gradient(0deg, rgba(0,0,0,0.55), transparent)'}}>
                   {jornadaDestaque && <div style={{fontSize:12,color:'#E8ECF7',opacity:0.85}}>{jornadaDestaque.emoji} Pra {jornadaDestaque.label.toLowerCase()}</div>}
                   <div style={{fontSize:18,fontWeight:600,color:'#fff',marginTop:4}}>{destaque.titulo}</div>
