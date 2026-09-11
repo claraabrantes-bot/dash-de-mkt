@@ -5985,7 +5985,7 @@ function NewModal() {
           <h2 style={{fontSize:20,fontWeight:600,color:NB.txt,marginBottom:5,letterSpacing:'-0.01em'}}>Nova demanda</h2>
           <p style={{fontSize:13.5,color:NB.mut}}>
             {etapaPreset ? <React.Fragment>Vai entrar direto em <b style={{color:NB.txt}}>{etapaPreset.name}</b>, dentro de {form.area}.</React.Fragment>
-              : 'A demanda será solicitada no Slack para quem você escolher.'}
+              : 'Cria a demanda no pipeline e avisa quem você escolher no Slack.'}
           </p>
         </div>
         <button onClick={()=>{setNewOpen(false); setPresetNovo(null);}} style={{padding:8,background:'#fff',border:'1px solid '+NB.bd,borderRadius:9,color:NB.mut,display:'flex',flexShrink:0}}><IX/></button>
@@ -6086,7 +6086,7 @@ function NewModal() {
         </button>
         <button onClick={submit} disabled={!valid}
           style={{padding:'11px 24px',background:valid?NB.azul:'#CFD8E6',border:'none',borderRadius:9,fontSize:13,fontWeight:500,color:'#fff',cursor:valid?'pointer':'not-allowed'}}>
-          Solicitar no Slack
+          Salvar tarefa
         </button>
       </div>
     </Modal>
