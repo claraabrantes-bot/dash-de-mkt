@@ -6012,7 +6012,7 @@ function NewModal() {
               <AssigneePick key={m.id} member={m} checked={form.assignees.includes(m.initials)} onToggle={()=>toggleAssignee(m.initials)}/>
             ))}
           </div>
-          {form.assignees.length===0 && <p style={{fontSize:12.5,color:NB.mut2,marginTop:8}}>Escolha ao menos uma pessoa para receber a demanda.</p>}
+          {form.assignees.length===0 && <p style={{fontSize:12.5,color:'#B4232A',marginTop:8,fontWeight:500}}>⚠ Escolha ao menos uma pessoa para receber a demanda — o botão só libera depois disso.</p>}
         </div>
 
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:13}}>
@@ -6079,12 +6079,17 @@ function NewModal() {
         </div>
       </div>
 
-      <div style={{padding:'16px 28px',borderTop:'1px solid '+NB.bdSoft,display:'flex',justifyContent:'flex-end',gap:10}}>
+      <div style={{padding:'16px 28px',borderTop:'1px solid '+NB.bdSoft,display:'flex',alignItems:'center',justifyContent:'flex-end',gap:14}}>
+        {!valid && (
+          <span style={{fontSize:12,color:'#B4232A',flex:1}}>
+            {!form.title.trim() ? 'Falta escrever o título.' : 'Falta escolher pelo menos um responsável.'}
+          </span>
+        )}
         <button onClick={()=>setNewOpen(false)}
           style={{padding:'11px 18px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:9,fontSize:13,fontWeight:500,color:NB.mut}}>
           Cancelar
         </button>
-        <button onClick={submit} disabled={!valid}
+        <button onClick={submit} disabled={!valid} title={!valid ? (!form.title.trim() ? 'Falta escrever o título' : 'Falta escolher um responsável') : undefined}
           style={{padding:'11px 24px',background:valid?NB.azul:'#CFD8E6',border:'none',borderRadius:9,fontSize:13,fontWeight:500,color:'#fff',cursor:valid?'pointer':'not-allowed'}}>
           Salvar tarefa
         </button>
