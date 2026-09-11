@@ -58,7 +58,7 @@ const TEAM = [
   { id: 'u1', name: 'Mariana Araújo',    initials: 'MA', area: 'Gestão',     areasExtra:['Social','Design','Mídia Paga','Produto','RevOps','Eventos'], isApprover: true,  canPublishCampaigns:true,  email: 'mariana.araujo'+NIBO_DOMAIN,    color: '#0072CE' },
   { id: 'u2', name: 'Clara Abrantes',    initials: 'CA', area: 'Social',     isApprover: false, canPublishCampaigns:true,  email: 'clara.abrantes'+NIBO_DOMAIN,    color: '#6431E2' },
   { id: 'u3', name: 'Millena Barros',    initials: 'MB', area: 'Design',     isApprover: false, email: 'millena.barros'+NIBO_DOMAIN,    color: '#0EA5E9' },
-  { id: 'u4', name: 'Roberta Rocha',     initials: 'RO', area: 'Produto',    isApprover: false, email: 'roberta.rocha'+NIBO_DOMAIN,     color: '#D97706' },
+  { id: 'u4', name: 'Roberta Rocha',     initials: 'RO', area: 'Produto',    isApprover: false, canPublishCampaigns:true, email: 'roberta.rocha'+NIBO_DOMAIN,     color: '#D97706' },
   { id: 'u5', name: 'Mikaella Nicomedes',initials: 'MK', area: 'Design',     isApprover: false, email: 'mikaella.nicomedes'+NIBO_DOMAIN,color: '#059669' },
   { id: 'u6', name: 'Vivian Santos',     initials: 'VI', area: 'Mídia Paga', areasExtra:['Eventos'], isApprover: false, email: 'vivian.santos'+NIBO_DOMAIN,     color: '#FF40B3' },
   { id: 'u7', name: 'Jéssica Gonçalves', initials: 'JE', area: 'RevOps',     isApprover: false, email: 'jessica.goncalves'+NIBO_DOMAIN, color: '#475569' },
@@ -70,11 +70,11 @@ const ACTIVE_TEAM = TEAM.filter(m => m.email);
 
 const DEFAULT_PIPELINES = {
   Social:      [{ id:'soc-1', name:'Solicitado' },{ id:'soc-2', name:'Em Redação' },{ id:'soc-3', name:'Design de Arte', isDesign:true },{ id:'soc-4', name:'Aprovação', isApproval:true },{ id:'soc-5', name:'Publicado', isDone:true }],
-  Design:      [{ id:'des-1', name:'Solicitado' },{ id:'des-2', name:'Briefing' },{ id:'des-3', name:'Em Criação' },{ id:'des-4', name:'Aprovação', isApproval:true },{ id:'des-5', name:'Entregue', isDone:true }],
+  Design:      [{ id:'des-1', name:'Solicitado' },{ id:'des-3', name:'Em Criação' },{ id:'des-4', name:'Aprovação', isApproval:true },{ id:'des-5', name:'Entregue', isDone:true }],
   'Mídia Paga':[{ id:'mid-1', name:'Solicitado' },{ id:'mid-2', name:'Configuração' },{ id:'mid-3', name:'Em Veiculação' },{ id:'mid-4', name:'Aprovação', isApproval:true },{ id:'mid-5', name:'Encerrado', isDone:true }],
   Produto:     [{ id:'pro-1', name:'Solicitado' },{ id:'pro-2', name:'Em Análise' },{ id:'pro-3', name:'Desenvolvimento' },{ id:'pro-4', name:'Homologação', isApproval:true },{ id:'pro-5', name:'Entregue', isDone:true }],
   RevOps:      [{ id:'rev-1', name:'Solicitado' },{ id:'rev-2', name:'Em Análise' },{ id:'rev-3', name:'Implementação' },{ id:'rev-4', name:'Validação', isApproval:true },{ id:'rev-5', name:'Produção', isDone:true }],
-  Eventos:     [{ id:'evt-1', name:'Solicitado' },{ id:'evt-2', name:'Planejamento' },{ id:'evt-3', name:'Execução' },{ id:'evt-4', name:'Aprovação', isApproval:true },{ id:'evt-5', name:'Realizado', isDone:true }],
+  Eventos:     [{ id:'evt-1', name:'Análise de Media Kit' },{ id:'evt-2', name:'Negociação' },{ id:'evt-3', name:'Contrato' },{ id:'evt-4', name:'Produção' },{ id:'evt-5', name:'Andamento' },{ id:'evt-6', name:'Conclusão', isDone:true }],
 };
 
 const AUTO = {
@@ -3386,7 +3386,7 @@ function CampanhasManagerView() {
         <span style={{fontSize:13.5,color:NB.mut}}>{campanhas.length} campanha(s) no total</span>
         <p style={{fontSize:12.5,color:NB.mut2,marginTop:3}}>
           Campanha nasce numa demanda — marque "essa demanda é uma campanha" na criação, e quando ela chegar em "Publicado" vai ter o botão de enviar pra cá.
-          {!user.canPublishCampaigns && ' Só a Clara e a Mariana publicam, despublicam ou excluem — os outros veem por aqui.'}
+          {!user.canPublishCampaigns && ' Só a Clara, a Mariana e a Roberta publicam, despublicam ou excluem — os outros veem por aqui.'}
         </p>
       </div>
       {campanhas.length===0 ? (
