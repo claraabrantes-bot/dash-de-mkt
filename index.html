@@ -2266,7 +2266,7 @@ function CampanhasBuscaTab({ onIrPara }) {
           <p style={{fontSize:13,color:NB.mut,lineHeight:1.6,maxWidth:380,margin:'0 auto'}}>Assim que o marketing publicar uma, ela aparece aqui em destaque pra todo mundo do Nibo ver.</p>
         </div>
       ) : (
-        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(300px,1fr))',gap:24}}>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(300px,1fr))',gap:24}}>
           {publicadas.map((c,i)=>(
             <CampanhaPublicCard key={c.id} camp={c} indice={i} pecasDaCampanha={pecas.filter(p=>(c.pecaIds||[]).includes(p.id))}/>
           ))}
