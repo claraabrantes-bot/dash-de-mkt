@@ -1189,12 +1189,16 @@ function Sidebar() {
           ))}
         </div>
 
+        <div style={secLbl}>Você</div>
+        <div style={{marginBottom:20}}>
+          <NavItem label="Minhas subtarefas" Icon={ICheck} iconColor={NB.mut}
+            count={minhasSubPendentes||undefined} active={view==='minhasSubtarefas'} onClick={()=>setView('minhasSubtarefas')}/>
+        </div>
+
         <div style={secLbl}>Gestão</div>
         <div style={{marginBottom:20}}>
           <NavItem label="Aprovações e pedidos" Icon={IStamp} iconColor={emAprovacao?'#C98A00':NB.mut}
             count={emAprovacao||undefined} active={view==='gestao'} onClick={()=>setView('gestao')}/>
-          <NavItem label="Minhas subtarefas" Icon={ICheck} iconColor={NB.mut}
-            count={minhasSubPendentes||undefined} active={view==='minhasSubtarefas'} onClick={()=>setView('minhasSubtarefas')}/>
           {!meuSetorFixo && (
             <NavItem label="Resumo" Icon={ITrend} iconColor={NB.mut}
               active={view==='resumo'} onClick={()=>setView('resumo')}/>
