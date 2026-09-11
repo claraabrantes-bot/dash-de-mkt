@@ -1132,21 +1132,10 @@ function Sidebar() {
               onClick={()=>{setArea('Todas'); setView('kanban');}}/>
           )}
           {areas.map(a=>(
-            <React.Fragment key={a}>
-              <NavItem label={a} Icon={AREA_ICON[a]} iconColor={AREA_CLR[a]}
-                count={active.filter(d=>d.area===a).length}
-                active={area===a && view==='kanban'}
-                onClick={()=>{ setArea(a); setView('kanban'); }}/>
-              {a==='Social' && area==='Social' && (
-                <NavItem label="Fila de Publicação" Icon={IPhoto} iconColor={AREA_CLR.Social} indent
-                  count={posts.filter(p=>p.status==='pronto').length||undefined}
-                  active={view==='publicacoes'} onClick={()=>{ setArea('Social'); setView('publicacoes'); }}/>
-              )}
-              {a==='Design' && area==='Design' && (
-                <NavItem label="Variações" Icon={IBrush} iconColor={AREA_CLR.Design} indent
-                  active={view==='variacoes'} onClick={()=>{ setArea('Design'); setView('variacoes'); }}/>
-              )}
-            </React.Fragment>
+            <NavItem key={a} label={a} Icon={AREA_ICON[a]} iconColor={AREA_CLR[a]}
+              count={active.filter(d=>d.area===a).length}
+              active={area===a && view==='kanban'}
+              onClick={()=>{ setArea(a); setView('kanban'); }}/>
           ))}
         </div>
 
@@ -3707,7 +3696,7 @@ function ListView() {
 
 /* =========== KANBAN =========== */
 function KanbanBoard() {
-  const { filtered, area, setArea, layout, pipes, setEditStages } = useApp();
+  const { filtered, area, setArea, layout, pipes, setEditStages, setView, posts } = useApp();
   const scrollRef = useRef(null);
 
   /* Sem isso a tela nova abre na rolagem antiga e parece que travou */
@@ -3751,6 +3740,22 @@ function KanbanBoard() {
           onMouseLeave={e=>{e.currentTarget.style.color=NB.mut; e.currentTarget.style.borderColor=NB.bd;}}>
           <IGear/> Editar etapas
         </button>
+        {area==='Social' && (
+          <button onClick={()=>setView('publicacoes')} title="Ver a fila de publicação"
+            style={{display:'inline-flex',alignItems:'center',gap:7,padding:'7px 13px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:9,fontSize:13,fontWeight:500,color:NB.mut,whiteSpace:'nowrap'}}
+            onMouseEnter={e=>{e.currentTarget.style.color=NB.txt; e.currentTarget.style.borderColor='#D3DCEA';}}
+            onMouseLeave={e=>{e.currentTarget.style.color=NB.mut; e.currentTarget.style.borderColor=NB.bd;}}>
+            <IPhoto/> Fila de Publicação{posts.filter(p=>p.status==='pronto').length>0 ? ' ('+posts.filter(p=>p.status==='pronto').length+')' : ''}
+          </button>
+        )}
+        {area==='Design' && (
+          <button onClick={()=>setView('variacoes')} title="Ver variações de peça"
+            style={{display:'inline-flex',alignItems:'center',gap:7,padding:'7px 13px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:9,fontSize:13,fontWeight:500,color:NB.mut,whiteSpace:'nowrap'}}
+            onMouseEnter={e=>{e.currentTarget.style.color=NB.txt; e.currentTarget.style.borderColor='#D3DCEA';}}
+            onMouseLeave={e=>{e.currentTarget.style.color=NB.mut; e.currentTarget.style.borderColor=NB.bd;}}>
+            <IBrush/> Variações
+          </button>
+        )}
       </div>
       <div style={{display:'grid',gridTemplateColumns:'repeat(5, minmax(0,1fr))',gap:16,alignItems:'stretch'}}>
         {stageVisuals(stages).map(({st,v})=>(
