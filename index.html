@@ -162,6 +162,8 @@ function Provider({ children }) {
   const [posts, setPosts] = useState([]);
   const [campanhas, setCampanhas] = useState([]);
   const [redesSociais, setRedesSociais] = useState({ instagramHandle:'', posts:[] });
+  const [slackTemplate, setSlackTemplate] = useState('');
+  const [slackTemplatePrevOpen, setSlackTemplatePrevOpen] = useState(null); // campanha pra preview
   const [arquivos, setArquivos] = useState([]);
   const [embaixadores, setEmbaixadores] = useState([]);
   const [pacotes, setPacotes] = useState([]);
@@ -344,6 +346,10 @@ function Provider({ children }) {
     const u5 = db.collection('posts').onSnapshot(snap => {
       setPosts(snap.docs.map(d => ({ id:d.id, ...d.data() })));
     }, erro);
+
+    db.collection('config').doc('slackTemplate').get().then(doc => {
+      if (doc.exists && doc.data().template) setSlackTemplate(doc.data().template);
+    }).catch(()=>{});
 
     const u3 = db.collection('config').doc('pipes').onSnapshot(doc => {
       const d = doc.exists ? doc.data() : null;
@@ -912,6 +918,12 @@ function Provider({ children }) {
     });
   }, [active, dbReady]);
 
+  const salvarSlackTemplate = useCallback((tmpl) => {
+    const db = dbRef.current; if (!db) return;
+    setSlackTemplate(tmpl);
+    db.collection('config').doc('slackTemplate').set({ template: tmpl }).catch(()=>{});
+  }, []);
+
   const dispararManual = useCallback((d) => {
     if (!d.recorrente) return;
     const newChecklist = (d.checklistTemplate||[]).map(t=>({...t, id:'chk'+Date.now()+Math.random().toString(36).slice(2,6), feita:false}));
@@ -973,7 +985,7 @@ function Provider({ children }) {
   window.__nbDem = demands;
   window.__nbPosts = posts;
 
-  return <Ctx.Provider value={{ demands, active, archived, filtered, dispararManual, slack, showNotifCard, setShowNotifCard, user, isTeamMember, authReady, authError, setAuthError, preferirCentral, setPreferirCentral, dbReady, dbErro, seed, pedidos, aceitarPedido, recusarPedido, posts, addPost, updatePost, deletePost, campanhas, updateCampanha, publicarCampanha, despublicarCampanha, deleteCampanha, enviarCampanhaDeDemanda, pecas, addPeca, removePeca, redesSociais, salvarRedesSociais, arquivos, addArquivo, removeArquivo, embaixadores, addEmbaixador, removeEmbaixador, pacotes, salvarPacote, removePacote, meuPortalEmbaixador, portalCarregado, isEmbaixador, criarPortalEmbaixador, removerPortalEmbaixador, portaisEmbaixador, meusEnviosFotos, todosEnviosFotos, enviarFotoEmbaixador, removerEnvioFoto, view, setView, layout, setLayout, area, setArea, query, setQuery, mesFiltro, setMesFiltro, priFilter, setPriFilter, reqFilter, setReqFilter, selDemand, setModal, newOpen, setNewOpen, presetNovo, setPresetNovo, pacoteOpen, setPacoteOpen, notifyPending, setNotifyPending, profileOpen, setProfileOpen, editStages, setEditStages, dragging, setDragging, previewMember, setPreviewMember, photos, googlePhotos, profiles, pipes, salvarPipes, attach, comments, storageWarn, MAX_FILE, addAttachment, uploadFile, migrarLocal, carregarAnexo, removeAttachment, addComment, removeComment, logout, savePhoto, removePhoto, saveProfile, addDemand, moveStage, moveArea, reordenarCards, setAssignees, updateDemand, archiveDemand, restoreDemand, delDemand }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ demands, active, archived, filtered, dispararManual, slack, slackTemplate, salvarSlackTemplate, slackTemplatePrevOpen, setSlackTemplatePrevOpen, showNotifCard, setShowNotifCard, user, isTeamMember, authReady, authError, setAuthError, preferirCentral, setPreferirCentral, dbReady, dbErro, seed, pedidos, aceitarPedido, recusarPedido, posts, addPost, updatePost, deletePost, campanhas, updateCampanha, publicarCampanha, despublicarCampanha, deleteCampanha, enviarCampanhaDeDemanda, pecas, addPeca, removePeca, redesSociais, salvarRedesSociais, arquivos, addArquivo, removeArquivo, embaixadores, addEmbaixador, removeEmbaixador, pacotes, salvarPacote, removePacote, meuPortalEmbaixador, portalCarregado, isEmbaixador, criarPortalEmbaixador, removerPortalEmbaixador, portaisEmbaixador, meusEnviosFotos, todosEnviosFotos, enviarFotoEmbaixador, removerEnvioFoto, view, setView, layout, setLayout, area, setArea, query, setQuery, mesFiltro, setMesFiltro, priFilter, setPriFilter, reqFilter, setReqFilter, selDemand, setModal, newOpen, setNewOpen, presetNovo, setPresetNovo, pacoteOpen, setPacoteOpen, notifyPending, setNotifyPending, profileOpen, setProfileOpen, editStages, setEditStages, dragging, setDragging, previewMember, setPreviewMember, photos, googlePhotos, profiles, pipes, salvarPipes, attach, comments, storageWarn, MAX_FILE, addAttachment, uploadFile, migrarLocal, carregarAnexo, removeAttachment, addComment, removeComment, logout, savePhoto, removePhoto, saveProfile, addDemand, moveStage, moveArea, reordenarCards, setAssignees, updateDemand, archiveDemand, restoreDemand, delDemand }}>{children}</Ctx.Provider>;
 }
 
 const useApp = () => useContext(Ctx);
@@ -3283,6 +3295,7 @@ function CampanhaEditModal({ camp, onClose }) {
   const [form, setForm] = useState({
     titulo: camp.titulo || '', descricao: camp.descricao || '',
     desconto: camp.desconto || '', jornada: camp.jornada || 'empresa',
+    validade: camp.validade || '', dataCampanha: camp.dataCampanha || '',
     instagramLink: camp.instagramLink || '', foto: camp.foto || '',
   });
   const [pecas, setPecas] = useState(camp.pecasDemanda || []);
@@ -3333,7 +3346,7 @@ function CampanhaEditModal({ camp, onClose }) {
     updateCampanha(camp.id, {
       titulo: form.titulo.trim(), descricao: form.descricao.trim(),
       desconto: form.desconto.trim(), jornada: form.jornada, instagramLink: link, foto: form.foto,
-      pecasDemanda: pecas,
+      pecasDemanda: pecas, validade: form.validade||'', dataCampanha: form.dataCampanha||'',
     });
     onClose();
   };
@@ -3385,6 +3398,16 @@ function CampanhaEditModal({ camp, onClose }) {
             </select>
           </div>
         </div>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+          <div>
+            <div style={{...lbl,marginBottom:6}}>Válida até <span style={{fontWeight:400,color:NB.mut2}}>(opcional)</span></div>
+            <input value={form.validade} onChange={e=>set('validade',e.target.value)} placeholder="ex: 30/09/2026" style={{...inp,padding:'9px 12px',fontSize:13.5}}/>
+          </div>
+          <div>
+            <div style={{...lbl,marginBottom:6}}>Data da campanha <span style={{fontWeight:400,color:NB.mut2}}>(opcional)</span></div>
+            <input value={form.dataCampanha} onChange={e=>set('dataCampanha',e.target.value)} placeholder="ex: 22 de setembro" style={{...inp,padding:'9px 12px',fontSize:13.5}}/>
+          </div>
+        </div>
         <div>
           <div style={{...lbl,marginBottom:6}}>Link do post no Instagram</div>
           <input value={form.instagramLink} onChange={e=>set('instagramLink',e.target.value)} placeholder="cole quando publicar lá" style={{...inp,padding:'9px 12px',fontSize:13.5}}/>
@@ -3423,7 +3446,7 @@ function CampanhaEditModal({ camp, onClose }) {
 }
 
 function CampanhaManagerCard({ camp }) {
-  const { user, publicarCampanha, despublicarCampanha, deleteCampanha } = useApp();
+  const { user, publicarCampanha, despublicarCampanha, deleteCampanha, setSlackTemplatePrevOpen } = useApp();
   const [editar, setEditar] = useState(false);
   const [confirmar, setConfirmar] = useState(false);
   const publicada = camp.status === 'publicada';
@@ -3460,7 +3483,7 @@ function CampanhaManagerCard({ camp }) {
             </button>
             {publicada
               ? <button onClick={()=>despublicarCampanha(camp)} style={{padding:'7px 11px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:8,fontSize:12,fontWeight:500,color:NB.mut}}>Despublicar</button>
-              : <button onClick={()=>publicarCampanha(camp)} style={{padding:'7px 13px',background:'#0F6E56',border:'none',borderRadius:8,fontSize:12,fontWeight:500,color:'#fff'}}>Publicar</button>}
+              : <button onClick={()=>setSlackTemplatePrevOpen(camp)} style={{padding:'7px 13px',background:'#0F6E56',border:'none',borderRadius:8,fontSize:12,fontWeight:500,color:'#fff'}}>Publicar</button>}
           </div>
         )}
       </div>
@@ -5153,6 +5176,132 @@ function AssigneeChip({ initials, onRemove }) {
   );
 }
 
+
+
+/* =========== TEMPLATE SLACK CAMPANHA =========== */
+const DEFAULT_SLACK_TEMPLATE = `[MARKETING] Olá, pessoal! @canal
+
+Temos uma nova campanha no ar! 🎉
+
+{descricao}
+
+Vocês já podem acessar as peças da campanha na nossa central de informações e também receber algumas sugestões de texto... {link}
+
+A campanha é uma oportunidade para reforçar a proposta nas conversas comerciais, retomar oportunidades que já estavam em negociação, ou até mesmo levantá-la!
+
+Condições da campanha:
+• {desconto}
+• Válida até {validade}
+• O valor do setup não está incluso
+
+Aproveitem os banners nas abordagens e nas oportunidades que já estão no pipeline!`;
+
+function preencherTemplate(tmpl, camp) {
+  const link = (camp.pecasDemanda && camp.pecasDemanda[0] && camp.pecasDemanda[0].url)
+    || camp.instagramLink || '(sem link ainda)';
+  return (tmpl || DEFAULT_SLACK_TEMPLATE)
+    .replace(/\{titulo\}/g,       camp.titulo || '')
+    .replace(/\{descricao\}/g,    camp.descricao || camp.titulo || '')
+    .replace(/\{desconto\}/g,     camp.desconto || 'Desconto a definir')
+    .replace(/\{validade\}/g,     camp.validade || 'a confirmar')
+    .replace(/\{dataCampanha\}/g, camp.dataCampanha || '')
+    .replace(/\{link\}/g,         link);
+}
+
+function SlackTemplatePrevModal() {
+  const { slackTemplatePrevOpen, setSlackTemplatePrevOpen, slackTemplate, salvarSlackTemplate,
+          publicarCampanha, feed } = useApp();
+  const [editingTmpl, setEditingTmpl] = useState(false);
+  const [tmplDraft, setTmplDraft] = useState('');
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (slackTemplatePrevOpen) { setEditingTmpl(false); setCopied(false); }
+  }, [slackTemplatePrevOpen]);
+
+  if (!slackTemplatePrevOpen) return null;
+  const camp = slackTemplatePrevOpen;
+  const tmpl = slackTemplate || DEFAULT_SLACK_TEMPLATE;
+  const mensagem = preencherTemplate(tmpl, camp);
+
+  const copiar = () => {
+    navigator.clipboard.writeText(mensagem).then(() => { setCopied(true); setTimeout(()=>setCopied(false), 2500); });
+  };
+
+  const publicar = () => {
+    publicarCampanha(camp);
+    setSlackTemplatePrevOpen(null);
+  };
+
+  const salvarTmpl = () => {
+    salvarSlackTemplate(tmplDraft);
+    setEditingTmpl(false);
+  };
+
+  return (
+    <div style={{position:'fixed',inset:0,background:'rgba(0,20,60,0.45)',zIndex:1100,display:'flex',alignItems:'center',justifyContent:'center',padding:20}}>
+      <div style={{background:'#fff',borderRadius:18,width:'100%',maxWidth:600,maxHeight:'90vh',display:'flex',flexDirection:'column',boxShadow:'0 24px 64px rgba(0,42,114,0.18)'}}>
+
+        {/* Header */}
+        <div style={{padding:'20px 24px 16px',borderBottom:'1px solid '+NB.bdSoft,display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:14}}>
+          <div>
+            <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:4}}>
+              <ISlack s={17}/>
+              <span style={{fontSize:11,fontWeight:600,color:NB.mut2,textTransform:'uppercase',letterSpacing:'0.07em'}}>#geral</span>
+            </div>
+            <h2 style={{fontSize:17,fontWeight:600,color:NB.txt,marginBottom:3}}>Mensagem de lançamento</h2>
+            <p style={{fontSize:12.5,color:NB.mut}}>Copie antes de publicar e cole no canal <strong>#geral</strong> do Slack.</p>
+          </div>
+          <button onClick={()=>setSlackTemplatePrevOpen(null)} style={{padding:8,background:'#fff',border:'1px solid '+NB.bd,borderRadius:9,color:NB.mut,display:'flex',flexShrink:0}}><IX/></button>
+        </div>
+
+        {/* Corpo */}
+        <div style={{flex:1,overflowY:'auto',padding:'18px 24px'}}>
+          {editingTmpl ? (
+            <div style={{display:'flex',flexDirection:'column',gap:10}}>
+              <div style={{fontSize:12,fontWeight:600,color:NB.txt}}>Editar template</div>
+              <p style={{fontSize:11.5,color:NB.mut2,lineHeight:1.5}}>
+                Variáveis disponíveis: <code style={{background:NB.col,padding:'1px 4px',borderRadius:3}}>{'{titulo}'}</code> <code style={{background:NB.col,padding:'1px 4px',borderRadius:3}}>{'{descricao}'}</code> <code style={{background:NB.col,padding:'1px 4px',borderRadius:3}}>{'{desconto}'}</code> <code style={{background:NB.col,padding:'1px 4px',borderRadius:3}}>{'{validade}'}</code> <code style={{background:NB.col,padding:'1px 4px',borderRadius:3}}>{'{dataCampanha}'}</code> <code style={{background:NB.col,padding:'1px 4px',borderRadius:3}}>{'{link}'}</code>
+              </p>
+              <textarea value={tmplDraft} onChange={e=>setTmplDraft(e.target.value)}
+                style={{width:'100%',minHeight:280,fontFamily:"'Poppins',sans-serif",fontSize:12.5,lineHeight:1.6,padding:'12px 14px',border:'1.5px solid '+NB.azul,borderRadius:10,resize:'vertical',color:NB.txt,outline:'none'}}/>
+              <div style={{display:'flex',gap:8,justifyContent:'flex-end'}}>
+                <button onClick={()=>setEditingTmpl(false)} style={{padding:'7px 14px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:8,fontSize:12.5,color:NB.mut}}>Cancelar</button>
+                <button onClick={salvarTmpl} style={{padding:'7px 16px',background:NB.azul,border:'none',borderRadius:8,fontSize:12.5,fontWeight:500,color:'#fff'}}>Salvar template</button>
+              </div>
+            </div>
+          ) : (
+            <React.Fragment>
+              <div style={{display:'flex',justifyContent:'flex-end',marginBottom:8}}>
+                <button onClick={()=>{setTmplDraft(tmpl); setEditingTmpl(true);}}
+                  style={{fontSize:11.5,color:NB.mut2,background:'none',border:'none',cursor:'pointer',textDecoration:'underline'}}>
+                  ✏️ Editar template
+                </button>
+              </div>
+              <div style={{background:'#F6F7FA',border:'1px solid '+NB.bd,borderRadius:12,padding:'16px 18px',whiteSpace:'pre-wrap',fontFamily:"'Poppins',sans-serif",fontSize:13,lineHeight:1.7,color:NB.txt}}>
+                {mensagem}
+              </div>
+            </React.Fragment>
+          )}
+        </div>
+
+        {/* Footer */}
+        {!editingTmpl && (
+          <div style={{padding:'14px 24px',borderTop:'1px solid '+NB.bdSoft,display:'flex',gap:10,justifyContent:'flex-end',flexWrap:'wrap'}}>
+            <button onClick={copiar}
+              style={{padding:'10px 18px',background:copied?'#0F6E56':'#fff',border:'1px solid '+(copied?'#0F6E56':NB.bd),borderRadius:9,fontSize:13,fontWeight:500,color:copied?'#fff':NB.txt,transition:'all 0.2s',minWidth:120}}>
+              {copied ? '✓ Copiado!' : '📋 Copiar texto'}
+            </button>
+            <button onClick={publicar}
+              style={{padding:'10px 22px',background:'#0F6E56',border:'none',borderRadius:9,fontSize:13,fontWeight:500,color:'#fff'}}>
+              Publicar campanha
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 /* =========== NOTIFICAÇÕES DE NAVEGADOR =========== */
 function NotifPermCard() {
@@ -7555,6 +7704,7 @@ function AppContent() {
       <PacoteModal/>
       <NotifyModal/>
       <NotifPermCard/>
+      <SlackTemplatePrevModal/>
       <ProfileModal/>
       {editStages && <StageEditorModal areaName={editStages} onClose={()=>setEditStages(null)}/>}
     </div>
