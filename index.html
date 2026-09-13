@@ -216,6 +216,7 @@ function Provider({ children }) {
   const [presetNovo, setPresetNovo] = useState(null); // { area, stageId } | null
   const [pacoteOpen, setPacoteOpen] = useState(false);
   const [notifyPending, setNotifyPending] = useState(null);
+  const [showNotifCard, setShowNotifCard] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [editStages, setEditStages] = useState(null);
   const [dragging, setDragging] = useState(null);
@@ -921,6 +922,42 @@ function Provider({ children }) {
     });
   }, [addDemand]);
 
+  /* Mostra card de ativação de notificações na primeira visita */
+  useEffect(() => {
+    if (!dbReady || !user) return;
+    if (Notification.permission === 'default') {
+      const asked = localStorage.getItem('nb_notif_asked');
+      if (!asked) setShowNotifCard(true);
+    }
+  }, [dbReady, user]);
+
+  /* Dispara notificações de navegador + feed para tarefas vencidas atribuídas ao usuário */
+  useEffect(() => {
+    if (!dbReady || !user || Notification.permission !== 'granted') return;
+    const hoje = dStr(0);
+    const jaNotificados = JSON.parse(localStorage.getItem('nb_notif_sent') || '{}');
+    active.forEach(d => {
+      if (!d.deadline || d.deadline > hoje) return;
+      const st = (pipes[d.area]||[]).find(s=>s.id===d.stageId);
+      if (st && st.isDone) return;
+      const isAssignee = (d.assignees||[]).includes(user.initials);
+      if (!isAssignee) return;
+      if (jaNotificados[d.id] === hoje) return; // já notificou hoje
+      // Browser notification
+      try {
+        new Notification('⏰ Tarefa vencida — Nibo', {
+          body: d.title,
+          icon: '/favicon.ico',
+          tag: 'dem-' + d.id,
+        });
+      } catch(e) {}
+      // Feed (Slack interno)
+      feed(d, 'Vencimento', d.title + ' venceu — ' + user.name + ' notificado(a)', 'Remarcar ou mover para próxima etapa', 'alert');
+      jaNotificados[d.id] = hoje;
+    });
+    localStorage.setItem('nb_notif_sent', JSON.stringify(jaNotificados));
+  }, [active, dbReady, user, pipes]);
+
   const filtered = active.filter(d => {
     if (area !== 'Todas' && d.area !== area) return false;
     if (mesFiltro!=='todos' && !(d.createdAt||'').startsWith(mesFiltro)) return false;
@@ -936,7 +973,7 @@ function Provider({ children }) {
   window.__nbDem = demands;
   window.__nbPosts = posts;
 
-  return <Ctx.Provider value={{ demands, active, archived, filtered, dispararManual, slack, user, isTeamMember, authReady, authError, setAuthError, preferirCentral, setPreferirCentral, dbReady, dbErro, seed, pedidos, aceitarPedido, recusarPedido, posts, addPost, updatePost, deletePost, campanhas, updateCampanha, publicarCampanha, despublicarCampanha, deleteCampanha, enviarCampanhaDeDemanda, pecas, addPeca, removePeca, redesSociais, salvarRedesSociais, arquivos, addArquivo, removeArquivo, embaixadores, addEmbaixador, removeEmbaixador, pacotes, salvarPacote, removePacote, meuPortalEmbaixador, portalCarregado, isEmbaixador, criarPortalEmbaixador, removerPortalEmbaixador, portaisEmbaixador, meusEnviosFotos, todosEnviosFotos, enviarFotoEmbaixador, removerEnvioFoto, view, setView, layout, setLayout, area, setArea, query, setQuery, mesFiltro, setMesFiltro, priFilter, setPriFilter, reqFilter, setReqFilter, selDemand, setModal, newOpen, setNewOpen, presetNovo, setPresetNovo, pacoteOpen, setPacoteOpen, notifyPending, setNotifyPending, profileOpen, setProfileOpen, editStages, setEditStages, dragging, setDragging, previewMember, setPreviewMember, photos, googlePhotos, profiles, pipes, salvarPipes, attach, comments, storageWarn, MAX_FILE, addAttachment, uploadFile, migrarLocal, carregarAnexo, removeAttachment, addComment, removeComment, logout, savePhoto, removePhoto, saveProfile, addDemand, moveStage, moveArea, reordenarCards, setAssignees, updateDemand, archiveDemand, restoreDemand, delDemand }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ demands, active, archived, filtered, dispararManual, slack, showNotifCard, setShowNotifCard, user, isTeamMember, authReady, authError, setAuthError, preferirCentral, setPreferirCentral, dbReady, dbErro, seed, pedidos, aceitarPedido, recusarPedido, posts, addPost, updatePost, deletePost, campanhas, updateCampanha, publicarCampanha, despublicarCampanha, deleteCampanha, enviarCampanhaDeDemanda, pecas, addPeca, removePeca, redesSociais, salvarRedesSociais, arquivos, addArquivo, removeArquivo, embaixadores, addEmbaixador, removeEmbaixador, pacotes, salvarPacote, removePacote, meuPortalEmbaixador, portalCarregado, isEmbaixador, criarPortalEmbaixador, removerPortalEmbaixador, portaisEmbaixador, meusEnviosFotos, todosEnviosFotos, enviarFotoEmbaixador, removerEnvioFoto, view, setView, layout, setLayout, area, setArea, query, setQuery, mesFiltro, setMesFiltro, priFilter, setPriFilter, reqFilter, setReqFilter, selDemand, setModal, newOpen, setNewOpen, presetNovo, setPresetNovo, pacoteOpen, setPacoteOpen, notifyPending, setNotifyPending, profileOpen, setProfileOpen, editStages, setEditStages, dragging, setDragging, previewMember, setPreviewMember, photos, googlePhotos, profiles, pipes, salvarPipes, attach, comments, storageWarn, MAX_FILE, addAttachment, uploadFile, migrarLocal, carregarAnexo, removeAttachment, addComment, removeComment, logout, savePhoto, removePhoto, saveProfile, addDemand, moveStage, moveArea, reordenarCards, setAssignees, updateDemand, archiveDemand, restoreDemand, delDemand }}>{children}</Ctx.Provider>;
 }
 
 const useApp = () => useContext(Ctx);
@@ -5116,6 +5153,44 @@ function AssigneeChip({ initials, onRemove }) {
   );
 }
 
+
+/* =========== NOTIFICAÇÕES DE NAVEGADOR =========== */
+function NotifPermCard() {
+  const { showNotifCard, setShowNotifCard } = useApp();
+  if (!showNotifCard) return null;
+
+  const ativar = () => {
+    Notification.requestPermission().then(perm => {
+      localStorage.setItem('nb_notif_asked', '1');
+      setShowNotifCard(false);
+    });
+  };
+  const dispensar = () => {
+    localStorage.setItem('nb_notif_asked', '1');
+    setShowNotifCard(false);
+  };
+
+  return (
+    <div style={{position:'fixed',bottom:24,left:'50%',transform:'translateX(-50%)',zIndex:2000,width:360,background:'#fff',border:'1px solid '+NB.bd,borderRadius:14,boxShadow:'0 8px 32px rgba(0,42,114,0.13)',padding:'18px 20px',display:'flex',gap:14,alignItems:'flex-start'}}>
+      <div style={{fontSize:26,lineHeight:1,flexShrink:0}}>🔔</div>
+      <div style={{flex:1}}>
+        <div style={{fontSize:14,fontWeight:600,color:NB.txt,marginBottom:4}}>Ativar notificações?</div>
+        <p style={{fontSize:12.5,color:NB.mut,lineHeight:1.5,marginBottom:12}}>Avisa quando uma tarefa sua vencer, mesmo com o navegador em segundo plano.</p>
+        <div style={{display:'flex',gap:8}}>
+          <button onClick={ativar}
+            style={{flex:1,padding:'8px 0',background:NB.azul,border:'none',borderRadius:8,fontSize:13,fontWeight:500,color:'#fff',cursor:'pointer'}}>
+            Ativar
+          </button>
+          <button onClick={dispensar}
+            style={{padding:'8px 14px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:8,fontSize:13,color:NB.mut,cursor:'pointer'}}>
+            Agora não
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function CardModal() {
   const { selDemand, setModal, moveStage, moveArea, delDemand, archiveDemand, setNotifyPending, setAssignees, updateDemand, attach, comments, pipes, enviarCampanhaDeDemanda, demands, dispararManual } = useApp();
   const [picker, setPicker] = useState(false);
@@ -7479,6 +7554,7 @@ function AppContent() {
       <NewModal/>
       <PacoteModal/>
       <NotifyModal/>
+      <NotifPermCard/>
       <ProfileModal/>
       {editStages && <StageEditorModal areaName={editStages} onClose={()=>setEditStages(null)}/>}
     </div>
