@@ -5751,6 +5751,7 @@ function PacoteModal() {
   const [err, setErr] = useState('');
   const [criando, setCriando] = useState(false);
   const [editando, setEditando] = useState(null); // null | 'novo' | id do pacote
+  const [responsavel, setResponsavel] = useState('');
 
   /* Junta o pacote embutido com os que o time já salvou — um pacote salvo
      com o mesmo id (ex: 'webinar') substitui o embutido. */
@@ -5758,12 +5759,18 @@ function PacoteModal() {
   const lista = Object.entries(todos);
 
   useEffect(() => {
-    if (pacoteOpen) { setTema(''); setDataBase(dStr(20)); setErr(''); setCriando(false); setEditando(null); }
+    if (pacoteOpen) { setTema(''); setDataBase(dStr(20)); setErr(''); setCriando(false); setEditando(null); setResponsavel(''); }
   }, [pacoteOpen]);
 
   useEffect(() => {
     if (!todos[pacoteId] && lista.length>0) setPacoteId(lista[0][0]);
   }, [pacotes]);
+
+  /* Ao trocar de pacote, pré-seleciona o responsável padrão */
+  useEffect(() => {
+    if (pacote && pacote.responsavelPrincipal) setResponsavel(pacote.responsavelPrincipal);
+    else setResponsavel('');
+  }, [pacoteId]);
 
   if (!pacoteOpen) return null;
   const pacote = todos[pacoteId];
@@ -5788,7 +5795,7 @@ function PacoteModal() {
       title: resolverTitulo(pacote.tituloPrincipal, tema.trim()),
       area: pacote.area, priority: pacote.priority, deadline: dataBase,
       description: (pacote.descricao||'') + (pacote.descricao ? '\n\n' : '') + 'Criada a partir do pacote "'+pacote.nome+'".',
-      requester: user.name, assignees: [pacote.responsavelPrincipal],
+      requester: user.name, assignees: responsavel ? [responsavel] : (pacote.responsavelPrincipal ? [pacote.responsavelPrincipal] : []),
       subtarefas,
     });
     setTimeout(() => { setCriando(false); setPacoteOpen(false); }, 700);
@@ -5835,9 +5842,23 @@ function PacoteModal() {
           <input type="date" value={dataBase} onChange={e=>setDataBase(e.target.value)} style={inp}/>
         </div>
 
+        <div>
+          <div style={lbl}>Responsável principal</div>
+          <p style={{fontSize:11.5,color:NB.mut2,marginBottom:8,marginTop:3}}>Quem fica com a tarefa mãe desse fluxo.</p>
+          <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
+            {ACTIVE_TEAM.map(m=>(
+              <button key={m.id} type="button" onClick={()=>setResponsavel(m.initials)}
+                style={{display:'flex',alignItems:'center',gap:6,padding:'3px 10px 3px 3px',borderRadius:20,border:'1.5px solid '+(responsavel===m.initials?NB.azul:NB.bd),background:responsavel===m.initials?'#EAF3FD':'#fff',fontSize:12,fontWeight:500,color:responsavel===m.initials?NB.azul:NB.mut,transition:'all 0.12s'}}>
+                <Avatar member={m} size={22} ring={false} style={{boxShadow:'0 0 0 1.5px '+m.color,border:'none'}}/>
+                {m.name.split(' ')[0]}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div style={{background:NB.col,border:'1px solid '+NB.bd,borderRadius:11,padding:'14px 16px'}}>
           <div style={{fontSize:13,fontWeight:600,color:NB.txt,marginBottom:3}}>{resolverTitulo(pacote.tituloPrincipal, tema.trim())}</div>
-          <div style={{fontSize:11.5,color:NB.mut2,marginBottom:12}}>Fica com {ACTIVE_TEAM.find(m=>m.initials===pacote.responsavelPrincipal)?.name || pacote.responsavelPrincipal} · {(pacote.subtarefas||[]).length} subtarefas no checklist</div>
+          <div style={{fontSize:11.5,color:NB.mut2,marginBottom:12}}>Fica com {ACTIVE_TEAM.find(m=>m.initials===(responsavel||pacote.responsavelPrincipal))?.name || responsavel || pacote.responsavelPrincipal || '—'} · {(pacote.subtarefas||[]).length} subtarefas no checklist</div>
           <div style={{display:'flex',flexDirection:'column',gap:7}}>
             {(pacote.subtarefas||[]).map((s,i)=>(
               <div key={i} style={{display:'flex',alignItems:'center',gap:9,fontSize:12.5,color:NB.txt}}>
