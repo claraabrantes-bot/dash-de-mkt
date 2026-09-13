@@ -901,13 +901,25 @@ function Provider({ children }) {
       if (gerouRecorrenciaRef.current.has(d.id)) return;
       if (d.ultimaGeracaoRecorrencia && agora - new Date(d.ultimaGeracaoRecorrencia).getTime() < 5*60*1000) return;
       gerouRecorrenciaRef.current.add(d.id);
+      const newChecklist = (d.checklistTemplate||[]).map(t=>({...t, id:'chk'+Date.now()+Math.random().toString(36).slice(2,6), feita:false}));
       addDemand({
         title: d.title, area: d.area, priority: d.priority, deadline: dStr(d.frequenciaDias||30),
         description: d.description||'', requester: d.requester, assignees: d.assignees||[],
+        ...(newChecklist.length ? {checklist: newChecklist} : {}),
       });
       patch(d.id, { proximaRecorrencia: dStr(d.frequenciaDias||30), ultimaGeracaoRecorrencia: new Date().toISOString() });
     });
   }, [active, dbReady]);
+
+  const dispararManual = useCallback((d) => {
+    if (!d.recorrente) return;
+    const newChecklist = (d.checklistTemplate||[]).map(t=>({...t, id:'chk'+Date.now()+Math.random().toString(36).slice(2,6), feita:false}));
+    addDemand({
+      title: d.title, area: d.area, priority: d.priority, deadline: dStr(d.frequenciaDias||30),
+      description: d.description||'', requester: d.requester, assignees: d.assignees||[],
+      ...(newChecklist.length ? {checklist: newChecklist} : {}),
+    });
+  }, [addDemand]);
 
   const filtered = active.filter(d => {
     if (area !== 'Todas' && d.area !== area) return false;
@@ -924,7 +936,7 @@ function Provider({ children }) {
   window.__nbDem = demands;
   window.__nbPosts = posts;
 
-  return <Ctx.Provider value={{ demands, active, archived, filtered, slack, user, isTeamMember, authReady, authError, setAuthError, preferirCentral, setPreferirCentral, dbReady, dbErro, seed, pedidos, aceitarPedido, recusarPedido, posts, addPost, updatePost, deletePost, campanhas, updateCampanha, publicarCampanha, despublicarCampanha, deleteCampanha, enviarCampanhaDeDemanda, pecas, addPeca, removePeca, redesSociais, salvarRedesSociais, arquivos, addArquivo, removeArquivo, embaixadores, addEmbaixador, removeEmbaixador, pacotes, salvarPacote, removePacote, meuPortalEmbaixador, portalCarregado, isEmbaixador, criarPortalEmbaixador, removerPortalEmbaixador, portaisEmbaixador, meusEnviosFotos, todosEnviosFotos, enviarFotoEmbaixador, removerEnvioFoto, view, setView, layout, setLayout, area, setArea, query, setQuery, mesFiltro, setMesFiltro, priFilter, setPriFilter, reqFilter, setReqFilter, selDemand, setModal, newOpen, setNewOpen, presetNovo, setPresetNovo, pacoteOpen, setPacoteOpen, notifyPending, setNotifyPending, profileOpen, setProfileOpen, editStages, setEditStages, dragging, setDragging, previewMember, setPreviewMember, photos, googlePhotos, profiles, pipes, salvarPipes, attach, comments, storageWarn, MAX_FILE, addAttachment, uploadFile, migrarLocal, carregarAnexo, removeAttachment, addComment, removeComment, logout, savePhoto, removePhoto, saveProfile, addDemand, moveStage, moveArea, reordenarCards, setAssignees, updateDemand, archiveDemand, restoreDemand, delDemand }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ demands, active, archived, filtered, dispararManual, slack, user, isTeamMember, authReady, authError, setAuthError, preferirCentral, setPreferirCentral, dbReady, dbErro, seed, pedidos, aceitarPedido, recusarPedido, posts, addPost, updatePost, deletePost, campanhas, updateCampanha, publicarCampanha, despublicarCampanha, deleteCampanha, enviarCampanhaDeDemanda, pecas, addPeca, removePeca, redesSociais, salvarRedesSociais, arquivos, addArquivo, removeArquivo, embaixadores, addEmbaixador, removeEmbaixador, pacotes, salvarPacote, removePacote, meuPortalEmbaixador, portalCarregado, isEmbaixador, criarPortalEmbaixador, removerPortalEmbaixador, portaisEmbaixador, meusEnviosFotos, todosEnviosFotos, enviarFotoEmbaixador, removerEnvioFoto, view, setView, layout, setLayout, area, setArea, query, setQuery, mesFiltro, setMesFiltro, priFilter, setPriFilter, reqFilter, setReqFilter, selDemand, setModal, newOpen, setNewOpen, presetNovo, setPresetNovo, pacoteOpen, setPacoteOpen, notifyPending, setNotifyPending, profileOpen, setProfileOpen, editStages, setEditStages, dragging, setDragging, previewMember, setPreviewMember, photos, googlePhotos, profiles, pipes, salvarPipes, attach, comments, storageWarn, MAX_FILE, addAttachment, uploadFile, migrarLocal, carregarAnexo, removeAttachment, addComment, removeComment, logout, savePhoto, removePhoto, saveProfile, addDemand, moveStage, moveArea, reordenarCards, setAssignees, updateDemand, archiveDemand, restoreDemand, delDemand }}>{children}</Ctx.Provider>;
 }
 
 const useApp = () => useContext(Ctx);
@@ -5105,7 +5117,7 @@ function AssigneeChip({ initials, onRemove }) {
 }
 
 function CardModal() {
-  const { selDemand, setModal, moveStage, moveArea, delDemand, archiveDemand, setNotifyPending, setAssignees, updateDemand, attach, comments, pipes, enviarCampanhaDeDemanda, demands } = useApp();
+  const { selDemand, setModal, moveStage, moveArea, delDemand, archiveDemand, setNotifyPending, setAssignees, updateDemand, attach, comments, pipes, enviarCampanhaDeDemanda, demands, dispararManual } = useApp();
   const [picker, setPicker] = useState(false);
   const [confirmDel, setConfirmDel] = useState(false);
   const [tab, setTab] = useState('anexos');
@@ -5539,6 +5551,15 @@ function CardModal() {
           </div>
         ) : (
           <div style={{display:'flex',gap:9,flexWrap:'wrap'}}>
+            {d.recorrente && (
+              <button onClick={()=>{ dispararManual(d); setModal(null); }}
+                title="Gera uma nova instância agora com o checklist do pacote"
+                style={{display:'flex',alignItems:'center',gap:7,padding:'10px 16px',background:'#EAF3FD',border:'1.5px solid '+NB.azul,borderRadius:9,fontSize:13,fontWeight:500,color:NB.azul}}
+                onMouseEnter={e=>{e.currentTarget.style.background='#D6EAFB';}}
+                onMouseLeave={e=>{e.currentTarget.style.background='#EAF3FD';}}>
+                ▶ Disparar agora
+              </button>
+            )}
             <button onClick={()=>archiveDemand(d.id)} title="Sai do quadro mas continua guardada"
               style={{display:'flex',alignItems:'center',gap:7,padding:'10px 16px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:9,fontSize:13,fontWeight:500,color:NB.mut}}
               onMouseEnter={e=>{e.currentTarget.style.color=NB.txt; e.currentTarget.style.borderColor='#D3DCEA';}}
@@ -6026,10 +6047,14 @@ function NewModal() {
   const [checklist, setChecklist] = useState([]);
   const [novoItem, setNovoItem] = useState({ titulo:'', responsavel:'' });
   const [addingItem, setAddingItem] = useState(false);
+  const [templateChecklist, setTemplateChecklist] = useState([]);
+  const [novoTemplateItem, setNovoTemplateItem] = useState({ titulo:'', responsavel:'' });
+  const [addingTemplateItem, setAddingTemplateItem] = useState(false);
 
   useEffect(() => {
     if (newOpen) { setForm(f=>({ ...f, title:'', area: presetNovo ? presetNovo.area : (area!=='Todas'?area:'Social'), requester:user.name, assignees:[], description:'',
-      ehCampanha:false, campanhaDesconto:'', campanhaJornada:'empresa', recorrente:false, frequenciaDias:30 })); setAreasEspelho([]); setChecklist([]); setAddingItem(false); }
+      ehCampanha:false, campanhaDesconto:'', campanhaJornada:'empresa', recorrente:false, frequenciaDias:30 })); setAreasEspelho([]); setChecklist([]); setAddingItem(false);
+      setTemplateChecklist([]); setNovoTemplateItem({titulo:'',responsavel:''}); setAddingTemplateItem(false); }
   }, [newOpen, area, user, presetNovo]);
 
   if (!newOpen) return null;
@@ -6060,6 +6085,7 @@ function NewModal() {
         dados.recorrente = true;
         dados.frequenciaDias = form.frequenciaDias;
         dados.proximaRecorrencia = dStr(form.frequenciaDias);
+        if (templateChecklist.length > 0) dados.checklistTemplate = templateChecklist;
       }
       if (espelhoGrupoId) { dados.espelhoGrupoId = espelhoGrupoId; dados.espelhoAreas = todasAreas; }
       addDemand(dados);
@@ -6140,6 +6166,56 @@ function NewModal() {
                 ))}
               </div>
               <p style={{fontSize:11.5,color:NB.mut2,marginTop:9}}>Quando essa demanda vencer, uma nova cópia é criada automaticamente pra continuar o ciclo.</p>
+
+              {/* Checklist template */}
+              <div style={{marginTop:14}}>
+                <div style={{fontSize:12,fontWeight:600,color:NB.txt,marginBottom:6}}>Checklist do pacote <span style={{fontWeight:400,color:NB.mut2}}>(opcional)</span></div>
+                <p style={{fontSize:11,color:NB.mut2,marginBottom:8}}>Cada vez que esse ciclo disparar, a nova demanda já vem com essas subtarefas prontas.</p>
+                {templateChecklist.length>0 && (
+                  <div style={{display:'flex',flexDirection:'column',gap:5,marginBottom:7}}>
+                    {templateChecklist.map(it=>{
+                      const resp = ACTIVE_TEAM.find(m=>m.initials===it.responsavel);
+                      return (
+                        <div key={it.id} style={{display:'flex',alignItems:'center',gap:8,padding:'6px 10px',background:'#f0f4fa',border:'1px solid '+NB.bd,borderRadius:8}}>
+                          {resp && <Avatar member={resp} size={20} ring={false} style={{boxShadow:'0 0 0 1.5px '+resp.color,border:'none'}}/>}
+                          <span style={{fontSize:12,flex:1,color:NB.txt}}>{it.titulo}</span>
+                          {resp && <span style={{fontSize:11,color:NB.mut2}}>{resp.name.split(' ')[0]}</span>}
+                          <button type="button" onClick={()=>setTemplateChecklist(v=>v.filter(x=>x.id!==it.id))} style={{color:NB.mut2,background:'none',border:'none',display:'flex',cursor:'pointer'}}><IX s={11}/></button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+                {addingTemplateItem ? (
+                  <div style={{display:'flex',flexDirection:'column',gap:7,padding:'8px 10px',background:NB.col,border:'1px dashed '+NB.bd,borderRadius:8}}>
+                    <input value={novoTemplateItem.titulo} onChange={e=>setNovoTemplateItem(v=>({...v,titulo:e.target.value}))} placeholder="O que precisa ser feito?"
+                      autoFocus style={{...inp,padding:'6px 8px',fontSize:12,background:'#fff'}}
+                      onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault(); if(novoTemplateItem.titulo.trim()&&novoTemplateItem.responsavel){setTemplateChecklist(v=>[...v,{id:'tpl'+Date.now()+Math.random().toString(36).slice(2,5),titulo:novoTemplateItem.titulo.trim(),responsavel:novoTemplateItem.responsavel}]);setNovoTemplateItem({titulo:'',responsavel:''});setAddingTemplateItem(false);}}}}/>
+                    <div style={{display:'flex',flexWrap:'wrap',gap:5}}>
+                      {ACTIVE_TEAM.map(m=>(
+                        <button key={m.id} type="button" onClick={()=>setNovoTemplateItem(v=>({...v,responsavel:m.initials}))}
+                          style={{display:'flex',alignItems:'center',gap:5,padding:'2px 8px 2px 2px',borderRadius:20,border:'1.5px solid '+(novoTemplateItem.responsavel===m.initials?NB.azul:NB.bd),background:novoTemplateItem.responsavel===m.initials?'#EAF3FD':'#fff',fontSize:11.5,fontWeight:500,color:novoTemplateItem.responsavel===m.initials?NB.azul:NB.mut}}>
+                          <Avatar member={m} size={20} ring={false} style={{boxShadow:'0 0 0 1.5px '+m.color,border:'none'}}/>
+                          {m.name.split(' ')[0]}
+                        </button>
+                      ))}
+                    </div>
+                    <div style={{display:'flex',gap:6,justifyContent:'flex-end'}}>
+                      <button type="button" onClick={()=>{setAddingTemplateItem(false);setNovoTemplateItem({titulo:'',responsavel:''}); }} style={{padding:'5px 10px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:6,fontSize:11.5,color:NB.mut}}>Cancelar</button>
+                      <button type="button" disabled={!novoTemplateItem.titulo.trim()||!novoTemplateItem.responsavel}
+                        onClick={()=>{setTemplateChecklist(v=>[...v,{id:'tpl'+Date.now()+Math.random().toString(36).slice(2,5),titulo:novoTemplateItem.titulo.trim(),responsavel:novoTemplateItem.responsavel}]);setNovoTemplateItem({titulo:'',responsavel:''});setAddingTemplateItem(false);}}
+                        style={{padding:'5px 10px',background:NB.azul,border:'none',borderRadius:6,fontSize:11.5,fontWeight:500,color:'#fff',opacity:(!novoTemplateItem.titulo.trim()||!novoTemplateItem.responsavel)?0.5:1}}>
+                        Adicionar
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button type="button" onClick={()=>setAddingTemplateItem(true)}
+                    style={{display:'flex',alignItems:'center',gap:6,padding:'5px 10px',background:'#fff',border:'1px dashed '+NB.bd,borderRadius:7,fontSize:12,color:NB.mut,cursor:'pointer'}}>
+                    <span style={{fontSize:16,lineHeight:1}}>+</span> Adicionar subtarefa ao pacote
+                  </button>
+                )}
+              </div>
             </div>
           )}
         </div>
