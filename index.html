@@ -1172,7 +1172,7 @@ function Sidebar() {
     return !st || !st.isDone;
   });
   const escopoStats = area!=='Todas' ? escopoAtivas.filter(d=>d.area===area) : escopoAtivas;
-  const vencidas = escopoStats.filter(d => { const s=getSla(d.deadline); return s && s.type!=='ok'; }).length;
+  const vencidas = escopoStats.filter(d => { const s=getSla(d.deadline); return s && s.type==='danger'; }).length;
   const emAprovacao = active.filter(d => {
     const st = (pipes[d.area]||[]).find(x => x.id === d.stageId);
     return st && st.isApproval;
@@ -5304,7 +5304,7 @@ function AlertasView() {
   const escopo = area!=='Todas' ? escopoAtivas.filter(d=>d.area===area) : escopoAtivas;
 
   const listaAtivas   = escopo;
-  const listaVencidas = escopo.filter(d=>{ const s=getSla(d.deadline); return s && s.type!=='ok'; });
+  const listaVencidas = escopo.filter(d=>{ const s=getSla(d.deadline); return s && s.type==='danger'; });
   const lista = alertasTab==='vencidas' ? listaVencidas : listaAtivas;
 
   // Agrupa por area
@@ -7261,7 +7261,7 @@ function ResumoView() {
     porArea[d.area] = (porArea[d.area]||0) + 1;
     (d.assignees||[]).forEach(a => { porResponsavel[a] = (porResponsavel[a]||0) + 1; });
     const s = getSla(d.deadline);
-    if (s && s.type!=='ok') vencidas++;
+    if (s && s.type==='danger') vencidas++;
   });
   const maxArea = Math.max(1, ...Object.values(porArea));
   const maxResp = Math.max(1, ...Object.values(porResponsavel));
