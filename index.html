@@ -998,8 +998,8 @@ function useMember(initials) {
 }
 
 /* =========== UTILS =========== */
-function getSla(dl) {
-  if (!dl) return null;
+function getSla(dl, isDone) {
+  if (!dl || isDone) return null;
   const diff = Math.ceil((new Date(dl)-new Date())/86400000);
   if (diff < 0) return { label:'Atrasado '+Math.abs(diff)+'d', type:'danger' };
   if (diff <= 2) return { label:'Vence em '+diff+'d', type:'warn' };
@@ -1488,7 +1488,8 @@ function CardAvatar({ initials, offset }) {
 
 function DemandCard({ demand, colunaOrdenada }) {
   const { setModal, dragging, setDragging, attach, comments, pipes, user, previewMember, moveStage, setNotifyPending, addComment, reordenarCards } = useApp();
-  const sla = getSla(demand.deadline);
+  const _stDem = (pipes[demand.area]||[]).find(s=>s.id===demand.stageId);
+  const sla = getSla(demand.deadline, _stDem && _stDem.isDone);
   const ps  = PRI_STL[demand.priority] || PRI_STL.Baixa;
   const isDragging = dragging && dragging.id === demand.id;
   const nA = (attach[demand.id]||[]).length;
@@ -3894,8 +3895,9 @@ function AreaBlock({ areaName, cards }) {
 /* =========== LIST VIEW =========== */
 function ListRow({ demand }) {
   const { setModal, pipes } = useApp();
+  const _stLR = (pipes[demand.area]||[]).find(s=>s.id===demand.stageId);
   const stage = Object.values(pipes).flat().find(s=>s.id===demand.stageId);
-  const sla = getSla(demand.deadline);
+  const sla = getSla(demand.deadline, _stLR && _stLR.isDone);
   const ps  = PRI_STL[demand.priority] || PRI_STL.Baixa;
   const cell = { padding:'13px 14px', fontSize:13.5, color:NB.txt, verticalAlign:'middle' };
   return (
@@ -5454,7 +5456,8 @@ function CardModal() {
   const stage = stages.find(s=>s.id===d.stageId);
   const ps  = PRI_STL[d.priority]||PRI_STL.Baixa;
   const ac  = AREA_CLR[d.area]||NB.azul;
-  const sla = getSla(d.deadline);
+  const _stCM = (pipes[d.area]||[]).find(s=>s.id===d.stageId);
+  const sla = getSla(d.deadline, _stCM && _stCM.isDone);
   const Icon = AREA_ICON[d.area];
   const podeEnviarCampanha = d.ehCampanha && stage && stage.isDone;
 
