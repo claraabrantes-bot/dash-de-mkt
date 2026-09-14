@@ -5501,6 +5501,12 @@ function CardModal() {
   const removerItemChecklist = itemId => {
     updateDemand(d.id, { checklist: (d.checklist||[]).filter(it=>it.id!==itemId) });
   };
+  const editarItemChecklist = (itemId, novoTitulo) => {
+    if (!novoTitulo.trim()) return;
+    const novos = (d.checklist||[]).map(it => it.id===itemId ? {...it, titulo:novoTitulo.trim()} : it);
+    updateDemand(d.id, { checklist: novos });
+  };
+  const [editandoItem, setEditandoItem] = useState(null);
 
   const toggle = init => {
     const has = d.assignees.includes(init);
@@ -5636,7 +5642,19 @@ function CardModal() {
                       style={{width:18,height:18,borderRadius:5,border:'1.5px solid '+(it.feita?'#0F6E56':NB.bd),background:it.feita?'#0F6E56':'#fff',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
                       {it.feita && <span style={{color:'#fff',display:'flex'}}><ICheck s={11}/></span>}
                     </button>
-                    <span style={{fontSize:13,flex:1,color: it.feita?'#0F6E56':NB.txt, textDecoration: it.feita?'line-through':'none'}}>{it.titulo}</span>
+                    {editandoItem && editandoItem.id===it.id ? (
+                      <input autoFocus value={editandoItem.titulo}
+                        onChange={e=>setEditandoItem(v=>({...v,titulo:e.target.value}))}
+                        onBlur={()=>{ editarItemChecklist(it.id, editandoItem.titulo); setEditandoItem(null); }}
+                        onKeyDown={e=>{ if(e.key==='Enter'){ editarItemChecklist(it.id, editandoItem.titulo); setEditandoItem(null); } if(e.key==='Escape') setEditandoItem(null); }}
+                        style={{flex:1,fontSize:13,border:'none',borderBottom:'1.5px solid '+NB.azul,background:'transparent',outline:'none',padding:'0 2px',color:NB.txt}}/>
+                    ) : (
+                      <span onDoubleClick={()=>!it.feita && setEditandoItem({id:it.id,titulo:it.titulo})}
+                        title={it.feita?'':'Duplo clique para editar'}
+                        style={{fontSize:13,flex:1,color:it.feita?'#0F6E56':NB.txt,textDecoration:it.feita?'line-through':'none',cursor:it.feita?'default':'text'}}>
+                        {it.titulo}
+                      </span>
+                    )}
                     {resp && <span title={resp.name} style={{fontSize:11,fontWeight:600,color: it.feita?'#0F6E56':NB.azul,flexShrink:0}}>{resp.initials}</span>}
                     <button onClick={()=>removerItemChecklist(it.id)} title="Remover" style={{color:NB.mut2,background:'none',border:'none',display:'flex',flexShrink:0}}><IX s={12}/></button>
                   </div>
