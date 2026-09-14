@@ -219,6 +219,7 @@ function Provider({ children }) {
   const [pacoteOpen, setPacoteOpen] = useState(false);
   const [notifyPending, setNotifyPending] = useState(null);
   const [showNotifCard, setShowNotifCard] = useState(false);
+  const [alertasTab, setAlertasTab] = useState('vencidas');
   const [profileOpen, setProfileOpen] = useState(false);
   const [editStages, setEditStages] = useState(null);
   const [dragging, setDragging] = useState(null);
@@ -985,7 +986,7 @@ function Provider({ children }) {
   window.__nbDem = demands;
   window.__nbPosts = posts;
 
-  return <Ctx.Provider value={{ demands, active, archived, filtered, dispararManual, slack, slackTemplate, salvarSlackTemplate, slackTemplatePrevOpen, setSlackTemplatePrevOpen, showNotifCard, setShowNotifCard, user, isTeamMember, authReady, authError, setAuthError, preferirCentral, setPreferirCentral, dbReady, dbErro, seed, pedidos, aceitarPedido, recusarPedido, posts, addPost, updatePost, deletePost, campanhas, updateCampanha, publicarCampanha, despublicarCampanha, deleteCampanha, enviarCampanhaDeDemanda, pecas, addPeca, removePeca, redesSociais, salvarRedesSociais, arquivos, addArquivo, removeArquivo, embaixadores, addEmbaixador, removeEmbaixador, pacotes, salvarPacote, removePacote, meuPortalEmbaixador, portalCarregado, isEmbaixador, criarPortalEmbaixador, removerPortalEmbaixador, portaisEmbaixador, meusEnviosFotos, todosEnviosFotos, enviarFotoEmbaixador, removerEnvioFoto, view, setView, layout, setLayout, area, setArea, query, setQuery, mesFiltro, setMesFiltro, priFilter, setPriFilter, reqFilter, setReqFilter, selDemand, setModal, newOpen, setNewOpen, presetNovo, setPresetNovo, pacoteOpen, setPacoteOpen, notifyPending, setNotifyPending, profileOpen, setProfileOpen, editStages, setEditStages, dragging, setDragging, previewMember, setPreviewMember, photos, googlePhotos, profiles, pipes, salvarPipes, attach, comments, storageWarn, MAX_FILE, addAttachment, uploadFile, migrarLocal, carregarAnexo, removeAttachment, addComment, removeComment, logout, savePhoto, removePhoto, saveProfile, addDemand, moveStage, moveArea, reordenarCards, setAssignees, updateDemand, archiveDemand, restoreDemand, delDemand }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ demands, active, archived, filtered, dispararManual, slack, slackTemplate, salvarSlackTemplate, slackTemplatePrevOpen, setSlackTemplatePrevOpen, showNotifCard, setShowNotifCard, alertasTab, setAlertasTab, user, isTeamMember, authReady, authError, setAuthError, preferirCentral, setPreferirCentral, dbReady, dbErro, seed, pedidos, aceitarPedido, recusarPedido, posts, addPost, updatePost, deletePost, campanhas, updateCampanha, publicarCampanha, despublicarCampanha, deleteCampanha, enviarCampanhaDeDemanda, pecas, addPeca, removePeca, redesSociais, salvarRedesSociais, arquivos, addArquivo, removeArquivo, embaixadores, addEmbaixador, removeEmbaixador, pacotes, salvarPacote, removePacote, meuPortalEmbaixador, portalCarregado, isEmbaixador, criarPortalEmbaixador, removerPortalEmbaixador, portaisEmbaixador, meusEnviosFotos, todosEnviosFotos, enviarFotoEmbaixador, removerEnvioFoto, view, setView, layout, setLayout, area, setArea, query, setQuery, mesFiltro, setMesFiltro, priFilter, setPriFilter, reqFilter, setReqFilter, selDemand, setModal, newOpen, setNewOpen, presetNovo, setPresetNovo, pacoteOpen, setPacoteOpen, notifyPending, setNotifyPending, profileOpen, setProfileOpen, editStages, setEditStages, dragging, setDragging, previewMember, setPreviewMember, photos, googlePhotos, profiles, pipes, salvarPipes, attach, comments, storageWarn, MAX_FILE, addAttachment, uploadFile, migrarLocal, carregarAnexo, removeAttachment, addComment, removeComment, logout, savePhoto, removePhoto, saveProfile, addDemand, moveStage, moveArea, reordenarCards, setAssignees, updateDemand, archiveDemand, restoreDemand, delDemand }}>{children}</Ctx.Provider>;
 }
 
 const useApp = () => useContext(Ctx);
@@ -1158,8 +1159,7 @@ function NavItem({ label, Icon, iconColor, count, active, onClick, indent }) {
 
 /* =========== SIDEBAR =========== */
 function Sidebar() {
-  const { view, setView, area, setArea, user, active, slack, archived, pipes, pedidos, posts, campanhas, setNewOpen, setPresetNovo, setPacoteOpen, setProfileOpen, logout, previewMember, setPreviewMember, setPreferirCentral, setModal } = useApp();
-  const [popStats, setPopStats] = useState(null); // null | 'ativas' | 'vencidas'
+  const { view, setView, area, setArea, user, active, slack, archived, pipes, pedidos, posts, campanhas, setNewOpen, setPresetNovo, setPacoteOpen, setProfileOpen, logout, previewMember, setPreviewMember, setPreferirCentral, setModal, alertasTab, setAlertasTab } = useApp();
   const areas = ['Social','Design','Mídia Paga','Produto','RevOps','Eventos'];
   const efetivo = previewMember || user;
   /* Quem tem uma área fixa (todo mundo, menos a Mariana, que acompanha
@@ -1208,48 +1208,18 @@ function Sidebar() {
           style={{width:'100%',display:'flex',alignItems:'center',justifyContent:'center',gap:8,padding:'10px 14px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:10,color:NB.mut,fontSize:12.5,fontWeight:500,marginBottom:14}}>
           <ILayers s={13}/> Criar pacote de tarefas
         </button>
-        <div style={{position:'relative'}}>
-          <div style={{display:'flex',gap:9}}>
-            <button onClick={()=>setPopStats(p=>p==='ativas'?null:'ativas')}
-              style={{flex:1,textAlign:'left',background:NB.col,border:'none',borderRadius:10,padding:'9px 11px',cursor:'pointer'}}>
+        <div style={{display:'flex',gap:9}}>
+            <button onClick={()=>{ setAlertasTab('ativas'); setView('alertas'); }}
+              style={{flex:1,textAlign:'left',background:view==='alertas'&&alertasTab==='ativas'?NB.azulClaro+'33':NB.col,border:view==='alertas'&&alertasTab==='ativas'?'1.5px solid '+NB.azul:'1.5px solid transparent',borderRadius:10,padding:'9px 11px',cursor:'pointer'}}>
               <div style={{fontSize:17,fontWeight:700,color:NB.txt,lineHeight:1.1}}>{escopoStats.length}</div>
               <div style={{fontSize:10.5,color:NB.mut,fontWeight:500}}>ativas</div>
             </button>
-            <button onClick={()=>setPopStats(p=>p==='vencidas'?null:'vencidas')}
-              style={{flex:1,textAlign:'left',background:vencidas?'#FEECEC':NB.col,border:'none',borderRadius:10,padding:'9px 11px',cursor:'pointer'}}>
+            <button onClick={()=>{ setAlertasTab('vencidas'); setView('alertas'); }}
+              style={{flex:1,textAlign:'left',background:view==='alertas'&&alertasTab==='vencidas'?'#FEECEC':vencidas?'#FEECEC':NB.col,border:view==='alertas'&&alertasTab==='vencidas'?'1.5px solid #B4232A':'1.5px solid transparent',borderRadius:10,padding:'9px 11px',cursor:'pointer'}}>
               <div style={{fontSize:17,fontWeight:700,color:vencidas?'#B4232A':NB.txt,lineHeight:1.1}}>{vencidas}</div>
               <div style={{fontSize:10.5,color:vencidas?'#B4232A':NB.mut,fontWeight:500}}>vencidas</div>
             </button>
           </div>
-          {popStats && (
-            <React.Fragment>
-              <div onClick={()=>setPopStats(null)} style={{position:'fixed',inset:0,zIndex:39}}/>
-              <div style={{position:'absolute',top:'calc(100% + 6px)',left:0,right:0,background:'#fff',border:'1px solid '+NB.bd,borderRadius:12,boxShadow:'0 16px 40px rgba(4,18,48,0.18)',zIndex:40,maxHeight:320,overflowY:'auto'}}>
-                <div style={{padding:'10px 14px',borderBottom:'1px solid '+NB.bdSoft,fontSize:11.5,fontWeight:600,color:NB.mut,textTransform:'uppercase',letterSpacing:'0.04em'}}>
-                  {popStats==='vencidas' ? 'Vencidas' : 'Ativas'} · {area==='Todas'?'todas as áreas':area}
-                </div>
-                {(() => {
-                  const lista = popStats==='vencidas'
-                    ? escopoStats.filter(d=>{ const s=getSla(d.deadline); return s && s.type!=='ok'; })
-                    : escopoStats;
-                  if (lista.length===0) return <div style={{padding:'18px 14px',fontSize:12.5,color:NB.mut2}}>Nada por aqui.</div>;
-                  return lista.map(d=>{
-                    const s = getSla(d.deadline);
-                    return (
-                      <button key={d.id} onClick={()=>{ setModal(d.id); setPopStats(null); }}
-                        style={{width:'100%',textAlign:'left',display:'flex',alignItems:'center',gap:9,padding:'9px 14px',background:'none',border:'none',borderBottom:'1px solid '+NB.bdSoft}}
-                        onMouseEnter={e=>{e.currentTarget.style.background=NB.col;}} onMouseLeave={e=>{e.currentTarget.style.background='none';}}>
-                        <span style={{width:7,height:7,borderRadius:'50%',background:AREA_CLR[d.area]||NB.mut2,flexShrink:0}}/>
-                        <span style={{fontSize:13,color:NB.txt,flex:1,minWidth:0,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{d.title}</span>
-                        {s && s.type!=='ok' && <span style={{fontSize:11,fontWeight:600,color:'#B4232A',flexShrink:0}}>{s.label}</span>}
-                      </button>
-                    );
-                  });
-                })()}
-              </div>
-            </React.Fragment>
-          )}
-        </div>
       </div>
 
       <div style={{flex:1,overflowY:'auto',padding:'18px 12px'}} className="nb-scrollnone">
@@ -5303,6 +5273,120 @@ function SlackTemplatePrevModal() {
   );
 }
 
+
+/* =========== ALERTAS VIEW =========== */
+function AlertasView() {
+  const { active, pipes, filtered, setModal, alertasTab, setAlertasTab, area } = useApp();
+  const AREAS = ['Social','Design','Mídia Paga','Produto','RevOps','Eventos','Gestão'];
+
+  const escopoAtivas = active.filter(d => {
+    const st = (pipes[d.area]||[]).find(s=>s.id===d.stageId);
+    return !st || !st.isDone;
+  });
+  const escopo = area!=='Todas' ? escopoAtivas.filter(d=>d.area===area) : escopoAtivas;
+
+  const listaAtivas   = escopo;
+  const listaVencidas = escopo.filter(d=>{ const s=getSla(d.deadline); return s && s.type!=='ok'; });
+  const lista = alertasTab==='vencidas' ? listaVencidas : listaAtivas;
+
+  // Agrupa por area
+  const porArea = {};
+  lista.forEach(d => {
+    if (!porArea[d.area]) porArea[d.area] = [];
+    porArea[d.area].push(d);
+  });
+  const areasComItens = AREAS.filter(a => porArea[a] && porArea[a].length > 0);
+
+  const tabs = [
+    { id:'ativas',   label:'Ativas',   count: listaAtivas.length },
+    { id:'vencidas', label:'Vencidas', count: listaVencidas.length },
+  ];
+
+  return (
+    <div style={{padding:'28px 32px 40px',overflowY:'auto',height:'100%'}}>
+      {/* Header */}
+      <div style={{marginBottom:24}}>
+        <h1 style={{fontSize:22,fontWeight:700,color:NB.navy1,marginBottom:4}}>
+          {alertasTab==='vencidas' ? 'Tarefas vencidas' : 'Tarefas ativas'}
+        </h1>
+        <p style={{fontSize:13.5,color:NB.mut}}>{area==='Todas' ? 'Todas as áreas' : area}</p>
+      </div>
+
+      {/* Tabs */}
+      <div style={{display:'flex',gap:4,background:NB.col,borderRadius:12,padding:4,width:'fit-content',marginBottom:28}}>
+        {tabs.map(t => (
+          <button key={t.id} onClick={()=>setAlertasTab(t.id)}
+            style={{padding:'8px 18px',borderRadius:9,border:'none',fontSize:13.5,fontWeight:600,cursor:'pointer',
+              background: alertasTab===t.id ? '#fff' : 'transparent',
+              color: alertasTab===t.id ? (t.id==='vencidas'&&t.count?'#B4232A':NB.azul) : NB.mut,
+              boxShadow: alertasTab===t.id ? '0 1px 4px rgba(0,42,114,0.10)' : 'none',
+              transition:'all 0.15s'}}>
+            {t.label}
+            <span style={{marginLeft:7,padding:'1px 7px',borderRadius:20,fontSize:11.5,fontWeight:700,
+              background: alertasTab===t.id ? (t.id==='vencidas'&&t.count?'#FEECEC':'#EAF3FD') : NB.bdSoft,
+              color: alertasTab===t.id ? (t.id==='vencidas'&&t.count?'#B4232A':NB.azul) : NB.mut2}}>
+              {t.count}
+            </span>
+          </button>
+        ))}
+      </div>
+
+      {/* Lista por área */}
+      {areasComItens.length === 0 ? (
+        <div style={{textAlign:'center',padding:'60px 20px',color:NB.mut2}}>
+          <div style={{fontSize:36,marginBottom:12}}>✅</div>
+          <div style={{fontSize:15,fontWeight:500,color:NB.txt,marginBottom:6}}>
+            {alertasTab==='vencidas' ? 'Nenhuma tarefa vencida!' : 'Nenhuma tarefa ativa.'}
+          </div>
+          <div style={{fontSize:13,color:NB.mut2}}>
+            {alertasTab==='vencidas' ? 'Tudo em dia por aqui.' : 'Crie uma nova demanda para começar.'}
+          </div>
+        </div>
+      ) : (
+        <div style={{display:'flex',flexDirection:'column',gap:24}}>
+          {areasComItens.map(areaName => (
+            <div key={areaName}>
+              {/* Cabeçalho da área */}
+              <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:10}}>
+                <span style={{width:10,height:10,borderRadius:'50%',background:AREA_CLR[areaName]||NB.mut2,flexShrink:0}}/>
+                <span style={{fontSize:11,fontWeight:700,letterSpacing:'0.09em',textTransform:'uppercase',color:NB.mut2}}>
+                  {areaName} · {porArea[areaName].length}
+                </span>
+                <div style={{flex:1,height:1,background:NB.bdSoft}}/>
+              </div>
+
+              {/* Itens */}
+              <div style={{display:'flex',flexDirection:'column',gap:6}}>
+                {porArea[areaName].map(d => {
+                  const s = getSla(d.deadline);
+                  const st = (pipes[d.area]||[]).find(x=>x.id===d.stageId);
+                  return (
+                    <button key={d.id} onClick={()=>setModal(d.id)}
+                      style={{display:'flex',alignItems:'center',gap:12,padding:'12px 16px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:11,textAlign:'left',cursor:'pointer',transition:'box-shadow 0.12s'}}
+                      onMouseEnter={e=>{e.currentTarget.style.boxShadow='0 2px 12px rgba(0,42,114,0.08)';}}
+                      onMouseLeave={e=>{e.currentTarget.style.boxShadow='none';}}>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{fontSize:13.5,fontWeight:500,color:NB.txt,marginBottom:3,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{d.title}</div>
+                        <div style={{fontSize:11.5,color:NB.mut2}}>{st ? st.name : '—'}</div>
+                      </div>
+                      {s && s.type!=='ok' && (
+                        <span style={{fontSize:12,fontWeight:600,color:'#B4232A',background:'#FEECEC',padding:'3px 9px',borderRadius:20,flexShrink:0}}>{s.label}</span>
+                      )}
+                      {s && s.type==='ok' && d.deadline && (
+                        <span style={{fontSize:11.5,color:NB.mut2,flexShrink:0}}>{d.deadline.slice(5).replace('-','/')}</span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* =========== NOTIFICAÇÕES DE NAVEGADOR =========== */
 function NotifPermCard() {
   const { showNotifCard, setShowNotifCard } = useApp();
@@ -7695,6 +7779,7 @@ function AppContent() {
               {view==='portalEmbaixador' && <PortalEmbaixadorGestaoView/>}
               {view==='minhasSubtarefas' && <MinhasSubtarefasView/>}
               {view==='resumo' && <ResumoView/>}
+              {view==='alertas' && <AlertasView/>}
             </React.Fragment>
           )}
         </main>
