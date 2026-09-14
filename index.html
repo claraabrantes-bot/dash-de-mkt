@@ -450,7 +450,7 @@ function Provider({ children }) {
     batch.commit().catch(e=>setDbErro('Não foi possível reordenar: '+e.message));
   }, []);
 
-  const addDemand = useCallback((data) => {
+  const addDemand = useCallback((data, onCreated) => {
     const db = dbRef.current; if (!db) return;
     const nums = (window.__nbDem || []).map(d => parseInt(String(d.code).replace(/\D/g,''),10)).filter(n=>!isNaN(n));
     const code = 'DEM-' + ((nums.length ? Math.max(...nums) : 100) + 1);
@@ -461,6 +461,7 @@ function Provider({ children }) {
       feed({ code, area:data.area }, 'Nova demanda criada',
         'Solicitação registrada por '+data.requester+' — destinada a '+who,
         'Demanda solicitada no Slack para '+who, 'new');
+      if (onCreated) onCreated({ id: ref.id, ...nd });
     }).catch(e => setDbErro('Não foi possível criar a demanda: '+e.message));
   }, [feed]);
 
@@ -6389,7 +6390,7 @@ function PacoteEditModal({ id, pacote, onClose, onSaved }) {
 }
 
 function NewModal() {
-  const { newOpen, setNewOpen, addDemand, user, area, pipes, presetNovo, setPresetNovo } = useApp();
+  const { newOpen, setNewOpen, addDemand, uploadFile, user, area, pipes, presetNovo, setPresetNovo, MAX_FILE } = useApp();
   const initArea = presetNovo ? presetNovo.area : (area!=='Todas' ? area : 'Social');
   const [form, setForm] = useState({ title:'', area:initArea, priority:'Média', deadline:dStr(7), description:'', requester:user.name, assignees:[],
     ehCampanha:false, campanhaDesconto:'', campanhaJornada:'empresa', recorrente:false, frequenciaDias:30 });
@@ -6400,11 +6401,12 @@ function NewModal() {
   const [templateChecklist, setTemplateChecklist] = useState([]);
   const [novoTemplateItem, setNovoTemplateItem] = useState({ titulo:'', responsavel:'' });
   const [addingTemplateItem, setAddingTemplateItem] = useState(false);
+  const [filasAnexos, setFilasAnexos] = useState([]); // arquivos a anexar após criar
 
   useEffect(() => {
     if (newOpen) { setForm(f=>({ ...f, title:'', area: presetNovo ? presetNovo.area : (area!=='Todas'?area:'Social'), requester:user.name, assignees:[], description:'',
       ehCampanha:false, campanhaDesconto:'', campanhaJornada:'empresa', recorrente:false, frequenciaDias:30 })); setAreasEspelho([]); setChecklist([]); setAddingItem(false);
-      setTemplateChecklist([]); setNovoTemplateItem({titulo:'',responsavel:''}); setAddingTemplateItem(false); }
+      setTemplateChecklist([]); setNovoTemplateItem({titulo:'',responsavel:''}); setAddingTemplateItem(false); setFilasAnexos([]); }
   }, [newOpen, area, user, presetNovo]);
 
   if (!newOpen) return null;
@@ -6438,7 +6440,9 @@ function NewModal() {
         if (templateChecklist.length > 0) dados.checklistTemplate = templateChecklist;
       }
       if (espelhoGrupoId) { dados.espelhoGrupoId = espelhoGrupoId; dados.espelhoAreas = todasAreas; }
-      addDemand(dados);
+      addDemand(dados, (dem) => {
+        filasAnexos.forEach(f => uploadFile(dem, f, user));
+      });
     });
     setNewOpen(false); setPresetNovo(null);
   };
@@ -6659,6 +6663,30 @@ function NewModal() {
           <textarea value={form.description} onChange={e=>set('description',e.target.value)} rows={3}
             placeholder="Referências, objetivo, link de briefing..." style={{...inp,resize:'vertical',lineHeight:1.6}}
             onFocus={e=>{e.target.style.borderColor=NB.azul;}} onBlur={e=>{e.target.style.borderColor=NB.bd;}}/>
+        </div>
+
+        <div>
+          <div style={lbl}>Anexos <span style={{fontWeight:400,color:NB.mut2}}>(opcional)</span></div>
+          <label style={{display:'flex',alignItems:'center',gap:8,padding:'9px 14px',border:'1.5px dashed '+NB.bd,borderRadius:9,cursor:'pointer',fontSize:13,color:NB.azul,fontWeight:500,marginTop:6,background:'#FAFBFF'}}
+            onMouseEnter={e=>e.currentTarget.style.borderColor=NB.azul} onMouseLeave={e=>e.currentTarget.style.borderColor=NB.bd}>
+            <IPhoto s={15} color={NB.azul}/> Escolher arquivos
+            <input type="file" multiple style={{display:'none'}} onChange={e=>{
+              const novos = Array.from(e.target.files).filter(f=>f.size<=MAX_FILE);
+              setFilasAnexos(v=>[...v, ...novos]);
+              e.target.value='';
+            }}/>
+          </label>
+          {filasAnexos.length>0 && (
+            <div style={{display:'flex',flexDirection:'column',gap:5,marginTop:8}}>
+              {filasAnexos.map((f,i)=>(
+                <div key={i} style={{display:'flex',alignItems:'center',gap:8,padding:'6px 10px',background:NB.col,border:'1px solid '+NB.bd,borderRadius:7}}>
+                  <span style={{fontSize:12,flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',color:NB.txt}}>{f.name}</span>
+                  <span style={{fontSize:11,color:NB.mut2,flexShrink:0}}>{(f.size/1024).toFixed(0)} KB</span>
+                  <button type="button" onClick={()=>setFilasAnexos(v=>v.filter((_,j)=>j!==i))} style={{background:'none',border:'none',color:NB.mut2,display:'flex',cursor:'pointer'}}><IX s={11}/></button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
