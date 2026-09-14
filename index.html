@@ -4261,6 +4261,7 @@ function AttachPanel({ demand }) {
   const [err, setErr] = useState('');
   const [subindo, setSubindo] = useState([]);   // [{nome, pct}]
   const [conteudo, setConteudo] = useState({}); // anexoId -> dataURL, buscado sob demanda
+  const [lightbox, setLightbox] = useState(null);
 
   /* Só busca o arquivo em si quando o card está aberto, para não pesar o quadro. */
   useEffect(() => {
@@ -4381,7 +4382,7 @@ function AttachPanel({ demand }) {
             return (
               <div key={a.id} style={{display:'flex',alignItems:'center',gap:12,background:'#fff',border:'1px solid '+NB.bd,borderRadius:10,padding:'10px 12px'}}>
                 {img
-                  ? <img src={src} alt="" style={{width:38,height:38,borderRadius:8,objectFit:'cover',flexShrink:0,border:'1px solid '+NB.bd}}/>
+                  ? <img src={src} alt="" onClick={()=>src&&setLightbox(src)} style={{width:38,height:38,borderRadius:8,objectFit:'cover',flexShrink:0,border:'1px solid '+NB.bd,cursor:'zoom-in'}}/>
                   : <div style={{width:38,height:38,borderRadius:8,background:a.kind==='link'?'#F1ECFE':NB.col,color:a.kind==='link'?NB.roxo:NB.mut,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
                       {a.kind==='link' ? <ILink s={17}/> : <IFile s={17}/>}
                     </div>}
@@ -4418,6 +4419,20 @@ function AttachPanel({ demand }) {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Lightbox */}
+      {lightbox && (
+        <div onClick={()=>setLightbox(null)}
+          style={{position:'fixed',inset:0,background:'rgba(0,10,30,0.85)',zIndex:3000,display:'flex',alignItems:'center',justifyContent:'center',padding:24,cursor:'zoom-out'}}>
+          <img src={lightbox} alt=""
+            style={{maxWidth:'90vw',maxHeight:'90vh',borderRadius:12,boxShadow:'0 24px 64px rgba(0,0,0,0.5)',objectFit:'contain'}}
+            onClick={e=>e.stopPropagation()}/>
+          <button onClick={()=>setLightbox(null)}
+            style={{position:'absolute',top:20,right:20,background:'rgba(255,255,255,0.15)',border:'none',borderRadius:'50%',width:38,height:38,display:'flex',alignItems:'center',justifyContent:'center',color:'#fff',fontSize:22,cursor:'pointer',lineHeight:1}}>
+            ×
+          </button>
         </div>
       )}
     </div>
