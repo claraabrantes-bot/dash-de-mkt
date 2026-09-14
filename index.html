@@ -1556,7 +1556,7 @@ function DemandCard({ demand, colunaOrdenada }) {
         setDragging(null); setOverPos(null);
       }}
       onClick={()=>setModal(demand.id)}
-      style={{background:'#fff',borderRadius:11,border:'1px solid '+NB.bd,padding:'14px 15px 13px',cursor:isDragging?'grabbing':'grab',transition:'box-shadow 0.14s, border-color 0.14s, transform 0.14s, opacity 0.14s',marginBottom:10,opacity:isDragging?0.4:1,
+      style={{background:'#fff',borderRadius:11,border:'1px solid '+NB.bd,borderLeft:'4px solid '+ps.bdr,padding:'14px 15px 13px 12px',cursor:isDragging?'grabbing':'grab',transition:'box-shadow 0.14s, border-color 0.14s, transform 0.14s, opacity 0.14s',marginBottom:10,opacity:isDragging?0.4:1,
         boxShadow: overPos==='antes' ? 'inset 0 3px 0 0 '+NB.azul : overPos==='depois' ? 'inset 0 -3px 0 0 '+NB.azul : 'none'}}
       onMouseEnter={e=>{ if(!dragging){ e.currentTarget.style.boxShadow='0 4px 16px rgba(11,42,92,0.09)'; e.currentTarget.style.borderColor='#CFDCF0'; e.currentTarget.style.transform='translateY(-1px)'; } }}
       onMouseLeave={e=>{e.currentTarget.style.boxShadow='none'; e.currentTarget.style.borderColor=NB.bd; e.currentTarget.style.transform='none';}}>
@@ -1578,7 +1578,11 @@ function DemandCard({ demand, colunaOrdenada }) {
           {nC>0 && <span title={nC+' comentário(s)'} style={{display:'flex',alignItems:'center',gap:3,fontSize:12,color:NB.mut2}}><IChatBox s={13}/>{nC}</span>}
         </div>
         <div style={{display:'flex',alignItems:'center',gap:9,flexShrink:0}}>
-          <span title={'Prioridade '+demand.priority} style={{width:7,height:7,borderRadius:2,background:ps.bdr,flexShrink:0}}/>
+          {demand.priority !== 'Média' && (
+            <span style={{fontSize:10.5,fontWeight:700,padding:'2px 7px',borderRadius:20,background:ps.bg,color:ps.txt,flexShrink:0,letterSpacing:'0.02em'}}>
+              {demand.priority}
+            </span>
+          )}
           <div style={{display:'flex'}}>
             {demand.assignees.slice(0,3).map((init,i)=>(
               <CardAvatar key={init+i} initials={init} offset={i}/>
