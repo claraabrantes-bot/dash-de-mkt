@@ -4118,6 +4118,107 @@ function SlackFeed() {
 }
 
 /* Campo que vira input ao clicar. Enter salva, Esc cancela, sair do campo salva. */
+
+/* =========== RICH TEXT EDITOR (Descrição) =========== */
+function RichTextEditor({ value, onSave, placeholder }) {
+  const [active, setActive] = useState(false);
+  const editorRef = useRef(null);
+  const toolbarRef = useRef(null);
+
+  useEffect(() => {
+    if (active && editorRef.current) {
+      editorRef.current.innerHTML = value || '';
+      // Coloca cursor no final
+      const range = document.createRange();
+      const sel = window.getSelection();
+      range.selectNodeContents(editorRef.current);
+      range.collapse(false);
+      sel.removeAllRanges();
+      sel.addRange(range);
+      editorRef.current.focus();
+    }
+  }, [active]);
+
+  const save = () => {
+    const html = editorRef.current?.innerHTML || '';
+    // Strip completamente se só tiver tags vazias
+    const stripped = html.replace(/<br\s*\/?>/gi,'').replace(/<[^>]+>/g,'').trim();
+    const saved = stripped ? html : '';
+    if (saved !== (value || '')) onSave(saved);
+    setActive(false);
+  };
+
+  const fmt = (cmd, val) => {
+    editorRef.current?.focus();
+    document.execCommand(cmd, false, val || null);
+  };
+
+  const handleBlur = e => {
+    if (toolbarRef.current && toolbarRef.current.contains(e.relatedTarget)) return;
+    save();
+  };
+
+  const isHtml = value && /<[a-z][\s\S]*>/i.test(value);
+  const isEmpty = !value || !value.replace(/<[^>]+>/g,'').trim();
+
+  const toolBtns = [
+    { cmd:'bold',          jsx:<b style={{fontWeight:800,fontFamily:'Georgia,serif'}}>B</b>, title:'Negrito (Ctrl+B)' },
+    { cmd:'italic',        jsx:<i style={{fontStyle:'italic',fontFamily:'Georgia,serif'}}>I</i>, title:'Itálico (Ctrl+I)' },
+    { cmd:'underline',     jsx:<u>U</u>,     title:'Sublinhado (Ctrl+U)' },
+    { cmd:'strikeThrough', jsx:<s>S</s>,     title:'Tachado' },
+  ];
+
+  if (!active) {
+    return (
+      <div onClick={()=>setActive(true)}
+        style={{minHeight:120,cursor:'text',padding:'10px 12px',border:'1px solid '+NB.bd,borderRadius:10,background:'#FAFBFF',
+                transition:'border-color 0.12s',lineHeight:1.7,fontSize:14.5,color:'#3D4B63'}}
+        onMouseEnter={e=>e.currentTarget.style.borderColor='#CFDCF0'}
+        onMouseLeave={e=>e.currentTarget.style.borderColor=NB.bd}>
+        {isEmpty
+          ? <span style={{color:NB.mut2,fontSize:14}}>{placeholder}</span>
+          : isHtml
+            ? <div dangerouslySetInnerHTML={{__html:value}} style={{lineHeight:1.7}}/>
+            : <span style={{whiteSpace:'pre-wrap'}}>{value}</span>
+        }
+      </div>
+    );
+  }
+
+  return (
+    <div style={{border:'1.5px solid '+NB.azul,borderRadius:10,overflow:'hidden',background:'#fff'}}>
+      {/* Toolbar */}
+      <div ref={toolbarRef} tabIndex={-1}
+        style={{display:'flex',alignItems:'center',gap:2,padding:'5px 8px',background:NB.col,borderBottom:'1px solid '+NB.bd}}>
+        {toolBtns.map(({cmd,jsx,title})=>(
+          <button key={cmd} title={title}
+            onMouseDown={e=>{e.preventDefault(); fmt(cmd);}}
+            style={{padding:'3px 8px',border:'none',background:'transparent',borderRadius:5,cursor:'pointer',fontSize:13,color:NB.txt,
+                    lineHeight:1.2}}>
+            {jsx}
+          </button>
+        ))}
+        <div style={{width:1,height:16,background:NB.bd,margin:'0 4px'}}/>
+        <button title="Link (selecione o texto antes)"
+          onMouseDown={e=>{e.preventDefault(); const u=prompt('URL do link:'); if(u) fmt('createLink',u);}}
+          style={{padding:'3px 8px',border:'none',background:'transparent',borderRadius:5,cursor:'pointer',fontSize:12,color:NB.azul}}>
+          🔗
+        </button>
+        <div style={{flex:1}}/>
+        <span style={{fontSize:10.5,color:NB.mut2,paddingRight:4}}>Ctrl+Enter salva · Esc cancela</span>
+      </div>
+      {/* Área editável */}
+      <div ref={editorRef} contentEditable suppressContentEditableWarning
+        onBlur={handleBlur}
+        onKeyDown={e=>{
+          if(e.key==='Escape'){e.preventDefault(); setActive(false);}
+          if(e.key==='Enter'&&(e.metaKey||e.ctrlKey)){e.preventDefault(); save();}
+        }}
+        style={{minHeight:180,padding:'12px 14px',fontSize:14.5,lineHeight:1.7,color:'#3D4B63',outline:'none',wordBreak:'break-word'}}/>
+    </div>
+  );
+}
+
 function EditableText({ value, onSave, multiline, placeholder, required, textStyle, rows }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value || '');
@@ -5718,10 +5819,9 @@ function CardModal() {
 
         <div style={{marginBottom:22}}>
           <div style={lbl}>Descrição</div>
-          <EditableText value={d.description} multiline rows={3}
+          <RichTextEditor value={d.description}
             placeholder="Clique para adicionar contexto, referências ou link do briefing..."
-            onSave={v=>updateDemand(d.id,{description:v})}
-            textStyle={{fontSize:14.5,color:'#3D4B63',lineHeight:1.65}}/>
+            onSave={v=>updateDemand(d.id,{description:v})}/>
         </div>
 
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:13,marginBottom:22}}>
