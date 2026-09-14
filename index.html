@@ -5446,6 +5446,8 @@ function CardModal() {
     setAreaPick(false); setTgtArea(null); setTgtStage(null); setEnviando(false);
   }, [openId]);
 
+  const [editandoItem, setEditandoItem] = useState(null);
+
   if (!selDemand) return null;
 
   const nAttach   = (attach[openId] || []).length;
@@ -5510,7 +5512,6 @@ function CardModal() {
     const novos = (d.checklist||[]).map(it => it.id===itemId ? {...it, titulo:novoTitulo.trim()} : it);
     updateDemand(d.id, { checklist: novos });
   };
-  const [editandoItem, setEditandoItem] = useState(null);
 
   const toggle = init => {
     const has = d.assignees.includes(init);
