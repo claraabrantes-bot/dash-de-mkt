@@ -1007,6 +1007,13 @@ function getSla(dl, isDone) {
   return { label:diff+'d', type:'ok' };
 }
 function fmtDate(s) { if(!s) return ''; const [,m,d]=s.split('-'); return d+'/'+m; }
+/* Evita datas absurdas (ex: ano "0008" digitado por engano no input type=date nativo) */
+function isDataValida(s) {
+  if (!s) return true; // vazio é permitido (limpar o campo)
+  const ano = parseInt(s.split('-')[0], 10);
+  const anoAtual = new Date().getFullYear();
+  return ano >= 1970 && ano <= anoAtual + 15;
+}
 
 /* =========== ICONS =========== */
 const sw = { fill:'none', stroke:'currentColor', strokeWidth:1.8, strokeLinecap:'round', strokeLinejoin:'round' };
@@ -1840,7 +1847,7 @@ function PedidoCard({ pedido }) {
             </div>
             <div>
               <div style={{...lbl,marginBottom:6}}>Prazo</div>
-              <input type="date" value={form.deadline} onChange={e=>set('deadline',e.target.value)} style={{...inp,padding:'9px 12px',fontSize:13.5}}/>
+              <input type="date" value={form.deadline} onChange={e=>{ if(isDataValida(e.target.value)) set('deadline',e.target.value); }} style={{...inp,padding:'9px 12px',fontSize:13.5}}/>
             </div>
           </div>
           <div>
@@ -1965,7 +1972,7 @@ function NewPostModal({ onClose, editingPost }) {
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:13}}>
           <div>
             <div style={{...lbl,marginBottom:7}}>Data</div>
-            <input type="date" value={form.data} onChange={e=>set('data',e.target.value)} style={{...inp,padding:'9px 12px',fontSize:13.5}}/>
+            <input type="date" value={form.data} onChange={e=>{ if(isDataValida(e.target.value)) set('data',e.target.value); }} style={{...inp,padding:'9px 12px',fontSize:13.5}}/>
           </div>
           <div>
             <div style={{...lbl,marginBottom:7}}>Hora</div>
@@ -2543,7 +2550,7 @@ function SolicitarPecaInline() {
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
         <div>
           <div style={{fontSize:11,fontWeight:600,color:NB.mut,marginBottom:6,textTransform:'uppercase',letterSpacing:'0.05em'}}>Precisa para quando</div>
-          <input type="date" value={f.prazo} onChange={e=>set('prazo',e.target.value)}
+          <input type="date" value={f.prazo} onChange={e=>{ if(isDataValida(e.target.value)) set('prazo',e.target.value); }}
             style={{width:'100%',background:NB.col,border:'1.5px solid '+NB.bd,borderRadius:9,padding:'9px 12px',fontSize:12.5,color:NB.txt,outline:'none',boxSizing:'border-box'}}/>
         </div>
         <div>
@@ -5834,7 +5841,7 @@ function CardModal() {
             <div style={lbl}>Prazo</div>
             <div style={{display:'flex',alignItems:'center',gap:9,flexWrap:'wrap'}}>
               <input type="date" value={d.deadline||''}
-                onChange={e=>{ if(e.target.value) updateDemand(d.id,{deadline:e.target.value}); }}
+                onChange={e=>{ if(e.target.value && isDataValida(e.target.value)) updateDemand(d.id,{deadline:e.target.value}); }}
                 style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:8,padding:'7px 10px',fontSize:13.5,color:NB.txt,outline:'none',fontWeight:500}}
                 onFocus={e=>{e.target.style.borderColor=NB.azul;}} onBlur={e=>{e.target.style.borderColor=NB.bd;}}/>
               {sla && (
@@ -6289,7 +6296,7 @@ function PacoteModal() {
 
         <div>
           <div style={lbl}>{pacote.campoData || 'Data-base'}</div>
-          <input type="date" value={dataBase} onChange={e=>setDataBase(e.target.value)} style={inp}/>
+          <input type="date" value={dataBase} onChange={e=>{ if(isDataValida(e.target.value)) setDataBase(e.target.value); }} style={inp}/>
         </div>
 
         <div>
@@ -6619,7 +6626,7 @@ function NewModal() {
           </div>
           <div>
             <div style={lbl}>Prazo</div>
-            <input type="date" value={form.deadline} onChange={e=>set('deadline',e.target.value)} style={inp}/>
+            <input type="date" value={form.deadline} onChange={e=>{ if(isDataValida(e.target.value)) set('deadline',e.target.value); }} style={inp}/>
           </div>
         </div>
 
