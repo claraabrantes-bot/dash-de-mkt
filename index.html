@@ -213,6 +213,7 @@ function Provider({ children }) {
   const [mesFiltro, setMesFiltro] = useState('todos'); // 'todos' | 'YYYY-MM'
   const [priFilter, setPriFilter] = useState([]);
   const [reqFilter, setReqFilter] = useState([]);
+  const [respFilter, setRespFilter] = useState([]);
   const [modal, setModal]   = useState(null);
   const [newOpen, setNewOpen] = useState(false);
   const [presetNovo, setPresetNovo] = useState(null); // { area, stageId } | null
@@ -977,6 +978,7 @@ function Provider({ children }) {
     if (mesFiltro!=='todos' && !(d.createdAt||'').startsWith(mesFiltro)) return false;
     if (priFilter.length && !priFilter.includes(d.priority)) return false;
     if (reqFilter.length && !reqFilter.includes(d.requester)) return false;
+    if (respFilter.length && !(d.assignees||[]).some(a=>respFilter.includes(a))) return false;
     if (query.trim()) { const q=query.toLowerCase(); return (d.title||'').toLowerCase().includes(q)||(d.code||'').toLowerCase().includes(q); }
     return true;
   });
@@ -987,7 +989,7 @@ function Provider({ children }) {
   window.__nbDem = demands;
   window.__nbPosts = posts;
 
-  return <Ctx.Provider value={{ demands, active, archived, filtered, dispararManual, slack, slackTemplate, salvarSlackTemplate, slackTemplatePrevOpen, setSlackTemplatePrevOpen, showNotifCard, setShowNotifCard, alertasTab, setAlertasTab, user, isTeamMember, authReady, authError, setAuthError, preferirCentral, setPreferirCentral, dbReady, dbErro, seed, pedidos, aceitarPedido, recusarPedido, posts, addPost, updatePost, deletePost, campanhas, updateCampanha, publicarCampanha, despublicarCampanha, deleteCampanha, enviarCampanhaDeDemanda, pecas, addPeca, removePeca, redesSociais, salvarRedesSociais, arquivos, addArquivo, removeArquivo, embaixadores, addEmbaixador, removeEmbaixador, pacotes, salvarPacote, removePacote, meuPortalEmbaixador, portalCarregado, isEmbaixador, criarPortalEmbaixador, removerPortalEmbaixador, portaisEmbaixador, meusEnviosFotos, todosEnviosFotos, enviarFotoEmbaixador, removerEnvioFoto, view, setView, layout, setLayout, area, setArea, query, setQuery, mesFiltro, setMesFiltro, priFilter, setPriFilter, reqFilter, setReqFilter, selDemand, setModal, newOpen, setNewOpen, presetNovo, setPresetNovo, pacoteOpen, setPacoteOpen, notifyPending, setNotifyPending, profileOpen, setProfileOpen, editStages, setEditStages, dragging, setDragging, previewMember, setPreviewMember, photos, googlePhotos, profiles, pipes, salvarPipes, attach, comments, storageWarn, MAX_FILE, addAttachment, uploadFile, migrarLocal, carregarAnexo, removeAttachment, addComment, removeComment, logout, savePhoto, removePhoto, saveProfile, addDemand, moveStage, moveArea, reordenarCards, setAssignees, updateDemand, archiveDemand, restoreDemand, delDemand }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ demands, active, archived, filtered, dispararManual, slack, slackTemplate, salvarSlackTemplate, slackTemplatePrevOpen, setSlackTemplatePrevOpen, showNotifCard, setShowNotifCard, alertasTab, setAlertasTab, user, isTeamMember, authReady, authError, setAuthError, preferirCentral, setPreferirCentral, dbReady, dbErro, seed, pedidos, aceitarPedido, recusarPedido, posts, addPost, updatePost, deletePost, campanhas, updateCampanha, publicarCampanha, despublicarCampanha, deleteCampanha, enviarCampanhaDeDemanda, pecas, addPeca, removePeca, redesSociais, salvarRedesSociais, arquivos, addArquivo, removeArquivo, embaixadores, addEmbaixador, removeEmbaixador, pacotes, salvarPacote, removePacote, meuPortalEmbaixador, portalCarregado, isEmbaixador, criarPortalEmbaixador, removerPortalEmbaixador, portaisEmbaixador, meusEnviosFotos, todosEnviosFotos, enviarFotoEmbaixador, removerEnvioFoto, view, setView, layout, setLayout, area, setArea, query, setQuery, mesFiltro, setMesFiltro, priFilter, setPriFilter, reqFilter, setReqFilter, respFilter, setRespFilter, selDemand, setModal, newOpen, setNewOpen, presetNovo, setPresetNovo, pacoteOpen, setPacoteOpen, notifyPending, setNotifyPending, profileOpen, setProfileOpen, editStages, setEditStages, dragging, setDragging, previewMember, setPreviewMember, photos, googlePhotos, profiles, pipes, salvarPipes, attach, comments, storageWarn, MAX_FILE, addAttachment, uploadFile, migrarLocal, carregarAnexo, removeAttachment, addComment, removeComment, logout, savePhoto, removePhoto, saveProfile, addDemand, moveStage, moveArea, reordenarCards, setAssignees, updateDemand, archiveDemand, restoreDemand, delDemand }}>{children}</Ctx.Provider>;
 }
 
 const useApp = () => useContext(Ctx);
@@ -1379,7 +1381,7 @@ function Sidebar() {
 
 /* =========== CABEÇALHO DO CONTEÚDO =========== */
 function ContentHeader() {
-  const { view, area, query, setQuery, mesFiltro, setMesFiltro, layout, setLayout, priFilter, setPriFilter, reqFilter, setReqFilter, active, seed, demands } = useApp();
+  const { view, area, query, setQuery, mesFiltro, setMesFiltro, layout, setLayout, priFilter, setPriFilter, reqFilter, setReqFilter, respFilter, setRespFilter, active, seed, demands } = useApp();
   const [fOpen, setFOpen] = useState(false);
 
   const titles = {
@@ -1398,9 +1400,12 @@ function ContentHeader() {
 
   const togglePri = p => setPriFilter(v => v.includes(p) ? v.filter(x=>x!==p) : [...v,p]);
   const toggleReq = n => setReqFilter(v => v.includes(n) ? v.filter(x=>x!==n) : [...v,n]);
+  const toggleResp = ini => setRespFilter(v => v.includes(ini) ? v.filter(x=>x!==ini) : [...v,ini]);
   const escopoFiltro = area!=='Todas' ? active.filter(d=>d.area===area) : active;
   const solicitantes = Array.from(new Set(escopoFiltro.map(d=>d.requester).filter(Boolean))).sort();
-  const nFiltros = priFilter.length + reqFilter.length;
+  const responsaveisIni = Array.from(new Set(escopoFiltro.flatMap(d=>d.assignees||[]).filter(Boolean)));
+  const responsaveis = responsaveisIni.map(ini=>TEAM.find(m=>m.initials===ini)).filter(Boolean).sort((a,b)=>a.name.localeCompare(b.name));
+  const nFiltros = priFilter.length + reqFilter.length + respFilter.length;
 
   return (
     <header style={{background:'#fff',borderBottom:'1px solid '+NB.bd,padding:'18px 30px',display:'flex',alignItems:'center',gap:16,flexShrink:0,flexWrap:'wrap',rowGap:12}}>
@@ -1459,8 +1464,19 @@ function ContentHeader() {
                     </label>
                   );
                 })}
-                {(priFilter.length>0 || reqFilter.length>0) && (
-                  <button onClick={()=>{setPriFilter([]); setReqFilter([]);}}
+                <div style={{height:1,background:NB.bdSoft,margin:'11px 0'}}/>
+                <div style={{fontSize:11,fontWeight:500,color:NB.mut2,textTransform:'uppercase',letterSpacing:'0.09em',marginBottom:9}}>Responsável</div>
+                {responsaveis.length===0 ? (
+                  <p style={{fontSize:12.5,color:NB.mut2}}>Nenhuma demanda ainda.</p>
+                ) : responsaveis.map(mb=>(
+                  <label key={mb.initials} style={{display:'flex',alignItems:'center',gap:9,padding:'5px 0',cursor:'pointer',fontSize:13.5,color:NB.txt}}>
+                    <input type="checkbox" checked={respFilter.includes(mb.initials)} onChange={()=>toggleResp(mb.initials)} style={{width:15,height:15,accentColor:NB.azul}}/>
+                    <Avatar member={mb} size={22} ring={false} style={{boxShadow:'0 0 0 1.5px '+(mb.color||NB.mut2)}}/>
+                    <span style={{whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{mb.name}</span>
+                  </label>
+                ))}
+                {(priFilter.length>0 || reqFilter.length>0 || respFilter.length>0) && (
+                  <button onClick={()=>{setPriFilter([]); setReqFilter([]); setRespFilter([]);}}
                     style={{marginTop:11,width:'100%',padding:'7px',background:NB.col,border:'1px solid '+NB.bd,borderRadius:8,fontSize:12.5,color:NB.mut,fontWeight:500}}>
                     Limpar filtros
                   </button>
