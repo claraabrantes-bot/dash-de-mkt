@@ -5587,9 +5587,11 @@ function CardModal() {
   useEffect(() => {
     setPicker(false); setConfirmDel(false); setTab('anexos');
     setAreaPick(false); setTgtArea(null); setTgtStage(null); setEnviando(false);
+    setPrazoLocal(selDemand ? (selDemand.deadline||'') : '');
   }, [openId]);
 
   const [editandoItem, setEditandoItem] = useState(null);
+  const [prazoLocal, setPrazoLocal] = useState(selDemand ? (selDemand.deadline||'') : '');
 
   if (!selDemand) return null;
 
@@ -5856,10 +5858,17 @@ function CardModal() {
           <div style={{background:NB.col,borderRadius:11,padding:'13px 15px'}}>
             <div style={lbl}>Prazo</div>
             <div style={{display:'flex',alignItems:'center',gap:9,flexWrap:'wrap'}}>
-              <input type="date" value={d.deadline||''}
-                onChange={e=>{ if(e.target.value && isDataValida(e.target.value)) updateDemand(d.id,{deadline:e.target.value}); }}
+              <input type="date" value={prazoLocal}
+                onChange={e=>setPrazoLocal(e.target.value)}
+                onBlur={e=>{
+                  e.target.style.borderColor=NB.bd;
+                  const v = e.target.value;
+                  if (!v) { setPrazoLocal(d.deadline||''); return; }
+                  if (!isDataValida(v)) { setPrazoLocal(d.deadline||''); return; }
+                  if (v !== d.deadline) updateDemand(d.id,{deadline:v});
+                }}
                 style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:8,padding:'7px 10px',fontSize:13.5,color:NB.txt,outline:'none',fontWeight:500}}
-                onFocus={e=>{e.target.style.borderColor=NB.azul;}} onBlur={e=>{e.target.style.borderColor=NB.bd;}}/>
+                onFocus={e=>{e.target.style.borderColor=NB.azul;}}/>
               {sla && (
                 <span style={{fontSize:12.5,fontWeight:500,padding:'4px 9px',borderRadius:6,
                   background: sla.type==='danger' ? '#FEECEC' : sla.type==='warn' ? '#FFF6DE' : '#EEF2F8',
