@@ -4195,14 +4195,14 @@ function RichTextEditor({ value, onSave, placeholder }) {
     return (
       <div onClick={()=>setActive(true)}
         style={{minHeight:120,cursor:'text',padding:'10px 12px',border:'1px solid '+NB.bd,borderRadius:10,background:'#FAFBFF',
-                transition:'border-color 0.12s',lineHeight:1.7,fontSize:14.5,color:'#3D4B63'}}
+                transition:'border-color 0.12s',lineHeight:1.7,fontSize:14.5,color:'#3D4B63',wordBreak:'break-word',overflowWrap:'anywhere'}}
         onMouseEnter={e=>e.currentTarget.style.borderColor='#CFDCF0'}
         onMouseLeave={e=>e.currentTarget.style.borderColor=NB.bd}>
         {isEmpty
           ? <span style={{color:NB.mut2,fontSize:14}}>{placeholder}</span>
           : isHtml
-            ? <div dangerouslySetInnerHTML={{__html:value}} style={{lineHeight:1.7}}/>
-            : <span style={{whiteSpace:'pre-wrap'}}>{value}</span>
+            ? <div dangerouslySetInnerHTML={{__html:value}} style={{lineHeight:1.7,wordBreak:'break-word',overflowWrap:'anywhere'}}/>
+            : <span style={{whiteSpace:'pre-wrap',wordBreak:'break-word',overflowWrap:'anywhere'}}>{value}</span>
         }
       </div>
     );
@@ -4237,7 +4237,7 @@ function RichTextEditor({ value, onSave, placeholder }) {
           if(e.key==='Escape'){e.preventDefault(); setActive(false);}
           if(e.key==='Enter'&&(e.metaKey||e.ctrlKey)){e.preventDefault(); save();}
         }}
-        style={{minHeight:180,padding:'12px 14px',fontSize:14.5,lineHeight:1.7,color:'#3D4B63',outline:'none',wordBreak:'break-word'}}/>
+        style={{minHeight:180,padding:'12px 14px',fontSize:14.5,lineHeight:1.7,color:'#3D4B63',outline:'none',wordBreak:'break-word',overflowWrap:'anywhere'}}/>
     </div>
   );
 }
