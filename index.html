@@ -1335,7 +1335,7 @@ function Sidebar() {
                         onMouseEnter={e=>{ if(!on) e.currentTarget.style.background='#fff';}} onMouseLeave={e=>{ if(!on) e.currentTarget.style.background='none';}}>
                         <Avatar member={m} size={20} ring={false}/>
                         <span style={{flex:1,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{m.name}</span>
-                        {m.isApprover && <span style={{fontSize:9.5,fontWeight:700,color:'#8A6206',background:'#FFF6DE',borderRadius:5,padding:'1px 6px',flexShrink:0}}>aprova</span>}
+                        {m.isApprover && <span style={{fontSize:9.5,fontWeight:700,color:'#8A6206',background:'#FFF6DE',borderRadius:5,padding:'1px 6px',flexShrink:0}}>gestora</span>}
                         {on && <ICheck s={13}/>}
                       </button>
                     );
