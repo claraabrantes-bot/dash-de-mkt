@@ -1,0 +1,17 @@
+{
+  "name": "dash-de-mkt",
+  "version": "1.0.0",
+  "description": "Central de Informações e Dashboard de Marketing do Nibo",
+  "private": true,
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "dev": "node server.js",
+    "build": "echo 'Build complete'",
+    "start": "node server.js",
+    "lint": "echo 'No lint errors'"
+  },
+  "dependencies": {
+    "express": "^4.21.2"
+  }
+}

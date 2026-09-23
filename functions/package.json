@@ -1,7 +1,7 @@
 {
   "name": "functions",
   "description": "Sincronização automática do Instagram para a Central de Informações Nibo",
-  "engines": { "node": "20" },
+  "engines": { "node": ">=20" },
   "main": "index.js",
   "dependencies": {
     "firebase-admin": "^12.1.0",
