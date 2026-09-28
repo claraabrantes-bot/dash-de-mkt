@@ -84,3 +84,75 @@ erro aparecer na tela da Central também, se você quiser.
 **Se travar em algum passo**, me manda a mensagem de erro exata que eu ajudo a
 resolver — só não consigo executar os passos 1, 2, 3 e 4 no seu lugar, porque
 exigem login nas suas contas do Firebase e do Meta.
+
+---
+
+## Bônus: DM automática no Slack quando uma demanda entra em aprovação
+
+Sempre que uma demanda muda de etapa e a nova etapa é a de aprovação (a etapa
+marcada com o cadeado/checkbox "Etapa de aprovação" no editor de etapas), a
+Mariana Araújo recebe uma DM automática no Slack da empresa com o nome da
+demanda, a área e quem solicitou.
+
+**Antes de implantar:**
+
+1. Crie um Slack App em https://api.slack.com/apps → "Create New App" →
+   "From scratch", escolhendo o workspace da Nibo.
+2. Em "OAuth & Permissions" → "Bot Token Scopes", adicione `chat:write` e
+   `users:read.email`.
+3. Clique em "Install to Workspace" (ou "Reinstall") no topo da página.
+4. Copie o "Bot User OAuth Token" (começa com `xoxb-`) e guarde como secret
+   (nunca como variável comum, nem no código):
+
+   ```bash
+   firebase functions:secrets:set SLACK_BOT_TOKEN
+   ```
+
+   (cole o valor `xoxb-...` quando pedir)
+
+5. `firebase deploy --only functions`
+
+O token nunca fica no código nem é exposto ao navegador — só o Admin SDK do
+servidor o acessa. Se a Mariana trocar de e-mail um dia, é só atualizar a
+constante `MARIANA_EMAIL` no topo da função `notificarAprovacaoNoSlack`, em
+`index.js`.
+
+---
+
+## Bônus 2: solicitar demanda direto pelo Slack (`/nova-demanda`)
+
+Um Slash Command que abre um formulário nativo do Slack (modal) com os
+mesmos campos do `solicitar.html` — ao enviar, cria o pedido no Firestore
+exatamente como se tivesse vindo do formulário na web, e manda uma DM de
+confirmação pra quem pediu.
+
+**Antes de implantar:**
+
+1. No mesmo Slack App usado para a DM de aprovação, vá em **"Basic
+   Information"** e copie o **"Signing Secret"**. Guarde como secret:
+
+   ```bash
+   firebase functions:secrets:set SLACK_SIGNING_SECRET
+   ```
+
+2. Em **"OAuth & Permissions"** → **"Bot Token Scopes"**, adicione também
+   `users:read` (além de `chat:write` e `users:read.email` que já devem
+   estar lá). Reinstale o app no workspace depois de mudar os escopos.
+
+3. `firebase deploy --only functions` — isso publica (entre outras) as
+   funções `slackComandoNovaDemanda` e `slackInteracoesNovaDemanda`, e
+   imprime a URL de cada uma no terminal.
+
+4. Em **"Slash Commands"**, crie o comando `/nova-demanda` e cole a URL de
+   `slackComandoNovaDemanda` no campo **"Request URL"**.
+
+5. Em **"Interactivity & Shortcuts"**, ative e cole a URL de
+   `slackInteracoesNovaDemanda` no campo **"Request URL"**.
+
+6. Reinstale o app no workspace uma última vez pra tudo entrar em vigor.
+
+Depois disso, qualquer pessoa no Slack digita `/nova-demanda`, preenche o
+formulário que abre, e o pedido cai na fila de triagem — igual a quem usa
+o formulário na web.
+
+
