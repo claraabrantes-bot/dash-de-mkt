@@ -6239,6 +6239,7 @@ function PacoteModal() {
      com o mesmo id (ex: 'webinar') substitui o embutido. */
   const todos = { ...PACOTES_TAREFAS_PADRAO, ...Object.fromEntries(pacotes.map(p=>[p.id,p])) };
   const lista = Object.entries(todos);
+  const pacote = todos[pacoteId];
 
   useEffect(() => {
     if (pacoteOpen) { setTema(''); setDataBase(dStr(20)); setErr(''); setCriando(false); setEditando(null); setResponsavel(''); }
@@ -6255,7 +6256,6 @@ function PacoteModal() {
   }, [pacoteId]);
 
   if (!pacoteOpen) return null;
-  const pacote = todos[pacoteId];
 
   const somarDias = (isoBase, dias) => {
     const d = new Date(isoBase+'T00:00:00');
