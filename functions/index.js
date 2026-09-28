@@ -137,129 +137,41 @@ exports.refreshInstagramToken = onSchedule(
 );
 
 /**
- * DM automática no Slack quando uma demanda entra em etapa de aprovação
+ * Solicitar demanda direto pelo Slack (/nova-demanda)
  * ---------------------------------------------------------------------
- * Dispara sempre que o campo stageId de uma demanda muda para uma etapa
- * marcada como isApproval:true (Aprovação/Validação/Homologação, conforme
- * a área). A mensagem é enviada por DM direta à Mariana Araújo.
+ * Um Slash Command que abre um formulário nativo do Slack (modal). Ao
+ * enviar, a demanda já nasce direto no quadro "Demandas Marketing"
+ * (coleção demandas), como se tivesse sido criada manualmente no app —
+ * sem passar por fila de triagem. A pessoa que pediu recebe, no máximo,
+ * duas DMs de status depois: quando a demanda entra em andamento (sai
+ * da primeira etapa) e quando é concluída.
  *
  * O que fazer antes de implantar:
- *   1. Criar um Slack App em https://api.slack.com/apps, adicionar os
- *      Bot Token Scopes "chat:write" e "users:read.email", instalar no
- *      workspace da Nibo, e copiar o Bot User OAuth Token (começa com
- *      xoxb-).
- *   2. Guardar o token como secret (NUNCA como variável comum), rodando:
+ *   1. Criar um Slack App em https://api.slack.com/apps, com os Bot
+ *      Token Scopes chat:write e users:read (pra buscar nome de quem
+ *      pediu). Instalar no workspace da Nibo e copiar o Bot User OAuth
+ *      Token (começa com xoxb-).
+ *   2. Em "Basic Information", copiar o "Signing Secret".
+ *   3. Guardar os dois como secrets (nunca como variável comum):
  *
- *      firebase functions:secrets:set SLACK_BOT_TOKEN
- *      (cola o valor xoxb-... quando pedir)
+ *        firebase functions:secrets:set SLACK_BOT_TOKEN
+ *        firebase functions:secrets:set SLACK_SIGNING_SECRET
  *
- *   3. firebase deploy --only functions
+ *   4. firebase deploy --only functions
+ *      (imprime a URL de cada função no terminal)
  *
- * O token nunca fica no código nem é exposto ao cliente — só o Admin
- * SDK do servidor o acessa, via process.env.SLACK_BOT_TOKEN.
+ *   5. Em "Slash Commands", criar /nova-demanda apontando pra URL de
+ *      slackComandoNovaDemanda.
+ *
+ *   6. Em "Interactivity & Shortcuts", ativar e apontar pra URL de
+ *      slackInteracoesNovaDemanda.
+ *
+ *   7. Reinstalar o app no workspace uma última vez.
  */
 const { onDocumentUpdated } = require('firebase-functions/v2/firestore');
 
-const MARIANA_EMAIL = 'mariana.araujo@nibo.com.br';
-let marianaSlackIdCache = null;
-
-async function getMarianaSlackId(token) {
-  if (marianaSlackIdCache) return marianaSlackIdCache;
-  const resp = await fetch('https://slack.com/api/users.lookupByEmail?email=' + encodeURIComponent(MARIANA_EMAIL), {
-    headers: { Authorization: 'Bearer ' + token }
-  });
-  const dados = await resp.json();
-  if (!dados.ok || !dados.user) {
-    throw new Error('Não achei a Mariana no Slack pelo e-mail ' + MARIANA_EMAIL + ': ' + (dados.error || 'motivo desconhecido'));
-  }
-  marianaSlackIdCache = dados.user.id;
-  return marianaSlackIdCache;
-}
-
-async function encontrarStage(area, stageId) {
-  const doc = await db.collection('config').doc('pipes').get();
-  const pipes = (doc.exists && doc.data().data) || {};
-  const stages = pipes[area] || [];
-  return stages.find(s => s.id === stageId) || null;
-}
-
-exports.notificarAprovacaoNoSlack = onDocumentUpdated('demandas/{id}', async (event) => {
-  const antes  = event.data.before.data();
-  const depois = event.data.after.data();
-
-  if (!depois || !depois.stageId || antes.stageId === depois.stageId) return; // não mudou de etapa
-
-  const token = process.env.SLACK_BOT_TOKEN;
-  if (!token) {
-    logger.warn('SLACK_BOT_TOKEN não configurado — pulei a notificação de aprovação. Veja o topo deste arquivo pra configurar.');
-    return;
-  }
-
-  const novaEtapa = await encontrarStage(depois.area, depois.stageId);
-  if (!novaEtapa || !novaEtapa.isApproval) return; // não é etapa de aprovação, nada a fazer
-
-  try {
-    const userId = await getMarianaSlackId(token);
-    const texto = ':rotating_light: *Nova demanda aguardando sua aprovação*\n'
-      + '*' + (depois.title || 'Sem título') + '*  (' + (depois.code || event.params.id) + ')\n'
-      + 'Área: ' + depois.area + '  •  Etapa: ' + novaEtapa.name + '\n'
-      + 'Solicitante: ' + (depois.requester || '—');
-
-    const resp = await fetch('https://slack.com/api/chat.postMessage', {
-      method: 'POST',
-      headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json; charset=utf-8' },
-      body: JSON.stringify({ channel: userId, text: texto })
-    });
-    const dados = await resp.json();
-    if (!dados.ok) logger.error('Slack recusou o envio da DM: ' + dados.error);
-    else logger.info('DM de aprovação enviada à Mariana — demanda ' + (depois.code || event.params.id));
-  } catch (e) {
-    logger.error('Falha ao notificar aprovação no Slack: ' + e.message);
-  }
-});
-
-/**
- * Solicitar demanda direto pelo Slack (/nova-demanda)
- * ---------------------------------------------------------------------
- * Duas funções HTTP que, juntas, fazem o mesmo que o formulário
- * solicitar.html — só que dentro do Slack, via um Slash Command que
- * abre um formulário (modal nativo do Slack):
- *
- *  1) slackComandoNovaDemanda — recebe o Slash Command e abre o modal.
- *  2) slackInteracoesNovaDemanda — recebe o modal preenchido, valida,
- *     grava em Firestore (solicitacoes) exatamente como o formulário
- *     faz, e manda uma DM de confirmação pra quem pediu.
- *
- * O que fazer antes de implantar:
- *   1. No Slack App (o mesmo criado para a DM de aprovação), vá em
- *      "Basic Information" e copie o "Signing Secret". Guarde como
- *      secret (nunca como variável comum):
- *
- *        firebase functions:secrets:set SLACK_SIGNING_SECRET
- *
- *   2. Em "OAuth & Permissions" → "Bot Token Scopes", adicione também
- *      users:read (além de chat:write e users:read.email que já
- *      devem estar lá). Reinstale o app no workspace depois de mudar
- *      os scopes.
- *
- *   3. firebase deploy --only functions
- *      (isso vai imprimir as URLs de cada função no terminal — copie
- *      as duas, algo como:
- *      https://us-central1-dash-marketing-9302b.cloudfunctions.net/slackComandoNovaDemanda
- *      https://us-central1-dash-marketing-9302b.cloudfunctions.net/slackInteracoesNovaDemanda)
- *
- *   4. Em "Slash Commands", crie o comando /nova-demanda e cole a URL
- *      de slackComandoNovaDemanda no campo "Request URL".
- *
- *   5. Em "Interactivity & Shortcuts", ative e cole a URL de
- *      slackInteracoesNovaDemanda no campo "Request URL".
- *
- *   6. Reinstale o app no workspace uma última vez pra tudo entrar em
- *      vigor.
- */
-
-const TIPOS_MATERIAL   = ['Arte / peça gráfica','Post para redes sociais','Landing page','E-mail / disparo','Vídeo','Apresentação','Outro'];
-const SETORES_SOLICIT  = ['RH','Comercial','Produto','Financeiro','Customer Success','Suporte','Diretoria','Outro'];
+const TIPOS_MATERIAL = ['Arte / peça gráfica','Post para redes sociais','Landing page','E-mail / disparo','Vídeo','Apresentação','Outro'];
+const AREAS_MARKETING = ['Social','Design','Mídia Paga','Produto','RevOps','Eventos'];
 
 function verificarAssinaturaSlack(req) {
   const secret = process.env.SLACK_SIGNING_SECRET;
@@ -278,27 +190,33 @@ function opcoesSelect(lista) {
   return lista.map(o => ({ text: { type: 'plain_text', text: o }, value: o }));
 }
 
+async function buscarStagesDaArea(area) {
+  const doc = await db.collection('config').doc('pipes').get();
+  const pipes = (doc.exists && doc.data().data) || {};
+  return pipes[area] || [];
+}
+
 exports.slackComandoNovaDemanda = onRequest(async (req, res) => {
   if (!verificarAssinaturaSlack(req)) { res.status(401).send('assinatura inválida'); return; }
 
   const view = {
     type: 'modal',
     callback_id: 'nova_demanda_form',
-    title:  { type: 'plain_text', text: 'Nova solicitação' },
-    submit: { type: 'plain_text', text: 'Enviar pedido' },
+    title:  { type: 'plain_text', text: 'Nova demanda' },
+    submit: { type: 'plain_text', text: 'Criar demanda' },
     close:  { type: 'plain_text', text: 'Cancelar' },
     blocks: [
       { type: 'input', block_id: 'titulo', label: { type: 'plain_text', text: 'O que você precisa' },
         element: { type: 'plain_text_input', action_id: 'valor',
           placeholder: { type: 'plain_text', text: 'Ex: banner para a campanha de vagas de agosto' } } },
-      { type: 'input', block_id: 'setor', label: { type: 'plain_text', text: 'Seu setor' },
-        element: { type: 'static_select', action_id: 'valor', options: opcoesSelect(SETORES_SOLICIT) } },
+      { type: 'input', block_id: 'area', label: { type: 'plain_text', text: 'Área de marketing' },
+        element: { type: 'static_select', action_id: 'valor', options: opcoesSelect(AREAS_MARKETING) } },
       { type: 'input', block_id: 'tipo', label: { type: 'plain_text', text: 'Tipo de material' },
         element: { type: 'static_select', action_id: 'valor', options: opcoesSelect(TIPOS_MATERIAL) } },
       { type: 'input', block_id: 'descricao', label: { type: 'plain_text', text: 'Contexto e objetivo' },
         element: { type: 'plain_text_input', action_id: 'valor', multiline: true,
           placeholder: { type: 'plain_text', text: 'Para que serve, onde vai ser usado, qual mensagem precisa passar...' } } },
-      { type: 'input', block_id: 'prazo', label: { type: 'plain_text', text: 'Precisa para quando' },
+      { type: 'input', block_id: 'prazo', optional: true, label: { type: 'plain_text', text: 'Precisa para quando (opcional)' },
         element: { type: 'datepicker', action_id: 'valor' } },
       { type: 'input', block_id: 'referencia', optional: true, label: { type: 'plain_text', text: 'Link de referência (opcional)' },
         element: { type: 'plain_text_input', action_id: 'valor', placeholder: { type: 'plain_text', text: 'Drive, Figma, exemplo...' } } },
@@ -332,61 +250,121 @@ exports.slackInteracoesNovaDemanda = onRequest(async (req, res) => {
   const valores = payload.view.state.values;
   const titulo     = (valores.titulo.valor.value || '').trim();
   const descricao  = (valores.descricao.valor.value || '').trim();
-  const setor      = valores.setor.valor.selected_option ? valores.setor.valor.selected_option.value : '';
+  const area       = valores.area.valor.selected_option ? valores.area.valor.selected_option.value : '';
   const tipo       = valores.tipo.valor.selected_option ? valores.tipo.valor.selected_option.value : '';
-  const prazo      = valores.prazo.valor.selected_date || '';
+  const prazo      = valores.prazo.valor.selected_date || null;
   const referencia = (valores.referencia.valor.value || '').trim();
 
   const erros = {};
   if (!titulo) erros.titulo = 'Escreva em uma linha o que você precisa.';
   if (descricao.length < 15) erros.descricao = 'Conte um pouco mais no contexto — sem isso o time precisa voltar para perguntar.';
-  if (Object.keys(erros).length) { res.status(200).json({ response_action: 'errors', errors: erros }); return; }
+  if (!area) erros.area = 'Escolha a área.';
+  if (Object.keys(erros).length) { res.status(200).json({ response_action: 'errors', errors: erros } ); return; }
 
   const token = process.env.SLACK_BOT_TOKEN;
-  let solicitanteNome = payload.user.username, solicitanteEmail = '';
+  let solicitanteNome = payload.user.username;
   try {
     const infoResp = await fetch('https://slack.com/api/users.info?user=' + payload.user.id, {
       headers: { Authorization: 'Bearer ' + token }
     });
     const info = await infoResp.json();
-    if (info.ok) {
-      solicitanteNome  = info.user.real_name || info.user.name;
-      solicitanteEmail = (info.user.profile && info.user.profile.email) || '';
-    }
+    if (info.ok) solicitanteNome = info.user.real_name || info.user.name;
   } catch (e) {
     logger.warn('Não consegui buscar o perfil de quem solicitou no Slack: ' + e.message);
   }
 
-  const dados = {
-    titulo, descricao, setor, tipo, prazo, referencia,
-    solicitante: solicitanteNome, email: solicitanteEmail,
-    status: 'novo', createdAt: new Date().toISOString(), ts: Date.now(),
-    origem: 'slack'
-  };
-
   try {
-    const ref = await db.collection('solicitacoes').add(dados);
+    const stages = await buscarStagesDaArea(area);
+    if (!stages.length) throw new Error('Área "' + area + '" não tem etapas configuradas.');
+    const primeiraEtapa = stages[0].id;
+
+    const snapCodes = await db.collection('demandas').select('code').get();
+    const nums = snapCodes.docs.map(d => parseInt(String(d.data().code || '').replace(/\D/g, ''), 10)).filter(n => !isNaN(n));
+    const code = 'DEM-' + ((nums.length ? Math.max(...nums) : 100) + 1);
+
+    const descricaoFinal = (tipo ? '[' + tipo + '] ' : '') + descricao + (referencia ? '\n\nReferência: ' + referencia : '');
+
+    const nd = {
+      code, area, title: titulo, description: descricaoFinal, priority: 'Média',
+      assignees: [], requester: solicitanteNome, stageId: primeiraEtapa,
+      deadline: prazo, createdAt: new Date().toISOString(), comments: [], links: [],
+      origem: 'slack', slackUserId: payload.user.id,
+      notificadoAndamento: false, notificadoConcluido: false
+    };
+    Object.keys(nd).forEach(k => { if (nd[k] === undefined || nd[k] === null) delete nd[k]; });
+
+    await db.collection('demandas').add(nd);
     await db.collection('feed').add({
-      code: 'PED-' + ref.id.slice(0, 5).toUpperCase(),
-      area: setor,
+      code, area,
       time: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
-      stagePath: 'Novo pedido externo (Slack)',
-      action: '@Mariana Araújo, novo pedido de ' + setor + ': "' + titulo + '" (' + solicitanteNome + ')',
-      type: 'new'
+      stagePath: 'Nova demanda via Slack',
+      action: 'Demanda criada por ' + solicitanteNome + ' via /nova-demanda',
+      type: 'new', ts: Date.now()
     });
     await fetch('https://slack.com/api/chat.postMessage', {
       method: 'POST',
       headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json; charset=utf-8' },
       body: JSON.stringify({
         channel: payload.user.id,
-        text: ':white_check_mark: Seu pedido *"' + titulo + '"* foi enviado! A Mariana vai revisar e definir prioridade em breve.'
+        text: ':white_check_mark: Sua demanda *"' + titulo + '"* (' + code + ') foi criada em ' + area + '! Você recebe uma DM quando ela entrar em andamento e quando for concluída.'
       })
     });
   } catch (e) {
-    logger.error('Falha ao salvar solicitação vinda do Slack: ' + e.message);
-    res.status(200).json({ response_action: 'errors', errors: { titulo: 'Deu erro ao salvar, tenta de novo em instantes.' } });
+    logger.error('Falha ao criar demanda vinda do Slack: ' + e.message);
+    res.status(200).json({ response_action: 'errors', errors: { titulo: 'Deu erro ao criar a demanda, tenta de novo em instantes.' } });
     return;
   }
 
   res.status(200).send('');
+});
+
+/**
+ * DM de status pra quem pediu pelo Slack (em andamento / concluída)
+ * ---------------------------------------------------------------------
+ * Dispara no máximo duas vezes por demanda, só pra quem criou via
+ * /nova-demanda (tem slackUserId gravado): uma quando a demanda sai da
+ * primeira etapa (entrou em andamento), outra quando chega numa etapa
+ * marcada como isDone:true (concluída).
+ */
+exports.notificarSolicitanteNoSlack = onDocumentUpdated('demandas/{id}', async (event) => {
+  const antes  = event.data.before.data();
+  const depois = event.data.after.data();
+
+  if (!depois || depois.origem !== 'slack' || !depois.slackUserId) return;
+  if (!depois.stageId || antes.stageId === depois.stageId) return; // não mudou de etapa
+
+  const token = process.env.SLACK_BOT_TOKEN;
+  if (!token) { logger.warn('SLACK_BOT_TOKEN não configurado — pulei a notificação de status.'); return; }
+
+  try {
+    const stages = await buscarStagesDaArea(depois.area);
+    if (!stages.length) return;
+    const etapaAtual = stages.find(s => s.id === depois.stageId);
+    if (!etapaAtual) return;
+
+    let mensagem = null;
+    const atualizacoes = {};
+
+    if (!depois.notificadoConcluido && etapaAtual.isDone) {
+      mensagem = ':tada: Sua demanda *"' + (depois.title || '') + '"* (' + (depois.code || '') + ') foi *concluída*!';
+      atualizacoes.notificadoConcluido = true;
+    } else if (!depois.notificadoAndamento && depois.stageId !== stages[0].id) {
+      mensagem = ':hourglass_flowing_sand: Sua demanda *"' + (depois.title || '') + '"* (' + (depois.code || '') + ') entrou em andamento — etapa atual: ' + etapaAtual.name + '.';
+      atualizacoes.notificadoAndamento = true;
+    }
+
+    if (!mensagem) return;
+
+    const resp = await fetch('https://slack.com/api/chat.postMessage', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json; charset=utf-8' },
+      body: JSON.stringify({ channel: depois.slackUserId, text: mensagem })
+    });
+    const resultado = await resp.json();
+    if (!resultado.ok) { logger.error('Slack recusou a DM de status: ' + resultado.error); return; }
+
+    await db.collection('demandas').doc(event.params.id).update(atualizacoes);
+  } catch (e) {
+    logger.error('Falha ao notificar status no Slack: ' + e.message);
+  }
 });
