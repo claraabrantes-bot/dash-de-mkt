@@ -455,7 +455,7 @@ function Provider({ children }) {
     const db = dbRef.current; if (!db) return;
     const nums = (window.__nbDem || []).map(d => parseInt(String(d.code).replace(/\D/g,''),10)).filter(n=>!isNaN(n));
     const code = 'DEM-' + ((nums.length ? Math.max(...nums) : 100) + 1);
-    const nd = { ...data, code, stageId: data.stageId || pipesRef.current[data.area][0].id, createdAt: new Date().toISOString(), comments: [], links: [] };
+    const nd = { ...data, code, stageId: data.stageId || pipesRef.current[data.area][0].id, createdAt: new Date().toISOString(), stageEnteredAt: new Date().toISOString(), comments: [], links: [] };
     Object.keys(nd).forEach(k => { if (nd[k]===undefined) delete nd[k]; });   // Firestore recusa campos undefined
     db.collection('demandas').add(nd).then(ref => {
       const who = data.assignees && data.assignees.length ? mentionNames(data.assignees) : 'equipe de '+data.area;
@@ -474,7 +474,7 @@ function Provider({ children }) {
     let assignees = d.assignees || [];
     if (newStage && newStage.isApproval && !assignees.includes('MA')) assignees = [...assignees, 'MA'];
     const extra = newStage && newStage.isDone ? { completedAt: new Date().toISOString() } : {};
-    patch(demId, { stageId:newStageId, assignees, ...extra });
+    patch(demId, { stageId:newStageId, assignees, stageEnteredAt: new Date().toISOString(), ...extra });
 
     const auto = AUTO[d.area] && AUTO[d.area][newStageId];
     let action = auto ? auto.action : '"'+d.title+'" avançou para '+(newStage?newStage.name:'nova etapa');
@@ -495,7 +495,7 @@ function Provider({ children }) {
     if (!target) return;
     let assignees = d.assignees || [];
     if (target.isApproval && !assignees.includes('MA')) assignees = [...assignees, 'MA'];
-    patch(demId, { area:newArea, stageId:target.id, assignees });
+    patch(demId, { area:newArea, stageId:target.id, assignees, stageEnteredAt: new Date().toISOString() });
     feed({ code:d.code, area:newArea }, d.area + ' → ' + newArea,
       '"' + d.title + '" mudou de área e entrou em ' + target.name,
       'Equipe de ' + newArea + ' assume a partir daqui',
@@ -973,6 +973,31 @@ function Provider({ children }) {
     localStorage.setItem('nb_notif_sent', JSON.stringify(jaNotificados));
   }, [active, dbReady, user, pipes]);
 
+  /* Dispara notificação de navegador quando uma demanda chega em etapa
+     de aprovação — só pra quem tem permissão de aprovar (ex: Mariana). */
+  useEffect(() => {
+    if (!dbReady || !user || !user.isApprover || Notification.permission !== 'granted') return;
+    const jaNotificados = JSON.parse(localStorage.getItem('nb_notif_aprovacao_sent') || '{}');
+    active.forEach(d => {
+      const st = (pipes[d.area] || []).find(s => s.id === d.stageId);
+      if (!st || !st.isApproval) return;
+      const chave = d.id + ':' + d.stageId; // se sair e voltar pra aprovação, notifica de novo
+      if (jaNotificados[chave]) return;
+      try {
+        const notif = new Notification('✅ Aguardando sua aprovação', {
+          body: d.title + '\n' + d.area + (d.requester ? '  •  Pedido de ' + d.requester : ''),
+          icon: '/favicon.ico',
+          badge: '/favicon.ico',
+          tag: 'aprov-' + d.id,
+          requireInteraction: true,
+        });
+        notif.onclick = () => { window.focus(); setModal(d.id); notif.close(); };
+      } catch (e) {}
+      jaNotificados[chave] = true;
+    });
+    localStorage.setItem('nb_notif_aprovacao_sent', JSON.stringify(jaNotificados));
+  }, [active, dbReady, user, pipes]);
+
   const filtered = active.filter(d => {
     if (area !== 'Todas' && d.area !== area) return false;
     if (mesFiltro!=='todos' && !(d.createdAt||'').startsWith(mesFiltro)) return false;
@@ -1009,6 +1034,17 @@ function getSla(dl, isDone) {
   return { label:diff+'d', type:'ok' };
 }
 function fmtDate(s) { if(!s) return ''; const [,m,d]=s.split('-'); return d+'/'+m; }
+/* Prazo de aprovação: 2 dias corridos a partir de quando a demanda
+   entrou na etapa atual (stageEnteredAt). Independe do prazo geral
+   da demanda (deadline) — é só pra cobrar quem precisa decidir. */
+function getSlaAprovacao(stageEnteredAt) {
+  if (!stageEnteredAt) return null;
+  const limite = new Date(stageEnteredAt).getTime() + 2*24*60*60*1000;
+  const diffDias = Math.ceil((limite - Date.now()) / 86400000);
+  if (diffDias < 0)  return { label:'Aprovação atrasada '+Math.abs(diffDias)+'d', type:'danger' };
+  if (diffDias === 0) return { label:'Aprovação vence hoje', type:'warn' };
+  return { label:'Aprovar em até '+diffDias+'d', type: diffDias<=1?'warn':'ok' };
+}
 /* Evita datas absurdas (ex: ano "0008" digitado por engano no input type=date nativo) */
 function isDataValida(s) {
   if (!s) return true; // vazio é permitido (limpar o campo)
@@ -3541,6 +3577,7 @@ function ApprovalCard({ demand }) {
   const prox   = stages[idx+1];
   const antes  = stages[idx-1];
   const sla    = getSla(demand.deadline);
+  const slaAprov = getSlaAprovacao(demand.stageEnteredAt);
   const Icon   = AREA_ICON[demand.area];
   const podeAprovar = !!(previewMember ? previewMember.isApprover : user.isApprover);
   const nA = (attach[demand.id]||[]).length;
@@ -3568,6 +3605,9 @@ function ApprovalCard({ demand }) {
         <span style={{background:NB.col,border:'1px solid '+NB.bd,color:NB.mut,fontSize:11,fontWeight:500,padding:'2px 8px',borderRadius:6,fontFamily:'monospace'}}>{demand.code}</span>
         <span style={{display:'inline-flex',alignItems:'center',gap:6,fontSize:12.5,fontWeight:500,color:AREA_CLR[demand.area]}}><Icon s={14}/> {demand.area}</span>
         <span style={{fontSize:12,color:NB.mut2}}>· {stages[idx] ? stages[idx].name : '—'}</span>
+        {slaAprov && (
+          <span style={{fontSize:11.5,fontWeight:600,padding:'3px 9px',borderRadius:6,background:slaAprov.type==='danger'?'#FEECEC':slaAprov.type==='warn'?'#FFF6DE':'#EAF6EE',color:slaAprov.type==='danger'?'#B4232A':slaAprov.type==='warn'?'#8A6206':'#0F6E56'}}>{slaAprov.label}</span>
+        )}
         {sla && sla.type!=='ok' && (
           <span style={{fontSize:11.5,fontWeight:500,padding:'3px 9px',borderRadius:6,background:sla.type==='danger'?'#FEECEC':'#FFF6DE',color:sla.type==='danger'?'#B4232A':'#8A6206'}}>{sla.label}</span>
         )}
@@ -3637,7 +3677,7 @@ function GestaoView() {
   const emAprovacao = escopo.filter(d => {
     const st = (pipes[d.area]||[]).find(s => s.id === d.stageId);
     return st && st.isApproval;
-  });
+  }).sort((a,b) => (a.stageEnteredAt||a.createdAt||'').localeCompare(b.stageEnteredAt||b.createdAt||''));
   const concluidas = escopo.filter(d => {
     const st = (pipes[d.area]||[]).find(s => s.id === d.stageId);
     return st && st.isDone;
@@ -3677,6 +3717,11 @@ function GestaoView() {
         <span style={{fontSize:13.5,color:NB.mut}}>
           {emAprovacao.length===0 ? 'nada parado' : emAprovacao.length + (emAprovacao.length===1?' demanda':' demandas')}
         </span>
+        {emAprovacao.filter(d=>{const s=getSlaAprovacao(d.stageEnteredAt); return s && s.type==='danger';}).length > 0 && (
+          <span style={{fontSize:12,fontWeight:600,color:'#B4232A',background:'#FEECEC',borderRadius:8,padding:'4px 10px'}}>
+            {emAprovacao.filter(d=>{const s=getSlaAprovacao(d.stageEnteredAt); return s && s.type==='danger';}).length} atrasada(s) há mais de 2 dias
+          </span>
+        )}
         {meuSetorFixo && (
           <button onClick={()=>setVerTudo(v=>!v)}
             style={{fontSize:12,fontWeight:600,color:NB.azul,background:'#EAF3FD',border:'none',borderRadius:20,padding:'5px 12px'}}>
