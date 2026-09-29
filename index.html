@@ -998,6 +998,35 @@ function Provider({ children }) {
     localStorage.setItem('nb_notif_aprovacao_sent', JSON.stringify(jaNotificados));
   }, [active, dbReady, user, pipes]);
 
+  /* Notificação de navegador quando chega demanda nova (via Slack) na área
+     da pessoa. Só avisa demandas criadas nos últimos 10 minutos, pra não
+     disparar um monte de notificação antiga na primeira vez que alguém
+     abre o dashboard. */
+  useEffect(() => {
+    if (!dbReady || !user || Notification.permission !== 'granted') return;
+    const minhasAreas = [user.area, ...(user.areasExtra || [])];
+    const jaNotificados = JSON.parse(localStorage.getItem('nb_notif_novas_sent') || '{}');
+    const limite = Date.now() - 10 * 60 * 1000;
+    active.forEach(d => {
+      if (d.origem !== 'slack') return;
+      if (!minhasAreas.includes(d.area)) return;
+      if (jaNotificados[d.id]) return;
+      if (!d.createdAt || new Date(d.createdAt).getTime() < limite) { jaNotificados[d.id] = true; return; }
+      try {
+        const notif = new Notification('📥 Nova demanda em ' + d.area, {
+          body: d.title + (d.requester ? '\nPedido de ' + d.requester : '') + (d.deadline ? '  •  Prazo ' + fmtDate(d.deadline) : ''),
+          icon: '/favicon.ico',
+          badge: '/favicon.ico',
+          tag: 'nova-' + d.id,
+          requireInteraction: true,
+        });
+        notif.onclick = () => { window.focus(); setModal(d.id); notif.close(); };
+      } catch (e) {}
+      jaNotificados[d.id] = true;
+    });
+    localStorage.setItem('nb_notif_novas_sent', JSON.stringify(jaNotificados));
+  }, [active, dbReady, user]);
+
   const filtered = active.filter(d => {
     if (area !== 'Todas' && d.area !== area) return false;
     if (mesFiltro!=='todos' && !(d.createdAt||'').startsWith(mesFiltro)) return false;
