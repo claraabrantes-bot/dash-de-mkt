@@ -4,12 +4,26 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Central Nibo</title>
+<meta name="description" content="Central de Informações e Dashboard de Marketing do Nibo">
+<meta property="og:title" content="Central Nibo">
+<meta property="og:description" content="Central de Informações e Dashboard de Marketing do Nibo">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%23002D72'/%3E%3Cg fill='%23B8CCEA'%3E%3Ccircle cx='50' cy='36.8' r='8.85'/%3E%3Ccircle cx='67.65' cy='63.2' r='8.85'/%3E%3Ccircle cx='32.35' cy='63.2' r='8.85'/%3E%3Cpath d='M48.978 45.591 A12 12 0 0 1 59.136 60.785 L68.672 54.409 A12 12 0 0 1 58.514 39.215 Z'/%3E%3C/g%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+<script>
+  (function() {
+    const origError = console.error;
+    console.error = function(...args) {
+      if (typeof args[0] === 'string' && (args[0].includes('deoptimised the styling') || args[0].includes('500KB'))) {
+        return;
+      }
+      return origError.apply(console, args);
+    };
+  })();
+</script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
@@ -157,7 +171,16 @@ const Ctx = createContext(null);
 
 function Provider({ children }) {
   /* ---------- dados compartilhados (Firestore) ---------- */
-  const [demands, setDemands] = useState([]);
+  const [demands, setDemands] = useState(() => {
+    try {
+      const s = localStorage.getItem('nibo_demands_v1');
+      if (s) {
+        const parsed = JSON.parse(s);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch(e){}
+    return INIT_DEMANDS;
+  });
   const [pedidos, setPedidos] = useState([]);
   const [posts, setPosts] = useState([]);
   const [campanhas, setCampanhas] = useState([]);
@@ -173,9 +196,18 @@ function Provider({ children }) {
   const [meusEnviosFotos, setMeusEnviosFotos] = useState([]);
   const [todosEnviosFotos, setTodosEnviosFotos] = useState([]);
   const [pecas, setPecas] = useState([]);
-  const [slack, setSlack]     = useState([]);
+  const [slack, setSlack]     = useState(() => {
+    try {
+      const s = localStorage.getItem('nibo_slack_v1');
+      if (s) {
+        const parsed = JSON.parse(s);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch(e){}
+    return INIT_SLACK;
+  });
   const [pipes, setPipes]     = useState(DEFAULT_PIPELINES);
-  const [dbReady, setDbReady] = useState(false);
+  const [dbReady, setDbReady] = useState(true);
   const [dbErro, setDbErro]   = useState('');
   const dbRef    = useRef(null);
   const pipesRef = useRef(pipes);

@@ -1,0 +1,7 @@
+{
+  "name": "Central Nibo",
+  "description": "Central de Informações e Dashboard de Marketing do Nibo",
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
