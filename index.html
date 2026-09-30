@@ -553,6 +553,15 @@ function Provider({ children }) {
     setModal(null);
   }, [patch, feed]);
 
+  /* Desliga a recorrência de uma atividade: ela continua no quadro, mas
+     para de gerar cópias novas a cada ciclo. */
+  const pararRecorrencia = useCallback((id) => {
+    const d = (window.__nbDem || []).find(x => x.id === id); if (!d) return;
+    patch(id, { recorrente: false, proximaRecorrencia: null });
+    feed(d, 'Recorrência desligada', '"'+d.title+'" não vai mais se repetir automaticamente',
+      'Era a cada '+(d.frequenciaDias||30)+' dias', 'move');
+  }, [patch, feed]);
+
   const restoreDemand = useCallback((id) => {
     const d = (window.__nbDem || []).find(x => x.id === id); if (!d || !d.archivedAt) return;
     patch(id, { archivedAt: null });
@@ -1078,7 +1087,7 @@ function Provider({ children }) {
   window.__nbDem = demands;
   window.__nbPosts = posts;
 
-  return <Ctx.Provider value={{ demands, active, activeOficiais, archived, filtered, aprovarPedidoSlack, recusarPedidoSlack, dispararManual, slack, slackTemplate, salvarSlackTemplate, slackTemplatePrevOpen, setSlackTemplatePrevOpen, showNotifCard, setShowNotifCard, alertasTab, setAlertasTab, user, isTeamMember, authReady, authError, setAuthError, preferirCentral, setPreferirCentral, dbReady, dbErro, seed, pedidos, aceitarPedido, recusarPedido, posts, addPost, updatePost, deletePost, campanhas, updateCampanha, publicarCampanha, despublicarCampanha, deleteCampanha, enviarCampanhaDeDemanda, pecas, addPeca, removePeca, redesSociais, salvarRedesSociais, arquivos, addArquivo, removeArquivo, embaixadores, addEmbaixador, removeEmbaixador, pacotes, salvarPacote, removePacote, meuPortalEmbaixador, portalCarregado, isEmbaixador, criarPortalEmbaixador, removerPortalEmbaixador, portaisEmbaixador, meusEnviosFotos, todosEnviosFotos, enviarFotoEmbaixador, removerEnvioFoto, view, setView, layout, setLayout, area, setArea, query, setQuery, mesFiltro, setMesFiltro, priFilter, setPriFilter, reqFilter, setReqFilter, respFilter, setRespFilter, selDemand, setModal, newOpen, setNewOpen, presetNovo, setPresetNovo, pacoteOpen, setPacoteOpen, notifyPending, setNotifyPending, profileOpen, setProfileOpen, editStages, setEditStages, dragging, setDragging, previewMember, setPreviewMember, photos, googlePhotos, profiles, pipes, salvarPipes, attach, comments, storageWarn, MAX_FILE, addAttachment, uploadFile, migrarLocal, carregarAnexo, removeAttachment, addComment, removeComment, logout, savePhoto, removePhoto, saveProfile, addDemand, moveStage, moveArea, reordenarCards, setAssignees, updateDemand, archiveDemand, restoreDemand, delDemand }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ demands, active, activeOficiais, archived, filtered, aprovarPedidoSlack, recusarPedidoSlack, pararRecorrencia, dispararManual, slack, slackTemplate, salvarSlackTemplate, slackTemplatePrevOpen, setSlackTemplatePrevOpen, showNotifCard, setShowNotifCard, alertasTab, setAlertasTab, user, isTeamMember, authReady, authError, setAuthError, preferirCentral, setPreferirCentral, dbReady, dbErro, seed, pedidos, aceitarPedido, recusarPedido, posts, addPost, updatePost, deletePost, campanhas, updateCampanha, publicarCampanha, despublicarCampanha, deleteCampanha, enviarCampanhaDeDemanda, pecas, addPeca, removePeca, redesSociais, salvarRedesSociais, arquivos, addArquivo, removeArquivo, embaixadores, addEmbaixador, removeEmbaixador, pacotes, salvarPacote, removePacote, meuPortalEmbaixador, portalCarregado, isEmbaixador, criarPortalEmbaixador, removerPortalEmbaixador, portaisEmbaixador, meusEnviosFotos, todosEnviosFotos, enviarFotoEmbaixador, removerEnvioFoto, view, setView, layout, setLayout, area, setArea, query, setQuery, mesFiltro, setMesFiltro, priFilter, setPriFilter, reqFilter, setReqFilter, respFilter, setRespFilter, selDemand, setModal, newOpen, setNewOpen, presetNovo, setPresetNovo, pacoteOpen, setPacoteOpen, notifyPending, setNotifyPending, profileOpen, setProfileOpen, editStages, setEditStages, dragging, setDragging, previewMember, setPreviewMember, photos, googlePhotos, profiles, pipes, salvarPipes, attach, comments, storageWarn, MAX_FILE, addAttachment, uploadFile, migrarLocal, carregarAnexo, removeAttachment, addComment, removeComment, logout, savePhoto, removePhoto, saveProfile, addDemand, moveStage, moveArea, reordenarCards, setAssignees, updateDemand, archiveDemand, restoreDemand, delDemand }}>{children}</Ctx.Provider>;
 }
 
 const useApp = () => useContext(Ctx);
@@ -1328,6 +1337,12 @@ function Sidebar() {
               style={{flex:1,textAlign:'left',background:view==='alertas'&&alertasTab==='vencidas'?'#FEECEC':vencidas?'#FEECEC':NB.col,border:view==='alertas'&&alertasTab==='vencidas'?'1.5px solid #B4232A':'1.5px solid transparent',borderRadius:10,padding:'9px 11px',cursor:'pointer'}}>
               <div style={{fontSize:17,fontWeight:700,color:vencidas?'#B4232A':NB.txt,lineHeight:1.1}}>{vencidas}</div>
               <div style={{fontSize:10.5,color:vencidas?'#B4232A':NB.mut,fontWeight:500}}>vencidas</div>
+            </button>
+            <button onClick={()=>{ setAlertasTab('recorrentes'); setView('alertas'); }}
+              title="Ver e desligar atividades que se repetem sozinhas"
+              style={{flex:1,textAlign:'left',background:view==='alertas'&&alertasTab==='recorrentes'?NB.azulClaro+'33':NB.col,border:view==='alertas'&&alertasTab==='recorrentes'?'1.5px solid '+NB.azul:'1.5px solid transparent',borderRadius:10,padding:'9px 11px',cursor:'pointer'}}>
+              <div style={{fontSize:17,fontWeight:700,color:NB.txt,lineHeight:1.1}}>{active.filter(d=>d.recorrente).length}</div>
+              <div style={{fontSize:10.5,color:NB.mut,fontWeight:500}}>recorrentes</div>
             </button>
           </div>
       </div>
@@ -1833,7 +1848,16 @@ function StageColumn({ stage, cards, compact, areaName, visual }) {
           </div>
           <span style={{fontSize:13.5,fontWeight:600,color:over&&canDrop?accent:NB.txt,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{stage.name}</span>
         </div>
-        <span style={{fontSize:11.5,color:NB.mut,fontWeight:600,flexShrink:0,background:'#fff',border:'1px solid '+v.bd,borderRadius:20,padding:'1px 8px'}}>{cards.length}</span>
+        <div style={{display:'flex',alignItems:'center',gap:6,flexShrink:0}}>
+          <span style={{fontSize:11.5,color:NB.mut,fontWeight:600,background:'#fff',border:'1px solid '+v.bd,borderRadius:20,padding:'1px 8px'}}>{cards.length}</span>
+          <button onClick={()=>{ setArea(areaName); setPresetNovo({area:areaName, stageId:stage.id}); setNewOpen(true); }}
+            title={'Adicionar demanda em '+stage.name}
+            style={{width:22,height:22,display:'flex',alignItems:'center',justifyContent:'center',background:'#fff',border:'1px solid '+v.bd,borderRadius:7,color:v.ic,cursor:'pointer',padding:0,flexShrink:0,transition:'background 0.12s'}}
+            onMouseEnter={e=>{e.currentTarget.style.background=v.bg;}}
+            onMouseLeave={e=>{e.currentTarget.style.background='#fff';}}>
+            <IPlus s={12}/>
+          </button>
+        </div>
       </div>
       <div style={{flex:1,minHeight:0,padding:compact?'11px 11px 0':'12px 13px 0'}}>
         {cardsVisiveis.map(c=><DemandCard key={c.id} demand={c} colunaOrdenada={cardsOrdenados}/>)}
@@ -5560,7 +5584,7 @@ function SlackTemplatePrevModal() {
 
 /* =========== ALERTAS VIEW =========== */
 function AlertasView() {
-  const { active, pipes, filtered, setModal, alertasTab, setAlertasTab, area } = useApp();
+  const { active, pipes, filtered, setModal, alertasTab, setAlertasTab, area, pararRecorrencia } = useApp();
   const AREAS = ['Social','Design','Mídia Paga','Produto','RevOps','Eventos','Gestão'];
 
   const escopoAtivas = active.filter(d => {
@@ -5569,9 +5593,17 @@ function AlertasView() {
   });
   const escopo = area!=='Todas' ? escopoAtivas.filter(d=>d.area===area) : escopoAtivas;
 
-  const listaAtivas   = escopo;
-  const listaVencidas = escopo.filter(d=>{ const s=getSla(d.deadline); return s && s.type==='danger'; });
-  const lista = alertasTab==='vencidas' ? listaVencidas : listaAtivas;
+  /* As recorrentes saem de active (não de escopoAtivas), porque uma
+     atividade pode estar na coluna de concluída do ciclo atual e mesmo
+     assim continuar programada para se repetir. */
+  const escopoRecorrentes = area!=='Todas' ? active.filter(d=>d.area===area) : active;
+
+  const listaAtivas      = escopo;
+  const listaVencidas    = escopo.filter(d=>{ const s=getSla(d.deadline); return s && s.type==='danger'; });
+  const listaRecorrentes = escopoRecorrentes.filter(d => d.recorrente);
+  const lista = alertasTab==='vencidas' ? listaVencidas
+              : alertasTab==='recorrentes' ? listaRecorrentes
+              : listaAtivas;
 
   // Agrupa por area
   const porArea = {};
@@ -5582,8 +5614,9 @@ function AlertasView() {
   const areasComItens = AREAS.filter(a => porArea[a] && porArea[a].length > 0);
 
   const tabs = [
-    { id:'ativas',   label:'Ativas',   count: listaAtivas.length },
-    { id:'vencidas', label:'Vencidas', count: listaVencidas.length },
+    { id:'ativas',      label:'Ativas',      count: listaAtivas.length },
+    { id:'vencidas',    label:'Vencidas',    count: listaVencidas.length },
+    { id:'recorrentes', label:'Recorrentes', count: listaRecorrentes.length },
   ];
 
   return (
@@ -5591,9 +5624,13 @@ function AlertasView() {
       {/* Header */}
       <div style={{marginBottom:24}}>
         <h1 style={{fontSize:22,fontWeight:700,color:NB.navy1,marginBottom:4}}>
-          {alertasTab==='vencidas' ? 'Tarefas vencidas' : 'Tarefas ativas'}
+          {alertasTab==='vencidas' ? 'Tarefas vencidas' : alertasTab==='recorrentes' ? 'Atividades recorrentes' : 'Tarefas ativas'}
         </h1>
-        <p style={{fontSize:13.5,color:NB.mut}}>{area==='Todas' ? 'Todas as áreas' : area}</p>
+        <p style={{fontSize:13.5,color:NB.mut}}>
+          {alertasTab==='recorrentes'
+            ? 'Essas se repetem sozinhas. Desligue a recorrência de qualquer uma que não precisa mais.'
+            : (area==='Todas' ? 'Todas as áreas' : area)}
+        </p>
       </div>
 
       {/* Tabs */}
@@ -5618,12 +5655,12 @@ function AlertasView() {
       {/* Lista por área */}
       {areasComItens.length === 0 ? (
         <div style={{textAlign:'center',padding:'60px 20px',color:NB.mut2}}>
-          <div style={{fontSize:36,marginBottom:12}}>✅</div>
+          <div style={{fontSize:36,marginBottom:12}}>{alertasTab==='recorrentes' ? '🔁' : '✅'}</div>
           <div style={{fontSize:15,fontWeight:500,color:NB.txt,marginBottom:6}}>
-            {alertasTab==='vencidas' ? 'Nenhuma tarefa vencida!' : 'Nenhuma tarefa ativa.'}
+            {alertasTab==='vencidas' ? 'Nenhuma tarefa vencida!' : alertasTab==='recorrentes' ? 'Nenhuma atividade recorrente.' : 'Nenhuma tarefa ativa.'}
           </div>
           <div style={{fontSize:13,color:NB.mut2}}>
-            {alertasTab==='vencidas' ? 'Tudo em dia por aqui.' : 'Crie uma nova demanda para começar.'}
+            {alertasTab==='vencidas' ? 'Tudo em dia por aqui.' : alertasTab==='recorrentes' ? 'Marque "atividade recorrente" ao criar uma demanda para ela se repetir sozinha.' : 'Crie uma nova demanda para começar.'}
           </div>
         </div>
       ) : (
@@ -5644,22 +5681,40 @@ function AlertasView() {
                 {porArea[areaName].map(d => {
                   const s = getSla(d.deadline);
                   const st = (pipes[d.area]||[]).find(x=>x.id===d.stageId);
+                  const ehRecorrentes = alertasTab==='recorrentes';
                   return (
-                    <button key={d.id} onClick={()=>setModal(d.id)}
-                      style={{display:'flex',alignItems:'center',gap:12,padding:'12px 16px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:11,textAlign:'left',cursor:'pointer',transition:'box-shadow 0.12s'}}
+                    <div key={d.id}
+                      style={{display:'flex',alignItems:'center',gap:12,padding:'12px 16px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:11,transition:'box-shadow 0.12s'}}
                       onMouseEnter={e=>{e.currentTarget.style.boxShadow='0 2px 12px rgba(0,42,114,0.08)';}}
                       onMouseLeave={e=>{e.currentTarget.style.boxShadow='none';}}>
-                      <div style={{flex:1,minWidth:0}}>
+                      <button onClick={()=>setModal(d.id)}
+                        style={{flex:1,minWidth:0,display:'block',textAlign:'left',background:'none',border:'none',padding:0,cursor:'pointer'}}>
                         <div style={{fontSize:13.5,fontWeight:500,color:NB.txt,marginBottom:3,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{d.title}</div>
-                        <div style={{fontSize:11.5,color:NB.mut2}}>{st ? st.name : '—'}</div>
-                      </div>
-                      {s && s.type!=='ok' && (
-                        <span style={{fontSize:12,fontWeight:600,color:'#B4232A',background:'#FEECEC',padding:'3px 9px',borderRadius:20,flexShrink:0}}>{s.label}</span>
+                        <div style={{fontSize:11.5,color:NB.mut2}}>
+                          {ehRecorrentes
+                            ? 'A cada ' + (d.frequenciaDias||30) + ' dias' + (d.proximaRecorrencia ? '  •  próxima em ' + fmtDate(d.proximaRecorrencia) : '')
+                            : (st ? st.name : '—')}
+                        </div>
+                      </button>
+                      {ehRecorrentes ? (
+                        <button onClick={()=>pararRecorrencia(d.id)}
+                          title="Para de gerar cópias novas — a demanda atual continua no quadro"
+                          style={{flexShrink:0,padding:'6px 12px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:8,fontSize:12,fontWeight:500,color:NB.mut,cursor:'pointer'}}
+                          onMouseEnter={e=>{e.currentTarget.style.color='#B4232A'; e.currentTarget.style.borderColor='#FBD5D5';}}
+                          onMouseLeave={e=>{e.currentTarget.style.color=NB.mut; e.currentTarget.style.borderColor=NB.bd;}}>
+                          Desligar
+                        </button>
+                      ) : (
+                        <React.Fragment>
+                          {s && s.type!=='ok' && (
+                            <span style={{fontSize:12,fontWeight:600,color:'#B4232A',background:'#FEECEC',padding:'3px 9px',borderRadius:20,flexShrink:0}}>{s.label}</span>
+                          )}
+                          {s && s.type==='ok' && d.deadline && (
+                            <span style={{fontSize:11.5,color:NB.mut2,flexShrink:0}}>{d.deadline.slice(5).replace('-','/')}</span>
+                          )}
+                        </React.Fragment>
                       )}
-                      {s && s.type==='ok' && d.deadline && (
-                        <span style={{fontSize:11.5,color:NB.mut2,flexShrink:0}}>{d.deadline.slice(5).replace('-','/')}</span>
-                      )}
-                    </button>
+                    </div>
                   );
                 })}
               </div>
@@ -5727,7 +5782,7 @@ function NotifBloqueadaAviso() {
 }
 
 function CardModal() {
-  const { selDemand, setModal, moveStage, moveArea, delDemand, archiveDemand, setNotifyPending, setAssignees, updateDemand, attach, comments, pipes, enviarCampanhaDeDemanda, demands, dispararManual, user, aprovarPedidoSlack, recusarPedidoSlack } = useApp();
+  const { selDemand, setModal, moveStage, moveArea, delDemand, archiveDemand, setNotifyPending, setAssignees, updateDemand, attach, comments, pipes, enviarCampanhaDeDemanda, demands, dispararManual, user, aprovarPedidoSlack, recusarPedidoSlack, pararRecorrencia } = useApp();
   const [picker, setPicker] = useState(false);
   const [confirmDel, setConfirmDel] = useState(false);
   const [tab, setTab] = useState('anexos');
@@ -6219,6 +6274,15 @@ function CardModal() {
                 onMouseEnter={e=>{e.currentTarget.style.background='#D6EAFB';}}
                 onMouseLeave={e=>{e.currentTarget.style.background='#EAF3FD';}}>
                 ▶ Disparar agora
+              </button>
+            )}
+            {d.recorrente && (
+              <button onClick={()=>pararRecorrencia(d.id)}
+                title="Para de gerar cópias novas — esta demanda continua no quadro"
+                style={{display:'flex',alignItems:'center',gap:7,padding:'10px 16px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:9,fontSize:13,fontWeight:500,color:NB.mut}}
+                onMouseEnter={e=>{e.currentTarget.style.color=NB.txt; e.currentTarget.style.borderColor='#D3DCEA';}}
+                onMouseLeave={e=>{e.currentTarget.style.color=NB.mut; e.currentTarget.style.borderColor=NB.bd;}}>
+                Desligar recorrência
               </button>
             )}
             <button onClick={()=>archiveDemand(d.id)} title="Sai do quadro mas continua guardada"
