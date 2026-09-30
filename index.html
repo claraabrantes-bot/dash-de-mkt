@@ -1292,6 +1292,7 @@ function Sidebar() {
   const escopoStats = area!=='Todas' ? escopoAtivas.filter(d=>d.area===area) : escopoAtivas;
   const vencidas = escopoStats.filter(d => { const s=getSla(d.deadline); return s && s.type==='danger'; }).length;
   const emAprovacao = active.filter(d => {
+    if (d.aguardandoAprovacao) return true;
     const st = (pipes[d.area]||[]).find(x => x.id === d.stageId);
     return st && st.isApproval;
   }).length + pedidos.filter(p => p.status === 'novo').length;
@@ -3708,7 +3709,7 @@ function CampanhasManagerView() {
 /* =========== GESTÃO — fila de aprovação =========== */
 /* =========== GESTÃO — fila de aprovação =========== */
 function ApprovalCard({ demand }) {
-  const { moveStage, setNotifyPending, addComment, user, previewMember, setModal, attach, comments, pipes } = useApp();
+  const { moveStage, setNotifyPending, addComment, user, previewMember, setModal, attach, comments, pipes, aprovarPedidoSlack, recusarPedidoSlack } = useApp();
   const [nota, setNota] = useState('');
   const [ajuste, setAjuste] = useState(false);
 
@@ -3744,7 +3745,10 @@ function ApprovalCard({ demand }) {
       <div style={{display:'flex',alignItems:'center',gap:9,marginBottom:9,flexWrap:'wrap'}}>
         <span style={{background:NB.col,border:'1px solid '+NB.bd,color:NB.mut,fontSize:11,fontWeight:500,padding:'2px 8px',borderRadius:6,fontFamily:'monospace'}}>{demand.code}</span>
         <span style={{display:'inline-flex',alignItems:'center',gap:6,fontSize:12.5,fontWeight:500,color:AREA_CLR[demand.area]}}><Icon s={14}/> {demand.area}</span>
-        <span style={{fontSize:12,color:NB.mut2}}>· {stages[idx] ? stages[idx].name : '—'}</span>
+        {demand.aguardandoAprovacao
+          ? <span style={{fontSize:11.5,fontWeight:600,padding:'3px 9px',borderRadius:6,background:'#FFF6DE',color:'#8A6206'}}>⏳ Pedido do Slack · liberar entrada</span>
+          : <span style={{fontSize:12,color:NB.mut2}}>· {stages[idx] ? stages[idx].name : '—'}</span>
+        }
         {slaAprov && (
           <span style={{fontSize:11.5,fontWeight:600,padding:'3px 9px',borderRadius:6,background:slaAprov.type==='danger'?'#FEECEC':slaAprov.type==='warn'?'#FFF6DE':'#EAF6EE',color:slaAprov.type==='danger'?'#B4232A':slaAprov.type==='warn'?'#8A6206':'#0F6E56'}}>{slaAprov.label}</span>
         )}
@@ -3770,6 +3774,22 @@ function ApprovalCard({ demand }) {
       {!podeAprovar ? (
         <div style={{fontSize:12.5,color:NB.mut2,background:NB.col,border:'1px solid '+NB.bd,borderRadius:9,padding:'10px 13px',lineHeight:1.55}}>
           Aguardando decisão de @Mariana Araújo. Abra o card para comentar ou anexar algo que ajude na aprovação.
+        </div>
+      ) : demand.aguardandoAprovacao ? (
+        <div>
+          <p style={{fontSize:12.5,color:NB.mut,lineHeight:1.55,marginBottom:11}}>
+            {demand.requester || 'Alguém'} pediu isso pelo Slack. Aprovar coloca no quadro de {demand.area} como demanda oficial.
+          </p>
+          <div style={{display:'flex',gap:9,flexWrap:'wrap'}}>
+            <button onClick={()=>aprovarPedidoSlack(demand.id)}
+              style={{display:'flex',alignItems:'center',gap:7,padding:'10px 17px',background:'#0F6E56',border:'none',borderRadius:9,fontSize:13,fontWeight:500,color:'#fff',cursor:'pointer'}}>
+              <ICheck s={14}/> Aprovar entrada
+            </button>
+            <button onClick={()=>recusarPedidoSlack(demand.id)}
+              style={{padding:'10px 17px',background:'#fff',border:'1px solid #FBD5D5',borderRadius:9,fontSize:13,fontWeight:500,color:'#B4232A',cursor:'pointer'}}>
+              Recusar
+            </button>
+          </div>
         </div>
       ) : ajuste ? (
         <div style={{background:NB.col,border:'1px solid '+NB.bd,borderRadius:10,padding:'13px 14px'}}>
@@ -3815,6 +3835,10 @@ function GestaoView() {
   const linkForm = window.location.origin + '/solicitar.html';
   const escopo = (!verTudo && meuSetorFixo) ? active.filter(d=>d.area===meuSetorFixo) : active;
   const emAprovacao = escopo.filter(d => {
+    /* Duas coisas esperam decisão da Mariana: demandas que chegaram numa
+       etapa de aprovação do pipeline, e pedidos de Conteúdo/Design que
+       entraram pelo Slack e ainda não foram liberados. */
+    if (d.aguardandoAprovacao) return true;
     const st = (pipes[d.area]||[]).find(s => s.id === d.stageId);
     return st && st.isApproval;
   }).sort((a,b) => (a.stageEnteredAt||a.createdAt||'').localeCompare(b.stageEnteredAt||b.createdAt||''));
@@ -6120,7 +6144,7 @@ function CardModal() {
                 onBlur={e=>{
                   e.target.style.borderColor=NB.bd;
                   const v = e.target.value;
-                  if (!v) { setPrazoLocal(d.deadline||''); return; }
+                  if (!v) { if (d.deadline) updateDemand(d.id,{deadline:null}); return; } // limpar é uma ação válida
                   if (!isDataValida(v)) { setPrazoLocal(d.deadline||''); return; }
                   if (v !== d.deadline) updateDemand(d.id,{deadline:v});
                 }}
