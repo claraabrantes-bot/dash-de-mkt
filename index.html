@@ -535,6 +535,24 @@ function Provider({ children }) {
     setModal(null);
   }, [patch, feed]);
 
+  /* Mariana aprova (ou recusa) um pedido de Conteúdo/Design vindo do Slack.
+     Aprovar tira a marca de "aguardando" e a demanda passa a valer como
+     oficial no quadro; recusar arquiva direto. */
+  const aprovarPedidoSlack = useCallback((id) => {
+    const d = (window.__nbDem || []).find(x => x.id === id); if (!d) return;
+    patch(id, { aguardandoAprovacao: false, stageEnteredAt: new Date().toISOString() });
+    feed(d, 'Pedido aprovado', '"'+d.title+'" foi aprovado e entrou oficialmente no quadro de '+d.area,
+      'Pedido de '+(d.requester||'—'), 'new');
+  }, [patch, feed]);
+
+  const recusarPedidoSlack = useCallback((id) => {
+    const d = (window.__nbDem || []).find(x => x.id === id); if (!d) return;
+    patch(id, { archivedAt: new Date().toISOString(), aguardandoAprovacao: false });
+    feed(d, 'Pedido recusado', '"'+d.title+'" foi recusado e saiu do quadro',
+      'Pedido de '+(d.requester||'—'), 'move');
+    setModal(null);
+  }, [patch, feed]);
+
   const restoreDemand = useCallback((id) => {
     const d = (window.__nbDem || []).find(x => x.id === id); if (!d || !d.archivedAt) return;
     patch(id, { archivedAt: null });
@@ -891,6 +909,10 @@ function Provider({ children }) {
   demands.forEach(d => { comments[d.id] = d.comments || []; });
 
   const active   = demands.filter(d => !d.archivedAt);
+  /* Demandas de Conteúdo/Design vindas do Slack só viram "oficiais" depois
+     que a Mariana aprova. Até lá aparecem no quadro marcadas, mas ficam de
+     fora das contagens e estatísticas. */
+  const activeOficiais = active.filter(d => !d.aguardandoAprovacao);
   const archived = demands.filter(d => d.archivedAt)
                           .sort((a,b) => (a.archivedAt < b.archivedAt ? 1 : -1));
 
@@ -937,13 +959,14 @@ function Provider({ children }) {
     });
   }, [addDemand]);
 
-  /* Mostra card de ativação de notificações na primeira visita */
+  /* Lembra de ativar notificações: aparece na primeira visita e volta a
+     lembrar a cada 7 dias se a pessoa dispensou sem ativar. */
   useEffect(() => {
     if (!dbReady || !user) return;
-    if (Notification.permission === 'default') {
-      const asked = localStorage.getItem('nb_notif_asked');
-      if (!asked) setShowNotifCard(true);
-    }
+    if (Notification.permission !== 'default') return; // já decidiu (ativou ou bloqueou)
+    const ultimaVez = Number(localStorage.getItem('nb_notif_asked_at') || 0);
+    const seteDias = 7 * 24 * 60 * 60 * 1000;
+    if (!ultimaVez || Date.now() - ultimaVez > seteDias) setShowNotifCard(true);
   }, [dbReady, user]);
 
   /* Dispara notificações de navegador + feed para tarefas vencidas atribuídas ao usuário */
@@ -998,28 +1021,40 @@ function Provider({ children }) {
     localStorage.setItem('nb_notif_aprovacao_sent', JSON.stringify(jaNotificados));
   }, [active, dbReady, user, pipes]);
 
-  /* Notificação de navegador quando chega demanda nova (via Slack) na área
-     da pessoa. Só avisa demandas criadas nos últimos 10 minutos, pra não
-     disparar um monte de notificação antiga na primeira vez que alguém
-     abre o dashboard. */
+  /* Notificação de navegador quando chega demanda nova (via Slack).
+     Quem recebe depende da área: Conteúdo e Design avisam a Mariana (que
+     aprova) junto com a equipe; as outras vão direto pra quem toca.
+     Só avisa demandas criadas nos últimos 10 minutos, pra não disparar
+     notificação antiga quando alguém abre o dashboard. */
   useEffect(() => {
     if (!dbReady || !user || Notification.permission !== 'granted') return;
-    const minhasAreas = [user.area, ...(user.areasExtra || [])];
+    const AVISAR_POR_AREA = {
+      'Social':     ['CA','MA'],
+      'Design':     ['CA','MA','MB'],
+      'RevOps':     ['JE','BL'],
+      'Mídia Paga': ['VI'],
+      'Produto':    ['RO'],
+    };
     const jaNotificados = JSON.parse(localStorage.getItem('nb_notif_novas_sent') || '{}');
     const limite = Date.now() - 10 * 60 * 1000;
     active.forEach(d => {
       if (d.origem !== 'slack') return;
-      if (!minhasAreas.includes(d.area)) return;
+      const destinatarios = AVISAR_POR_AREA[d.area] || [];
+      if (!destinatarios.includes(user.initials)) return;
       if (jaNotificados[d.id]) return;
       if (!d.createdAt || new Date(d.createdAt).getTime() < limite) { jaNotificados[d.id] = true; return; }
+      const precisaAprovar = d.aguardandoAprovacao && user.isApprover;
       try {
-        const notif = new Notification('📥 Nova demanda em ' + d.area, {
-          body: d.title + (d.requester ? '\nPedido de ' + d.requester : '') + (d.deadline ? '  •  Prazo ' + fmtDate(d.deadline) : ''),
-          icon: '/favicon.ico',
-          badge: '/favicon.ico',
-          tag: 'nova-' + d.id,
-          requireInteraction: true,
-        });
+        const notif = new Notification(
+          precisaAprovar ? '⏳ Pedido esperando sua aprovação' : '📥 Nova demanda em ' + d.area,
+          {
+            body: d.title + (d.requester ? '\nPedido de ' + d.requester : '') + (d.deadline ? '  •  Prazo ' + fmtDate(d.deadline) : ''),
+            icon: '/favicon.ico',
+            badge: '/favicon.ico',
+            tag: 'nova-' + d.id,
+            requireInteraction: true,
+          }
+        );
         notif.onclick = () => { window.focus(); setModal(d.id); notif.close(); };
       } catch (e) {}
       jaNotificados[d.id] = true;
@@ -1043,7 +1078,7 @@ function Provider({ children }) {
   window.__nbDem = demands;
   window.__nbPosts = posts;
 
-  return <Ctx.Provider value={{ demands, active, archived, filtered, dispararManual, slack, slackTemplate, salvarSlackTemplate, slackTemplatePrevOpen, setSlackTemplatePrevOpen, showNotifCard, setShowNotifCard, alertasTab, setAlertasTab, user, isTeamMember, authReady, authError, setAuthError, preferirCentral, setPreferirCentral, dbReady, dbErro, seed, pedidos, aceitarPedido, recusarPedido, posts, addPost, updatePost, deletePost, campanhas, updateCampanha, publicarCampanha, despublicarCampanha, deleteCampanha, enviarCampanhaDeDemanda, pecas, addPeca, removePeca, redesSociais, salvarRedesSociais, arquivos, addArquivo, removeArquivo, embaixadores, addEmbaixador, removeEmbaixador, pacotes, salvarPacote, removePacote, meuPortalEmbaixador, portalCarregado, isEmbaixador, criarPortalEmbaixador, removerPortalEmbaixador, portaisEmbaixador, meusEnviosFotos, todosEnviosFotos, enviarFotoEmbaixador, removerEnvioFoto, view, setView, layout, setLayout, area, setArea, query, setQuery, mesFiltro, setMesFiltro, priFilter, setPriFilter, reqFilter, setReqFilter, respFilter, setRespFilter, selDemand, setModal, newOpen, setNewOpen, presetNovo, setPresetNovo, pacoteOpen, setPacoteOpen, notifyPending, setNotifyPending, profileOpen, setProfileOpen, editStages, setEditStages, dragging, setDragging, previewMember, setPreviewMember, photos, googlePhotos, profiles, pipes, salvarPipes, attach, comments, storageWarn, MAX_FILE, addAttachment, uploadFile, migrarLocal, carregarAnexo, removeAttachment, addComment, removeComment, logout, savePhoto, removePhoto, saveProfile, addDemand, moveStage, moveArea, reordenarCards, setAssignees, updateDemand, archiveDemand, restoreDemand, delDemand }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ demands, active, activeOficiais, archived, filtered, aprovarPedidoSlack, recusarPedidoSlack, dispararManual, slack, slackTemplate, salvarSlackTemplate, slackTemplatePrevOpen, setSlackTemplatePrevOpen, showNotifCard, setShowNotifCard, alertasTab, setAlertasTab, user, isTeamMember, authReady, authError, setAuthError, preferirCentral, setPreferirCentral, dbReady, dbErro, seed, pedidos, aceitarPedido, recusarPedido, posts, addPost, updatePost, deletePost, campanhas, updateCampanha, publicarCampanha, despublicarCampanha, deleteCampanha, enviarCampanhaDeDemanda, pecas, addPeca, removePeca, redesSociais, salvarRedesSociais, arquivos, addArquivo, removeArquivo, embaixadores, addEmbaixador, removeEmbaixador, pacotes, salvarPacote, removePacote, meuPortalEmbaixador, portalCarregado, isEmbaixador, criarPortalEmbaixador, removerPortalEmbaixador, portaisEmbaixador, meusEnviosFotos, todosEnviosFotos, enviarFotoEmbaixador, removerEnvioFoto, view, setView, layout, setLayout, area, setArea, query, setQuery, mesFiltro, setMesFiltro, priFilter, setPriFilter, reqFilter, setReqFilter, respFilter, setRespFilter, selDemand, setModal, newOpen, setNewOpen, presetNovo, setPresetNovo, pacoteOpen, setPacoteOpen, notifyPending, setNotifyPending, profileOpen, setProfileOpen, editStages, setEditStages, dragging, setDragging, previewMember, setPreviewMember, photos, googlePhotos, profiles, pipes, salvarPipes, attach, comments, storageWarn, MAX_FILE, addAttachment, uploadFile, migrarLocal, carregarAnexo, removeAttachment, addComment, removeComment, logout, savePhoto, removePhoto, saveProfile, addDemand, moveStage, moveArea, reordenarCards, setAssignees, updateDemand, archiveDemand, restoreDemand, delDemand }}>{children}</Ctx.Provider>;
 }
 
 const useApp = () => useContext(Ctx);
@@ -1649,7 +1684,14 @@ function DemandCard({ demand, colunaOrdenada }) {
       onMouseEnter={e=>{ if(!dragging){ e.currentTarget.style.boxShadow='0 4px 16px rgba(11,42,92,0.09)'; e.currentTarget.style.borderColor='#CFDCF0'; e.currentTarget.style.transform='translateY(-1px)'; } }}
       onMouseLeave={e=>{e.currentTarget.style.boxShadow='none'; e.currentTarget.style.borderColor=NB.bd; e.currentTarget.style.transform='none';}}>
 
-      <p style={{fontSize:14,fontWeight:500,color:NB.txt,lineHeight:1.45,display:'-webkit-box',WebkitLineClamp:2,WebkitBoxOrient:'vertical',overflow:'hidden',marginBottom:13}}>
+      {demand.aguardandoAprovacao && (
+        <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:9,padding:'5px 9px',background:'#FFF6DE',border:'1px dashed #E8CE8E',borderRadius:7}}>
+          <span style={{fontSize:12}}>⏳</span>
+          <span style={{fontSize:11,fontWeight:600,color:'#8A6206',letterSpacing:'0.01em'}}>Aguardando aprovação da Maris</span>
+        </div>
+      )}
+
+      <p style={{fontSize:14,fontWeight:500,color:demand.aguardandoAprovacao?NB.mut:NB.txt,lineHeight:1.45,display:'-webkit-box',WebkitLineClamp:2,WebkitBoxOrient:'vertical',overflow:'hidden',marginBottom:13}}>
         {demand.recorrente && <span title="Atividade recorrente" style={{color:NB.azul,display:'inline-flex',verticalAlign:'-2px',marginRight:5}}><IRefresh s={13}/></span>}
         {demand.title}
       </p>
@@ -1736,14 +1778,24 @@ function stageVisuals(stages) {
 function StageColumn({ stage, cards, compact, areaName, visual }) {
   const { dragging, setDragging, moveStage, moveArea, setNotifyPending, setArea, setNewOpen, setPresetNovo, reordenarCards } = useApp();
   const [over, setOver] = useState(false);
+  const [verTodasConcluidas, setVerTodasConcluidas] = useState(false);
   const v = visual || STAGE_CYCLE[0];
   const Icon = v.Icon;
   const cardsOrdenados = [...cards].sort((a,b) => {
+    /* Na etapa final, as mais recentes primeiro — o que acabou de sair é o
+       que interessa ver. Nas outras, mantém a ordem manual do quadro. */
+    if (stage.isDone) return (b.completedAt||b.createdAt||'').localeCompare(a.completedAt||a.createdAt||'');
     if (a.ordem!=null && b.ordem!=null) return a.ordem-b.ordem;
     if (a.ordem!=null) return -1;
     if (b.ordem!=null) return 1;
     return (a.createdAt||'').localeCompare(b.createdAt||'');
   });
+
+  /* A coluna de concluídas cresce pra sempre, então mostra só as últimas
+     e deixa o resto atrás de um "ver mais". */
+  const LIMITE_CONCLUIDAS = 6;
+  const ocultas = stage.isDone && !verTodasConcluidas ? Math.max(0, cardsOrdenados.length - LIMITE_CONCLUIDAS) : 0;
+  const cardsVisiveis = ocultas > 0 ? cardsOrdenados.slice(0, LIMITE_CONCLUIDAS) : cardsOrdenados;
 
   const otherArea = !!dragging && dragging.area !== areaName;
   /* Aceita qualquer etapa do próprio pipeline, ou qualquer etapa de outro (troca de área) */
@@ -1784,7 +1836,19 @@ function StageColumn({ stage, cards, compact, areaName, visual }) {
         <span style={{fontSize:11.5,color:NB.mut,fontWeight:600,flexShrink:0,background:'#fff',border:'1px solid '+v.bd,borderRadius:20,padding:'1px 8px'}}>{cards.length}</span>
       </div>
       <div style={{flex:1,minHeight:0,padding:compact?'11px 11px 0':'12px 13px 0'}}>
-        {cardsOrdenados.map(c=><DemandCard key={c.id} demand={c} colunaOrdenada={cardsOrdenados}/>)}
+        {cardsVisiveis.map(c=><DemandCard key={c.id} demand={c} colunaOrdenada={cardsOrdenados}/>)}
+        {ocultas > 0 && (
+          <button onClick={()=>setVerTodasConcluidas(true)}
+            style={{width:'100%',padding:'9px 10px',marginBottom:10,background:'transparent',border:'1.5px dashed '+v.bd,borderRadius:10,fontSize:11.5,fontWeight:600,color:v.ic,cursor:'pointer'}}>
+            Ver mais {ocultas} concluída{ocultas>1?'s':''}
+          </button>
+        )}
+        {stage.isDone && verTodasConcluidas && cardsOrdenados.length > LIMITE_CONCLUIDAS && (
+          <button onClick={()=>setVerTodasConcluidas(false)}
+            style={{width:'100%',padding:'9px 10px',marginBottom:10,background:'transparent',border:'1.5px dashed '+v.bd,borderRadius:10,fontSize:11.5,fontWeight:600,color:v.ic,cursor:'pointer'}}>
+            Mostrar menos
+          </button>
+        )}
         {cards.length>0 && !(over&&canDrop) && (
           <button onClick={()=>{ setArea(areaName); setPresetNovo({area:areaName, stageId:stage.id}); setNewOpen(true); }}
             title={'Adicionar demanda direto em '+stage.name}
@@ -5614,12 +5678,12 @@ function NotifPermCard() {
 
   const ativar = () => {
     Notification.requestPermission().then(perm => {
-      localStorage.setItem('nb_notif_asked', '1');
+      localStorage.setItem('nb_notif_asked_at', String(Date.now()));
       setShowNotifCard(false);
     });
   };
   const dispensar = () => {
-    localStorage.setItem('nb_notif_asked', '1');
+    localStorage.setItem('nb_notif_asked_at', String(Date.now()));
     setShowNotifCard(false);
   };
 
@@ -5628,7 +5692,7 @@ function NotifPermCard() {
       <div style={{fontSize:26,lineHeight:1,flexShrink:0}}>🔔</div>
       <div style={{flex:1}}>
         <div style={{fontSize:14,fontWeight:600,color:NB.txt,marginBottom:4}}>Ativar notificações?</div>
-        <p style={{fontSize:12.5,color:NB.mut,lineHeight:1.5,marginBottom:12}}>Avisa quando uma tarefa sua vencer, mesmo com o navegador em segundo plano.</p>
+        <p style={{fontSize:12.5,color:NB.mut,lineHeight:1.5,marginBottom:12}}>Avisa quando chegar demanda nova da sua área e quando uma tarefa sua vencer — mesmo com o navegador em segundo plano.</p>
         <div style={{display:'flex',gap:8}}>
           <button onClick={ativar}
             style={{flex:1,padding:'8px 0',background:NB.azul,border:'none',borderRadius:8,fontSize:13,fontWeight:500,color:'#fff',cursor:'pointer'}}>
@@ -5644,8 +5708,26 @@ function NotifPermCard() {
   );
 }
 
+function NotifBloqueadaAviso() {
+  const { user, dbReady } = useApp();
+  const [escondido, setEscondido] = useState(false);
+  if (!dbReady || !user || escondido) return null;
+  if (typeof Notification === 'undefined' || Notification.permission !== 'denied') return null;
+  return (
+    <div style={{position:'fixed',bottom:24,left:'50%',transform:'translateX(-50%)',zIndex:1999,maxWidth:440,background:'#FFF6DE',border:'1px solid #F0DFAE',borderRadius:12,padding:'12px 16px',display:'flex',gap:10,alignItems:'center',boxShadow:'0 4px 18px rgba(0,42,114,0.10)'}}>
+      <span style={{fontSize:18,flexShrink:0}}>🔕</span>
+      <p style={{flex:1,fontSize:12.5,color:'#8A6206',lineHeight:1.5,margin:0}}>
+        Notificações bloqueadas neste navegador — você não será avisado de demandas novas da sua área.
+        Para reativar, clique no cadeado ao lado do endereço do site e permita notificações.
+      </p>
+      <button onClick={()=>setEscondido(true)} title="Fechar"
+        style={{background:'none',border:'none',fontSize:16,color:'#8A6206',cursor:'pointer',flexShrink:0,lineHeight:1}}>×</button>
+    </div>
+  );
+}
+
 function CardModal() {
-  const { selDemand, setModal, moveStage, moveArea, delDemand, archiveDemand, setNotifyPending, setAssignees, updateDemand, attach, comments, pipes, enviarCampanhaDeDemanda, demands, dispararManual } = useApp();
+  const { selDemand, setModal, moveStage, moveArea, delDemand, archiveDemand, setNotifyPending, setAssignees, updateDemand, attach, comments, pipes, enviarCampanhaDeDemanda, demands, dispararManual, user, aprovarPedidoSlack, recusarPedidoSlack } = useApp();
   const [picker, setPicker] = useState(false);
   const [confirmDel, setConfirmDel] = useState(false);
   const [tab, setTab] = useState('anexos');
@@ -5740,6 +5822,29 @@ function CardModal() {
 
   return (
     <Modal onClose={()=>setModal(null)} width={620}>
+      {d.aguardandoAprovacao && (
+        <div style={{padding:'14px 26px',background:'#FFF6DE',borderBottom:'1px solid #E8CE8E',display:'flex',alignItems:'center',gap:12,flexWrap:'wrap'}}>
+          <span style={{fontSize:18,flexShrink:0}}>⏳</span>
+          <div style={{flex:1,minWidth:180}}>
+            <div style={{fontSize:13,fontWeight:600,color:'#8A6206'}}>Aguardando aprovação da Maris</div>
+            <p style={{fontSize:12,color:'#8A6206',margin:'2px 0 0',lineHeight:1.45,opacity:0.85}}>
+              Pedido de {d.requester||'—'} pelo Slack. Só entra oficialmente no quadro depois de aprovado.
+            </p>
+          </div>
+          {user && user.isApprover && (
+            <div style={{display:'flex',gap:8,flexShrink:0}}>
+              <button onClick={()=>aprovarPedidoSlack(d.id)}
+                style={{padding:'8px 16px',background:'#0F6E56',border:'none',borderRadius:8,fontSize:13,fontWeight:600,color:'#fff',cursor:'pointer'}}>
+                Aprovar
+              </button>
+              <button onClick={()=>recusarPedidoSlack(d.id)}
+                style={{padding:'8px 14px',background:'#fff',border:'1px solid #E8CE8E',borderRadius:8,fontSize:13,color:'#8A6206',cursor:'pointer'}}>
+                Recusar
+              </button>
+            </div>
+          )}
+        </div>
+      )}
       <div style={{padding:'22px 26px 18px',borderBottom:'1px solid '+NB.bdSoft,display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:14}}>
         <div style={{flex:1,minWidth:0}}>
           <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:9,flexWrap:'wrap'}}>
@@ -8064,6 +8169,7 @@ function AppContent() {
       <PacoteModal/>
       <NotifyModal/>
       <NotifPermCard/>
+      <NotifBloqueadaAviso/>
       <SlackTemplatePrevModal/>
       <ProfileModal/>
       {editStages && <StageEditorModal areaName={editStages} onClose={()=>setEditStages(null)}/>}
