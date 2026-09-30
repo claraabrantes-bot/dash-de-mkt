@@ -1711,6 +1711,29 @@ function DemandCard({ demand, colunaOrdenada }) {
         {demand.title}
       </p>
 
+      {/* Progresso do checklist: mostra em que pé está sem precisar abrir o card */}
+      {(() => {
+        const itens = demand.checklist || [];
+        if (!itens.length) return null;
+        const feitas = itens.filter(it => it.feita).length;
+        const pct = Math.round((feitas / itens.length) * 100);
+        const completo = feitas === itens.length;
+        const emAndamento = itens.find(it => !it.feita);
+        return (
+          <div style={{marginBottom:12}}>
+            <div style={{display:'flex',alignItems:'center',gap:7,marginBottom:5}}>
+              <span style={{fontSize:11,fontWeight:600,color:completo?'#0F6E56':NB.mut,flexShrink:0}}>{feitas}/{itens.length}</span>
+              <span style={{fontSize:11,color:NB.mut2,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+                {completo ? 'checklist concluído' : (emAndamento ? emAndamento.titulo : '')}
+              </span>
+            </div>
+            <div style={{height:4,background:NB.col,borderRadius:3,overflow:'hidden'}}>
+              <div style={{width:pct+'%',height:'100%',background:completo?'#0F6E56':NB.azul,borderRadius:3,transition:'width 0.3s'}}/>
+            </div>
+          </div>
+        );
+      })()}
+
       <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8}}>
         <div style={{display:'flex',alignItems:'center',gap:9,minWidth:0}}>
           {sla && (sla.type==='ok'
