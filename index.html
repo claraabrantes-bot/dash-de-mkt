@@ -25,6 +25,11 @@
   })();
 </script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script>
+  if (window.Babel) {
+    window.Babel.disableScriptTags();
+  }
+</script>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
@@ -8323,6 +8328,25 @@ function AppContent() {
 function App() { return <Provider><AppContent/></Provider>; }
 
 ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+<script>
+  (function() {
+    try {
+      const scriptEl = document.querySelector('script[type="text/babel"]');
+      if (scriptEl && window.Babel) {
+        const compiled = window.Babel.transform(scriptEl.textContent, {
+          presets: ['react'],
+          compact: true
+        }).code;
+        const newScript = document.createElement('script');
+        newScript.type = 'text/javascript';
+        newScript.text = compiled;
+        document.body.appendChild(newScript);
+      }
+    } catch (e) {
+      console.error('Falha ao inicializar aplicação:', e);
+    }
+  })();
 </script>
 </body>
 </html>
