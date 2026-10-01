@@ -540,14 +540,16 @@ function Provider({ children }) {
      oficial no quadro; recusar arquiva direto. */
   const aprovarPedidoSlack = useCallback((id) => {
     const d = (window.__nbDem || []).find(x => x.id === id); if (!d) return;
-    patch(id, { aguardandoAprovacao: false, stageEnteredAt: new Date().toISOString() });
+    patch(id, { aguardandoAprovacao: false, stageEnteredAt: new Date().toISOString(),
+                aprovadoEm: new Date().toISOString(), aprovadoPor: 'MA', recusadoEm: null });
     feed(d, 'Pedido aprovado', '"'+d.title+'" foi aprovado e entrou oficialmente no quadro de '+d.area,
       'Pedido de '+(d.requester||'—'), 'new');
   }, [patch, feed]);
 
   const recusarPedidoSlack = useCallback((id) => {
     const d = (window.__nbDem || []).find(x => x.id === id); if (!d) return;
-    patch(id, { archivedAt: new Date().toISOString(), aguardandoAprovacao: false });
+    patch(id, { archivedAt: new Date().toISOString(), aguardandoAprovacao: false,
+                recusadoEm: new Date().toISOString(), recusadoPor: 'MA' });
     feed(d, 'Pedido recusado', '"'+d.title+'" foi recusado e saiu do quadro',
       'Pedido de '+(d.requester||'—'), 'move');
     setModal(null);
@@ -1296,6 +1298,13 @@ function Sidebar() {
     const st = (pipes[d.area]||[]).find(x => x.id === d.stageId);
     return st && st.isApproval;
   }).length + pedidos.filter(p => p.status === 'novo').length;
+  /* Só o que depende de decisão dela — sem contar os pedidos externos,
+     que passam antes por triagem. */
+  const aguardandoDecisao = active.filter(d => {
+    if (d.aguardandoAprovacao) return true;
+    const st = (pipes[d.area]||[]).find(x => x.id === d.stageId);
+    return st && st.isApproval;
+  }).length;
   const minhasSubPendentes = active.reduce((n,d)=>n+(d.checklist||[]).filter(it=>it.responsavel===user.initials && !it.feita).length, 0);
   const [menu, setMenu] = useState(false);
   const [mostrarTodasAreas, setMostrarTodasAreas] = useState(!meuSetorFixo);
@@ -1312,7 +1321,7 @@ function Sidebar() {
           <NiboSymbol size={40} color={NB.navy1}/>
           <div style={{lineHeight:1.2}}>
             <div style={{fontSize:21,fontWeight:700,color:NB.navy1,letterSpacing:'-0.02em'}}>Nibo</div>
-            <div style={{fontSize:10.5,fontWeight:600,color:NB.mut,letterSpacing:'0.09em'}}>MARKETING</div>
+            <div style={{fontSize:10.5,fontWeight:600,color:NB.mut,letterSpacing:'0.09em'}}>MARKETING <span style={{color:NB.azul}}>v2</span></div>
           </div>
         </div>
       </div>
@@ -1384,7 +1393,9 @@ function Sidebar() {
 
         <div style={secLbl}>Gestão</div>
         <div style={{marginBottom:20}}>
-          <NavItem label="Aprovações e pedidos" Icon={IStamp} iconColor={emAprovacao?'#C98A00':NB.mut}
+          <NavItem label="Painel de aprovações" Icon={IStamp} iconColor={aguardandoDecisao?'#C98A00':NB.mut}
+            count={aguardandoDecisao||undefined} active={view==='aprovacoes'} onClick={()=>setView('aprovacoes')}/>
+          <NavItem label="Aprovações e pedidos" Icon={IInbox} iconColor={emAprovacao?'#C98A00':NB.mut}
             count={emAprovacao||undefined} active={view==='gestao'} onClick={()=>setView('gestao')}/>
           {!meuSetorFixo && (
             <NavItem label="Resumo" Icon={ITrend} iconColor={NB.mut}
@@ -3709,7 +3720,7 @@ function CampanhasManagerView() {
 /* =========== GESTÃO — fila de aprovação =========== */
 /* =========== GESTÃO — fila de aprovação =========== */
 function ApprovalCard({ demand }) {
-  const { moveStage, setNotifyPending, addComment, user, previewMember, setModal, attach, comments, pipes, aprovarPedidoSlack, recusarPedidoSlack } = useApp();
+  const { moveStage, setNotifyPending, addComment, user, previewMember, setModal, attach, comments, pipes, aprovarPedidoSlack, recusarPedidoSlack, updateDemand } = useApp();
   const [nota, setNota] = useState('');
   const [ajuste, setAjuste] = useState(false);
 
@@ -3726,6 +3737,8 @@ function ApprovalCard({ demand }) {
 
   const aprovar = () => {
     if (!prox) return;
+    /* Guarda que ela aprovou, pra aparecer na coluna "Aprovadas" do painel. */
+    updateDemand(demand.id, { aprovadoEm: new Date().toISOString(), aprovadoPor: (user||{}).initials || 'MA' });
     if (demand.area === 'Design' && prox.isDone) {
       setNotifyPending({ demandId:demand.id, stageId:prox.id, demandTitle:demand.title });
     } else {
@@ -3818,6 +3831,144 @@ function ApprovalCard({ demand }) {
           </button>
         </div>
       )}
+    </div>
+  );
+}
+
+/* =========== PAINEL DE APROVAÇÕES — quadro próprio da Mariana =========== */
+function CardAprovacao({ demand, coluna }) {
+  const { setModal, pipes, aprovarPedidoSlack, recusarPedidoSlack, moveStage, updateDemand, user } = useApp();
+  const stages = pipes[demand.area] || [];
+  const idx = stages.findIndex(s => s.id === demand.stageId);
+  const etapa = stages[idx];
+  const prox = stages[idx + 1];
+  const Icon = AREA_ICON[demand.area] || IChat;
+  const ac = AREA_CLR[demand.area] || NB.mut;
+  const doSlack = !!demand.aguardandoAprovacao;
+  const slaAprov = coluna === 'aguardando' ? getSlaAprovacao(demand.stageEnteredAt) : null;
+  const podeDecidir = user && user.isApprover;
+
+  const aprovarEtapa = () => {
+    if (!prox) return;
+    updateDemand(demand.id, { aprovadoEm: new Date().toISOString(), aprovadoPor: (user||{}).initials || 'MA' });
+    moveStage(demand.id, prox.id);
+  };
+
+  return (
+    <div style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:12,padding:'13px 15px',marginBottom:11,
+                 borderLeft:'3px solid '+(coluna==='recusadas' ? '#E4A0A0' : coluna==='aprovadas' ? '#7FC5AC' : (doSlack ? '#E8CE8E' : ac))}}>
+      <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:7,flexWrap:'wrap'}}>
+        <span style={{background:NB.col,border:'1px solid '+NB.bd,color:NB.mut,fontSize:10.5,padding:'1px 7px',borderRadius:5,fontFamily:'monospace'}}>{demand.code}</span>
+        <span style={{display:'inline-flex',alignItems:'center',gap:5,fontSize:11.5,fontWeight:500,color:ac}}><Icon s={12}/> {demand.area}</span>
+      </div>
+
+      <button onClick={()=>setModal(demand.id)}
+        style={{display:'block',width:'100%',textAlign:'left',background:'none',border:'none',padding:0,cursor:'pointer',marginBottom:9}}>
+        <div style={{fontSize:13.5,fontWeight:500,color:NB.txt,lineHeight:1.4,marginBottom:4}}>{demand.title}</div>
+        <div style={{fontSize:11.5,color:NB.mut2}}>
+          {doSlack ? 'Entrada pelo Slack' : (etapa ? etapa.name : '—')}
+          {demand.requester ? '  ·  ' + demand.requester : ''}
+        </div>
+      </button>
+
+      {slaAprov && (
+        <div style={{marginBottom:9}}>
+          <span style={{fontSize:10.5,fontWeight:600,padding:'2px 8px',borderRadius:5,
+                        background:slaAprov.type==='danger'?'#FEECEC':slaAprov.type==='warn'?'#FFF6DE':'#EAF6EE',
+                        color:slaAprov.type==='danger'?'#B4232A':slaAprov.type==='warn'?'#8A6206':'#0F6E56'}}>{slaAprov.label}</span>
+        </div>
+      )}
+
+      {coluna==='aguardando' && podeDecidir && (
+        <div style={{display:'flex',gap:7,flexWrap:'wrap'}}>
+          <button onClick={()=> doSlack ? aprovarPedidoSlack(demand.id) : aprovarEtapa()}
+            disabled={!doSlack && !prox}
+            style={{flex:1,minWidth:100,padding:'7px 12px',background:(doSlack||prox)?'#0F6E56':'#CFD8E6',border:'none',borderRadius:8,fontSize:12,fontWeight:600,color:'#fff',cursor:(doSlack||prox)?'pointer':'not-allowed'}}>
+            {doSlack ? 'Aprovar entrada' : (prox ? 'Aprovar → '+prox.name : 'Aprovar')}
+          </button>
+          {doSlack && (
+            <button onClick={()=>recusarPedidoSlack(demand.id)}
+              style={{padding:'7px 12px',background:'#fff',border:'1px solid #FBD5D5',borderRadius:8,fontSize:12,fontWeight:500,color:'#B4232A',cursor:'pointer'}}>
+              Recusar
+            </button>
+          )}
+        </div>
+      )}
+
+      {coluna==='aprovadas' && demand.aprovadoEm && (
+        <div style={{fontSize:11,color:'#0F6E56'}}>✓ aprovada em {fmtDate(demand.aprovadoEm.slice(0,10))}</div>
+      )}
+      {coluna==='recusadas' && demand.recusadoEm && (
+        <div style={{fontSize:11,color:'#B4232A'}}>recusada em {fmtDate(demand.recusadoEm.slice(0,10))}</div>
+      )}
+    </div>
+  );
+}
+
+function AprovacoesView() {
+  const { demands, active, pipes, user } = useApp();
+  const [dias, setDias] = useState(30);
+
+  const limite = Date.now() - dias * 24 * 60 * 60 * 1000;
+  const recente = iso => iso && new Date(iso).getTime() >= limite;
+
+  const aguardando = active.filter(d => {
+    if (d.aguardandoAprovacao) return true;
+    const st = (pipes[d.area]||[]).find(s => s.id === d.stageId);
+    return st && st.isApproval;
+  }).sort((a,b) => (a.stageEnteredAt||a.createdAt||'').localeCompare(b.stageEnteredAt||b.createdAt||''));
+
+  /* Decididas ficam por um tempo à vista e depois somem sozinhas, pra
+     coluna não virar um arquivo morto. */
+  const aprovadas = demands.filter(d => d.aprovadoEm && recente(d.aprovadoEm) && !d.recusadoEm && !aguardando.includes(d))
+                           .sort((a,b) => (b.aprovadoEm||'').localeCompare(a.aprovadoEm||''));
+  const recusadas = demands.filter(d => d.recusadoEm && recente(d.recusadoEm))
+                           .sort((a,b) => (b.recusadoEm||'').localeCompare(a.recusadoEm||''));
+
+  const colunas = [
+    { id:'aguardando', nome:'Aguardando você',  itens:aguardando, cor:'#E0A100', bg:'#FFFBF0', bd:'#F0E2C0', vazio:'Nada esperando decisão.' },
+    { id:'aprovadas',  nome:'Aprovadas',        itens:aprovadas,  cor:'#0F6E56', bg:'#F2FAF7', bd:'#CFE9DF', vazio:'Nenhuma aprovada nesse período.' },
+    { id:'recusadas',  nome:'Recusadas',        itens:recusadas,  cor:'#B4232A', bg:'#FEF7F7', bd:'#F5D9D9', vazio:'Nenhuma recusada nesse período.' },
+  ];
+
+  return (
+    <div style={{padding:'24px 30px 30px',height:'100%',display:'flex',flexDirection:'column',overflow:'hidden'}}>
+      <div style={{marginBottom:18,display:'flex',alignItems:'center',gap:14,flexWrap:'wrap'}}>
+        <div>
+          <h1 style={{fontSize:21,fontWeight:700,color:NB.navy1,marginBottom:3}}>Aprovações</h1>
+          <p style={{fontSize:13,color:NB.mut}}>
+            {user && user.isApprover
+              ? 'Tudo que depende da sua decisão, em um quadro só.'
+              : 'Acompanhe o que está esperando decisão da Mariana.'}
+          </p>
+        </div>
+        <div style={{marginLeft:'auto',display:'flex',gap:6,alignItems:'center'}}>
+          <span style={{fontSize:12,color:NB.mut2}}>decididas nos últimos</span>
+          {[7,30,90].map(n => (
+            <button key={n} onClick={()=>setDias(n)}
+              style={{padding:'5px 11px',background:dias===n?NB.azul:'#fff',border:'1px solid '+(dias===n?NB.azul:NB.bd),borderRadius:7,fontSize:12,fontWeight:500,color:dias===n?'#fff':NB.mut,cursor:'pointer'}}>
+              {n}d
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div style={{display:'flex',gap:16,flex:1,minHeight:0,overflowX:'auto'}}>
+        {colunas.map(col => (
+          <div key={col.id} style={{flex:'1 1 300px',minWidth:280,display:'flex',flexDirection:'column',background:col.bg,border:'1px solid '+col.bd,borderRadius:14,overflow:'hidden'}}>
+            <div style={{padding:'13px 16px',borderBottom:'1px solid '+col.bd,display:'flex',alignItems:'center',gap:9}}>
+              <span style={{fontSize:13.5,fontWeight:600,color:col.cor}}>{col.nome}</span>
+              <span style={{marginLeft:'auto',fontSize:11.5,fontWeight:600,color:NB.mut,background:'#fff',border:'1px solid '+col.bd,borderRadius:20,padding:'1px 9px'}}>{col.itens.length}</span>
+            </div>
+            <div style={{flex:1,overflowY:'auto',padding:'13px 13px 4px'}}>
+              {col.itens.length === 0
+                ? <p style={{fontSize:12.5,color:NB.mut2,textAlign:'center',padding:'24px 10px',lineHeight:1.6}}>{col.vazio}</p>
+                : col.itens.map(d => <CardAprovacao key={d.id} demand={d} coluna={col.id}/>)
+              }
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -8264,6 +8415,7 @@ function AppContent() {
               {view==='arquivadas' && <ArchivedView/>}
               {view==='variacoes'  && <VariationsView/>}
               {view==='publicacoes'&& <PublishQueueView/>}
+              {view==='aprovacoes' && <AprovacoesView/>}
               {view==='gestao'     && <GestaoView/>}
               {view==='central'    && <InfoCentralView/>}
               {view==='campanhas'  && <CampanhasManagerView/>}
