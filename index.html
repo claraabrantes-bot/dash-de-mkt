@@ -6088,8 +6088,9 @@ function CardModal() {
   const adicionarItemChecklist = () => {
     if (!novoItem.titulo.trim() || !novoItem.responsavel) return;
     const item = { id:'chk'+Date.now()+Math.random().toString(36).slice(2,6), titulo:novoItem.titulo.trim(), responsavel:novoItem.responsavel, feita:false };
+    if (novoItem.prazo) item.prazo = novoItem.prazo;
     updateDemand(d.id, { checklist:[...(d.checklist||[]), item] });
-    setNovoItem({ titulo:'', responsavel:'' }); setAddingItem(false);
+    setNovoItem({ titulo:'', responsavel:'', prazo:'' }); setAddingItem(false);
   };
   const toggleItemChecklist = itemId => {
     const novos = (d.checklist||[]).map(it => it.id===itemId ? {...it, feita:!it.feita} : it);
@@ -6101,6 +6102,11 @@ function CardModal() {
   const editarItemChecklist = (itemId, novoTitulo) => {
     if (!novoTitulo.trim()) return;
     const novos = (d.checklist||[]).map(it => it.id===itemId ? {...it, titulo:novoTitulo.trim()} : it);
+    updateDemand(d.id, { checklist: novos });
+  };
+
+  const atualizarPrazoItem = (itemId, prazo) => {
+    const novos = (d.checklist||[]).map(it => it.id===itemId ? {...it, prazo} : it);
     updateDemand(d.id, { checklist: novos });
   };
 
@@ -6275,6 +6281,28 @@ function CardModal() {
                       </span>
                     )}
                     {resp && <span title={resp.name} style={{fontSize:11,fontWeight:600,color: it.feita?'#0F6E56':NB.azul,flexShrink:0}}>{resp.initials}</span>}
+                    {(() => {
+                      /* Prazo próprio da subtarefa — útil quando as etapas têm
+                         datas diferentes do prazo final da demanda. */
+                      const s = it.feita ? null : getSla(it.prazo);
+                      return (
+                        <label title={it.prazo ? 'Prazo desta subtarefa' : 'Definir prazo desta subtarefa'}
+                          style={{display:'flex',alignItems:'center',gap:4,flexShrink:0,cursor:'pointer',position:'relative'}}>
+                          <input type="date" value={it.prazo||''}
+                            onChange={e=>{ if(!e.target.value || isDataValida(e.target.value)) atualizarPrazoItem(it.id, e.target.value||null); }}
+                            style={{position:'absolute',inset:0,opacity:0,cursor:'pointer',width:'100%'}}/>
+                          {it.prazo ? (
+                            <span style={{fontSize:10.5,fontWeight:600,padding:'2px 7px',borderRadius:5,whiteSpace:'nowrap',
+                              background: it.feita ? '#E1F5EE' : s && s.type==='danger' ? '#FEECEC' : s && s.type==='warn' ? '#FFF6DE' : NB.col,
+                              color: it.feita ? '#0F6E56' : s && s.type==='danger' ? '#B4232A' : s && s.type==='warn' ? '#8A6206' : NB.mut}}>
+                              {fmtDate(it.prazo)}
+                            </span>
+                          ) : (
+                            <span style={{fontSize:10.5,color:NB.mut2,padding:'2px 6px',borderRadius:5,border:'1px dashed '+NB.bd,whiteSpace:'nowrap'}}>+ prazo</span>
+                          )}
+                        </label>
+                      );
+                    })()}
                     <button onClick={()=>removerItemChecklist(it.id)} title="Remover" style={{color:NB.mut2,background:'none',border:'none',display:'flex',flexShrink:0}}><IX s={12}/></button>
                   </div>
                 );
@@ -6295,8 +6323,14 @@ function CardModal() {
                    </button>
                 ))}
               </div>
-              <div style={{display:'flex',gap:8,justifyContent:'flex-end'}}>
-                <button onClick={()=>{setAddingItem(false); setNovoItem({titulo:'',responsavel:''});}} style={{padding:'6px 12px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:7,fontSize:12,color:NB.mut}}>Cancelar</button>
+              <div style={{display:'flex',alignItems:'center',gap:8,justifyContent:'flex-end'}}>
+                <label style={{display:'flex',alignItems:'center',gap:6,marginRight:'auto'}}>
+                  <span style={{fontSize:11.5,color:NB.mut2}}>Prazo (opcional)</span>
+                  <input type="date" value={novoItem.prazo||''}
+                    onChange={e=>{ if(!e.target.value || isDataValida(e.target.value)) setNovoItem(v=>({...v,prazo:e.target.value})); }}
+                    style={{border:'1px solid '+NB.bd,borderRadius:7,padding:'4px 8px',fontSize:12,color:NB.txt,background:'#fff',outline:'none'}}/>
+                </label>
+                <button onClick={()=>{setAddingItem(false); setNovoItem({titulo:'',responsavel:'',prazo:''});}} style={{padding:'6px 12px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:7,fontSize:12,color:NB.mut}}>Cancelar</button>
                 <button onClick={adicionarItemChecklist} disabled={!novoItem.titulo.trim()||!novoItem.responsavel}
                   style={{padding:'6px 14px',background:NB.azul,border:'none',borderRadius:7,fontSize:12,fontWeight:500,color:'#fff',opacity:(!novoItem.titulo.trim()||!novoItem.responsavel)?0.5:1}}>
                   Adicionar
@@ -8138,7 +8172,13 @@ function MinhasSubtarefasView() {
       if (it.responsavel === user.initials) itens.push({ ...it, demanda:d });
     });
   });
-  const pendentes = itens.filter(it=>!it.feita).sort((a,b)=>(a.demanda.deadline||'').localeCompare(b.demanda.deadline||''));
+  /* Ordena pelo prazo da própria subtarefa quando ela tem um; senão cai
+     no prazo da demanda. Sem prazo nenhum vai pro fim da lista. */
+  const pendentes = itens.filter(it=>!it.feita).sort((a,b)=>{
+    const pa = a.prazo || a.demanda.deadline || '9999';
+    const pb = b.prazo || b.demanda.deadline || '9999';
+    return pa.localeCompare(pb);
+  });
   const feitas = itens.filter(it=>it.feita);
 
   const toggle = (demanda, itemId) => {
@@ -8162,6 +8202,17 @@ function MinhasSubtarefasView() {
           </button>
         </div>
         <span style={{fontSize:11,color:AREA_CLR[it.demanda.area]||NB.mut2,fontWeight:600,flexShrink:0}}>{it.demanda.area}</span>
+        {it.prazo && (() => {
+          const s = it.feita ? null : getSla(it.prazo);
+          return (
+            <span title="Prazo desta subtarefa"
+              style={{fontSize:11,fontWeight:600,padding:'3px 9px',borderRadius:6,flexShrink:0,whiteSpace:'nowrap',
+                background: it.feita ? '#E1F5EE' : s && s.type==='danger' ? '#FEECEC' : s && s.type==='warn' ? '#FFF6DE' : NB.col,
+                color: it.feita ? '#0F6E56' : s && s.type==='danger' ? '#B4232A' : s && s.type==='warn' ? '#8A6206' : NB.mut}}>
+              {s && !it.feita ? s.label : fmtDate(it.prazo)}
+            </span>
+          );
+        })()}
       </div>
     );
   };
