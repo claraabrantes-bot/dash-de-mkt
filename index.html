@@ -7675,22 +7675,85 @@ function ContratoModal({ p, onClose }) {
 
 /* Landing page de cada embaixador. Chave = nome sem acento e em minúsculas.
    Se o portal tiver um link próprio cadastrado, ele vale mais que esta lista. */
+const LP_BASE_IMG = 'https://conteudo.nibo.com.br/hs-fs/hubfs/';
 const LP_EMBAIXADORES = {
-  'mayara junges':   'https://conteudo.nibo.com.br/indicacao-mayara-junges',
-  'luiz henrique':   'https://conteudo.nibo.com.br/embaixadores/luiz-henrique-mentor',
-  'barbara maciel':  'https://conteudo.nibo.com.br/embaixadores/barbara-maciel',
-  'adriana martins': 'https://conteudo.nibo.com.br/embaixadores/moneypause',
-  'lilian vercosa':  'https://conteudo.nibo.com.br/embaixadores/lilian-vercosa',
-  'alisson bezerra': 'https://conteudo.nibo.com.br/embaixadores/alisson-bezerra',
-  'kati antony':     'https://conteudo.nibo.com.br/embaixadores/antony-contabilidade',
-  'gabriel villena': 'https://conteudo.nibo.com.br/embaixadores/gabriel-villena',
+  'mayara junges':   { url:'https://conteudo.nibo.com.br/indicacao-mayara-junges',                  img:'Mayara-lp-parceria-nibo.png' },
+  'luiz henrique':   { url:'https://conteudo.nibo.com.br/embaixadores/luiz-henrique-mentor',        img:'parceria-luiz-henrique-e-nibo-03.png' },
+  'barbara maciel':  { url:'https://conteudo.nibo.com.br/embaixadores/barbara-maciel',              img:'barbara_maciel.png' },
+  'adriana martins': { url:'https://conteudo.nibo.com.br/embaixadores/moneypause',                  img:'[MODELO] Elementos para Imagens (600 x 600 px)-Mar-05-2026-08-09-23-7457-PM.png' },
+  'lilian vercosa':  { url:'https://conteudo.nibo.com.br/embaixadores/lilian-vercosa',              img:'Lilian Elementos para Imagens (600 x 600 px).png' },
+  'alisson bezerra': { url:'https://conteudo.nibo.com.br/embaixadores/alisson-bezerra',             img:'[MODELO] Elementos para Imagens (600 x 600 px) (1)-Sep-16-2026-07-29-36-5307-PM.png' },
+  'kati antony':     { url:'https://conteudo.nibo.com.br/embaixadores/antony-contabilidade',        img:'[MODELO] Elementos para Imagens (600 x 600 px)-Sep-16-2026-08-41-09-4288-PM.png' },
+  'gabriel villena': { url:'https://conteudo.nibo.com.br/embaixadores/gabriel-villena',             img:'[MODELO] Elementos para Imagens (600 x 600 px) (1)-Sep-16-2026-07-27-43-3351-PM.png' },
 };
+function lpEntradaDoEmbaixador(p) {
+  if (!p) return null;
+  const n = (p.nome || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+  const chave = Object.keys(LP_EMBAIXADORES).find(k => n.includes(k));
+  return chave ? LP_EMBAIXADORES[chave] : null;
+}
+/* Link cadastrado manualmente no portal vale mais que a lista automática. */
 function lpDoEmbaixador(p) {
   if (!p) return '';
   if (p.lpUrl) return p.lpUrl;
-  const n = (p.nome || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
-  const chave = Object.keys(LP_EMBAIXADORES).find(k => n.includes(k));
-  return chave ? LP_EMBAIXADORES[chave] : '';
+  const e = lpEntradaDoEmbaixador(p);
+  return e ? e.url : '';
+}
+function lpImagemDoEmbaixador(p) {
+  const e = lpEntradaDoEmbaixador(p);
+  if (!e || !e.img) return '';
+  const f = encodeURIComponent(e.img);
+  return LP_BASE_IMG + f + '?width=600&height=600&name=' + f;
+}
+
+/* Cartão de prévia da página de indicação: mídia da própria página,
+   endereço, e atalhos pra abrir e copiar o link. */
+function LinkIndicacaoCard({ url, img, nome }) {
+  const [copiado, setCopiado] = useState(false);
+  const [imgOk, setImgOk] = useState(true);
+  let dominio = url;
+  try { const u = new URL(url); dominio = u.host + u.pathname.replace(/\/$/, ''); } catch(e) {}
+  const copiar = async () => {
+    try { await navigator.clipboard.writeText(url); }
+    catch (e) {
+      const t = document.createElement('textarea'); t.value = url; document.body.appendChild(t);
+      t.select(); try { document.execCommand('copy'); } catch(_){} document.body.removeChild(t);
+    }
+    setCopiado(true); setTimeout(()=>setCopiado(false), 2200);
+  };
+  return (
+    <div style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:16,overflow:'hidden',display:'flex',flexWrap:'wrap'}}>
+      <a href={url} target="_blank" rel="noopener noreferrer"
+        style={{flex:'0 0 190px',minHeight:190,background:'linear-gradient(135deg,#0A1B3D 0%,#0C3D82 60%,#0055A7 100%)',display:'flex',alignItems:'center',justifyContent:'center',position:'relative',overflow:'hidden'}}>
+        {img && imgOk
+          ? <img src={img} alt={'Prévia da página de '+(nome||'indicação')} onError={()=>setImgOk(false)}
+              style={{width:'100%',height:'100%',objectFit:'cover',display:'block',position:'absolute',inset:0}}/>
+          : <span style={{color:'rgba(255,255,255,0.85)',display:'flex'}}><IGlobe s={34}/></span>}
+      </a>
+      <div style={{flex:'1 1 260px',minWidth:0,padding:'20px 22px',display:'flex',flexDirection:'column',justifyContent:'center',gap:10}}>
+        <span style={{alignSelf:'flex-start',display:'inline-flex',alignItems:'center',gap:6,fontSize:11,fontWeight:700,letterSpacing:'0.05em',textTransform:'uppercase',color:NB.pink,background:'#FFF0F8',border:'1px solid #FBC5E3',borderRadius:6,padding:'3px 9px'}}>
+          Condição exclusiva
+        </span>
+        <div>
+          <div style={{fontSize:15.5,fontWeight:600,color:NB.txt,marginBottom:3}}>Sua página de indicação</div>
+          <div style={{fontSize:12.5,color:NB.mut2,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{dominio}</div>
+        </div>
+        <p style={{fontSize:12.5,color:NB.mut,lineHeight:1.55,margin:0}}>
+          Quem entra no Nibo por esta página ganha uma condição exclusiva, só para indicados seus.
+        </p>
+        <div style={{display:'flex',gap:9,flexWrap:'wrap',marginTop:2}}>
+          <a href={url} target="_blank" rel="noopener noreferrer"
+            style={{display:'inline-flex',alignItems:'center',gap:6,padding:'9px 15px',background:NB.pink,borderRadius:9,fontSize:13,fontWeight:600,color:'#fff',textDecoration:'none'}}>
+            Abrir página <IExt s={13}/>
+          </a>
+          <button onClick={copiar}
+            style={{display:'inline-flex',alignItems:'center',gap:6,padding:'9px 15px',background:copiado?'#E1F5EE':'#fff',border:'1px solid '+(copiado?'#BEE5D6':NB.bd),borderRadius:9,fontSize:13,fontWeight:600,color:copiado?'#0F6E56':NB.mut,cursor:'pointer',transition:'all 0.15s'}}>
+            {copiado ? <React.Fragment><ICheck s={13}/> Link copiado</React.Fragment> : 'Copiar link'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function EmbaixadorPortalConteudo({ p }) {
@@ -7812,25 +7875,13 @@ function EmbaixadorPortalConteudo({ p }) {
       </div>
 
       <div>
-        <h2 style={{fontSize:19,fontWeight:600,color:NB.txt,marginBottom:4}}>Sua Landing Page</h2>
-        <p style={{fontSize:13.5,color:NB.mut,marginBottom:16}}>Link pra indicar o Nibo e gerar seus cupons.</p>
+        <h2 style={{fontSize:19,fontWeight:600,color:NB.txt,marginBottom:4}}>Sua página de indicação</h2>
+        <p style={{fontSize:13.5,color:NB.mut,marginBottom:16}}>Quem chega por ela ganha uma condição exclusiva. Compartilhe esse link com quem você quer indicar.</p>
         {lpDoEmbaixador(p) ? (
-          <a href={lpDoEmbaixador(p)} target="_blank" rel="noopener noreferrer"
-            style={{display:'flex',alignItems:'center',gap:16,background:'#fff',border:'1px solid '+NB.bd,borderRadius:14,padding:'18px 20px',textDecoration:'none'}}>
-            <div style={{width:44,height:44,borderRadius:12,background:NB.pink,color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-              <IGlobe s={19}/>
-            </div>
-            <div style={{flex:1,minWidth:0}}>
-              <div style={{fontSize:14.5,fontWeight:600,color:NB.txt,marginBottom:3}}>Sua página personalizada</div>
-              <div style={{fontSize:12.5,color:NB.mut2,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{lpDoEmbaixador(p)}</div>
-            </div>
-            <span style={{display:'flex',alignItems:'center',gap:6,fontSize:12.5,fontWeight:600,color:NB.pink,flexShrink:0}}>
-              Abrir <IExt s={13}/>
-            </span>
-          </a>
+          <LinkIndicacaoCard url={lpDoEmbaixador(p)} img={lpImagemDoEmbaixador(p)} nome={(p&&p.nome)||''}/>
         ) : (
           <div style={{background:NB.col,border:'1px dashed '+NB.bd,borderRadius:14,padding:'20px',textAlign:'center',fontSize:12.5,color:NB.mut2}}>
-            Ainda não disponibilizada.
+            Sua página de indicação ainda não foi disponibilizada.
           </div>
         )}
       </div>
