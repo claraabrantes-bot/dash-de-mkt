@@ -874,6 +874,14 @@ function Provider({ children }) {
       .then(()=>({ ok:true }))
       .catch(e => { setDbErro('Não foi possível salvar: '+e.message); return { ok:false, erro:e.message }; });
   }, [user]);
+  const updateEmbaixador = useCallback((id, dados) => {
+    const db = dbRef.current; if (!db) return Promise.resolve({ ok:false, erro:'Sem conexão com o banco.' });
+    return db.collection('embaixadores').doc(id)
+      .update({ ...dados, editadoPor:(user&&user.name)||'', editadoEm:new Date().toISOString() })
+      .then(()=>({ ok:true }))
+      .catch(e => { setDbErro('Não foi possível salvar: '+e.message); return { ok:false, erro:e.message }; });
+  }, [user]);
+
   /* Contrato encerrado não some do sistema: vira inativo, pra não perder o
      histórico de quem já representou a marca. */
   const alternarStatusEmbaixador = useCallback((id, ativo) => {
@@ -1154,7 +1162,7 @@ function Provider({ children }) {
   window.__nbDem = demands;
   window.__nbPosts = posts;
 
-  return <Ctx.Provider value={{ demands, active, activeOficiais, archived, filtered, aprovarPedidoSlack, recusarPedidoSlack, pararRecorrencia, dispararManual, slack, slackTemplate, salvarSlackTemplate, slackTemplatePrevOpen, setSlackTemplatePrevOpen, showNotifCard, setShowNotifCard, alertasTab, setAlertasTab, user, isTeamMember, authReady, authError, setAuthError, preferirCentral, setPreferirCentral, dbReady, dbErro, seed, pedidos, aceitarPedido, recusarPedido, posts, addPost, updatePost, deletePost, campanhas, updateCampanha, publicarCampanha, despublicarCampanha, deleteCampanha, enviarCampanhaDeDemanda, pecas, addPeca, removePeca, redesSociais, salvarRedesSociais, arquivos, addArquivo, removeArquivo, embaixadores, addEmbaixador, removeEmbaixador, alternarStatusEmbaixador, pacotes, salvarPacote, removePacote, meuPortalEmbaixador, portalCarregado, isEmbaixador, criarPortalEmbaixador, removerPortalEmbaixador, portaisEmbaixador, meusEnviosFotos, todosEnviosFotos, enviarFotoEmbaixador, removerEnvioFoto, salvarFotoPerfilEmbaixador, pularFotoPerfil, view, setView, layout, setLayout, area, setArea, query, setQuery, mesFiltro, setMesFiltro, priFilter, setPriFilter, reqFilter, setReqFilter, respFilter, setRespFilter, selDemand, setModal, newOpen, setNewOpen, presetNovo, setPresetNovo, pacoteOpen, setPacoteOpen, notifyPending, setNotifyPending, profileOpen, setProfileOpen, editStages, setEditStages, dragging, setDragging, previewMember, setPreviewMember, photos, googlePhotos, profiles, pipes, salvarPipes, attach, comments, storageWarn, MAX_FILE, addAttachment, uploadFile, migrarLocal, carregarAnexo, removeAttachment, addComment, removeComment, logout, savePhoto, removePhoto, saveProfile, addDemand, moveStage, moveArea, reordenarCards, setAssignees, updateDemand, archiveDemand, restoreDemand, delDemand }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ demands, active, activeOficiais, archived, filtered, aprovarPedidoSlack, recusarPedidoSlack, pararRecorrencia, dispararManual, slack, slackTemplate, salvarSlackTemplate, slackTemplatePrevOpen, setSlackTemplatePrevOpen, showNotifCard, setShowNotifCard, alertasTab, setAlertasTab, user, isTeamMember, authReady, authError, setAuthError, preferirCentral, setPreferirCentral, dbReady, dbErro, seed, pedidos, aceitarPedido, recusarPedido, posts, addPost, updatePost, deletePost, campanhas, updateCampanha, publicarCampanha, despublicarCampanha, deleteCampanha, enviarCampanhaDeDemanda, pecas, addPeca, removePeca, redesSociais, salvarRedesSociais, arquivos, addArquivo, removeArquivo, embaixadores, addEmbaixador, removeEmbaixador, updateEmbaixador, alternarStatusEmbaixador, pacotes, salvarPacote, removePacote, meuPortalEmbaixador, portalCarregado, isEmbaixador, criarPortalEmbaixador, removerPortalEmbaixador, portaisEmbaixador, meusEnviosFotos, todosEnviosFotos, enviarFotoEmbaixador, removerEnvioFoto, salvarFotoPerfilEmbaixador, pularFotoPerfil, view, setView, layout, setLayout, area, setArea, query, setQuery, mesFiltro, setMesFiltro, priFilter, setPriFilter, reqFilter, setReqFilter, respFilter, setRespFilter, selDemand, setModal, newOpen, setNewOpen, presetNovo, setPresetNovo, pacoteOpen, setPacoteOpen, notifyPending, setNotifyPending, profileOpen, setProfileOpen, editStages, setEditStages, dragging, setDragging, previewMember, setPreviewMember, photos, googlePhotos, profiles, pipes, salvarPipes, attach, comments, storageWarn, MAX_FILE, addAttachment, uploadFile, migrarLocal, carregarAnexo, removeAttachment, addComment, removeComment, logout, savePhoto, removePhoto, saveProfile, addDemand, moveStage, moveArea, reordenarCards, setAssignees, updateDemand, archiveDemand, restoreDemand, delDemand }}>{children}</Ctx.Provider>;
 }
 
 const useApp = () => useContext(Ctx);
@@ -3100,9 +3108,16 @@ function ArquivosTab({ podeEditar }) {
 }
 
 /* ---------- Embaixadores ---------- */
-function EmbaixadorModal({ onClose }) {
-  const { addEmbaixador, criarPortalEmbaixador, MAX_FILE } = useApp();
-  const [f, setF] = useState({ nome:'', cargo:'', empresa:'', instagram:'', descricao:'', foto:'', especialidades:[] });
+/* O mesmo modal serve para cadastrar e para editar: quando recebe um
+   embaixador, abre com os dados dele e salva por cima em vez de criar. */
+function EmbaixadorModal({ onClose, embaixador }) {
+  const { addEmbaixador, updateEmbaixador, criarPortalEmbaixador, MAX_FILE } = useApp();
+  const editando = !!embaixador;
+  const [f, setF] = useState(embaixador
+    ? { nome:embaixador.nome||'', cargo:embaixador.cargo||'', empresa:embaixador.empresa||'',
+        instagram:embaixador.instagram||'', descricao:embaixador.descricao||'', foto:embaixador.foto||'',
+        especialidades:embaixador.especialidades||[] }
+    : { nome:'', cargo:'', empresa:'', instagram:'', descricao:'', foto:'', especialidades:[] });
   const [novaEspecialidade, setNovaEspecialidade] = useState('');
   const [comPortal, setComPortal] = useState(false);
   const [portal, setPortal] = useState({ email:'', senha:'', contratoUrl:'', lpUrl:'' });
@@ -3190,6 +3205,14 @@ function EmbaixadorModal({ onClose }) {
 
   const salvar = async () => {
     if (!f.nome.trim()) return setErr('Preencha o nome.');
+    if (editando) {
+      setSalvando(true);
+      const r = await updateEmbaixador(embaixador.id, f);
+      setSalvando(false);
+      if (!r.ok) { setErr('Não foi possível salvar: '+r.erro); return; }
+      onClose();
+      return;
+    }
     if (comPortal) {
       if (!portal.email.trim()) return setErr('Preencha o e-mail de acesso do embaixador.');
       if (!portal.senha || portal.senha.length<6) return setErr('A senha inicial precisa ter pelo menos 6 caracteres.');
@@ -3211,7 +3234,7 @@ function EmbaixadorModal({ onClose }) {
   return (
     <Modal onClose={onClose} width={480}>
       <div style={{padding:'22px 24px 16px',borderBottom:'1px solid '+NB.bdSoft}}>
-        <h2 style={{fontSize:17,fontWeight:600,color:NB.txt}}>Novo embaixador</h2>
+        <h2 style={{fontSize:17,fontWeight:600,color:NB.txt}}>{editando ? 'Editar embaixador' : 'Novo embaixador'}</h2>
       </div>
       <div style={{padding:'20px 24px',display:'flex',flexDirection:'column',gap:12,maxHeight:'62vh',overflowY:'auto'}}>
         <div style={{display:'flex',alignItems:'center',gap:14}}>
@@ -3257,7 +3280,7 @@ function EmbaixadorModal({ onClose }) {
           </div>
         </div>
 
-        <div style={{background:comPortal?'#FFF0F8':NB.col,border:'1px solid '+(comPortal?'#FBC5E3':NB.bd),borderRadius:11,padding:'13px 15px'}}>
+        <div style={{display:editando?'none':'block',background:comPortal?'#FFF0F8':NB.col,border:'1px solid '+(comPortal?'#FBC5E3':NB.bd),borderRadius:11,padding:'13px 15px'}}>
           <label style={{display:'flex',alignItems:'center',gap:10,cursor:'pointer'}}>
             <input type="checkbox" checked={comPortal} onChange={e=>{setComPortal(e.target.checked); setErr('');}} style={{width:16,height:16,accentColor:NB.pink}}/>
             <span style={{fontSize:13.5,fontWeight:500,color:NB.txt}}>Criar acesso ao Portal do Embaixador</span>
@@ -3407,6 +3430,7 @@ function EmbaixadoresTab({ podeEditar }) {
   /* A vitrine mostra só quem está com contrato ativo — quem saiu continua
      no cadastro (Gestão de Embaixadores), mas não aparece publicamente. */
   const embaixadores = todosEmb.filter(e => e.ativo !== false);
+  const [editandoEmb, setEditandoEmb] = useState(null);
   const [novo, setNovo] = useState(false);
   const [mostrarTodos, setMostrarTodos] = useState(false);
   const [selecionado, setSelecionado] = useState(null);
@@ -3468,7 +3492,10 @@ function EmbaixadoresTab({ podeEditar }) {
                     style={{display:'inline-block',fontSize:12.5,color:NB.azul,textDecoration:'none'}}>{e.instagram}</a>
                 )}
                 {podeEditar && (
-                  <button onClick={ev=>{ev.stopPropagation(); removeEmbaixador(e.id);}} style={{alignSelf:'flex-start',marginTop:8,fontSize:11,color:'#B4232A',background:'none',border:'none'}}>Remover</button>
+                  <div style={{display:'flex',gap:10,marginTop:8}}>
+                    <button onClick={ev=>{ev.stopPropagation(); setEditandoEmb(e);}} style={{fontSize:11,fontWeight:600,color:NB.azul,background:'none',border:'none',cursor:'pointer'}}>Editar</button>
+                    <button onClick={ev=>{ev.stopPropagation(); removeEmbaixador(e.id);}} style={{fontSize:11,color:'#B4232A',background:'none',border:'none',cursor:'pointer'}}>Remover</button>
+                  </div>
                 )}
               </div>
             );
@@ -3498,7 +3525,10 @@ function EmbaixadoresTab({ podeEditar }) {
                     style={{display:'inline-block',fontSize:12.5,color:NB.azul,textDecoration:'none'}}>{e.instagram}</a>
                 )}
                 {podeEditar && (
-                  <button onClick={ev=>{ev.stopPropagation(); removeEmbaixador(e.id);}} style={{alignSelf:'flex-start',marginTop:8,fontSize:11,color:'#B4232A',background:'none',border:'none'}}>Remover</button>
+                  <div style={{display:'flex',gap:10,marginTop:8}}>
+                    <button onClick={ev=>{ev.stopPropagation(); setEditandoEmb(e);}} style={{fontSize:11,fontWeight:600,color:NB.azul,background:'none',border:'none',cursor:'pointer'}}>Editar</button>
+                    <button onClick={ev=>{ev.stopPropagation(); removeEmbaixador(e.id);}} style={{fontSize:11,color:'#B4232A',background:'none',border:'none',cursor:'pointer'}}>Remover</button>
+                  </div>
                 )}
               </div>
             );
@@ -3506,6 +3536,7 @@ function EmbaixadoresTab({ podeEditar }) {
         </div>
       )}
       {novo && <EmbaixadorModal onClose={()=>setNovo(false)}/>}
+      {editandoEmb && <EmbaixadorModal embaixador={editandoEmb} onClose={()=>setEditandoEmb(null)}/>}
       {selecionado && <EmbaixadorPerfilModal e={selecionado} onClose={()=>setSelecionado(null)}/>}
     </div>
   );
@@ -8585,9 +8616,20 @@ function PortalEmbaixadorGestaoView() {
   const [novoEmb, setNovoEmb] = useState(false);
   const [confirmarRemocao, setConfirmarRemocao] = useState(null);
   const [confirmarExclusao, setConfirmarExclusao] = useState(null);
+  const [editando, setEditando] = useState(null);
   const [filtroStatus, setFiltroStatus] = useState('ativos');
   const normaliza = s => (s||'').trim().toLowerCase();
-  const selecionado = portaisEmbaixador.find(p=>p.id===selId) || null;
+  /* Dá pra abrir a prévia de qualquer embaixador, tenha portal ou não —
+     quem ainda não tem acesso aparece com os dados do cadastro, pra você
+     conferir como vai ficar antes de liberar. */
+  const selecionado = selId
+    ? (portaisEmbaixador.find(p => p.id === selId)
+       || (() => {
+            const e = embaixadores.find(x => x.id === selId);
+            return e ? { id:e.id, nome:e.nome, email:'', foto:e.foto||'', semPortal:true,
+                         contratoUrl:'', lpUrl:'', materiais:[] } : null;
+          })())
+    : null;
 
   /* Cadastros antigos não têm o campo ativo — contam como ativos, pra
      ninguém sumir da lista depois da atualização. */
@@ -8613,20 +8655,38 @@ function PortalEmbaixadorGestaoView() {
         <button onClick={()=>setSelId(null)} style={{display:'flex',alignItems:'center',gap:7,background:'none',border:'none',color:NB.mut,fontSize:12.5,marginBottom:18}}>
           <IArrowL s={13}/> Voltar pra lista
         </button>
-        <div style={{display:'flex',alignItems:'center',gap:14,marginBottom:22}}>
+        <div style={{display:'flex',alignItems:'center',gap:14,marginBottom:18}}>
           <AvatarEmbaixador portal={selecionado} nome={selecionado.nome} size={52}/>
-          <div style={{minWidth:0}}>
+          <div style={{minWidth:0,flex:1}}>
             <h2 style={{fontSize:20,fontWeight:600,color:NB.txt,marginBottom:3}}>{selecionado.nome}</h2>
             <p style={{fontSize:13,color:NB.mut}}>
-              {selecionado.email} · o que essa conta vê ao entrar no portal
-              {!selecionado.fotoPerfil && <span style={{color:NB.mut2}}> · ainda sem foto de perfil</span>}
+              {selecionado.semPortal
+                ? 'prévia — como o portal vai aparecer pra ela'
+                : selecionado.email + ' · o que essa conta vê ao entrar no portal'}
+              {!selecionado.semPortal && !selecionado.fotoPerfil && <span style={{color:NB.mut2}}> · ainda sem foto de perfil</span>}
             </p>
           </div>
+          {selecionado.semPortal && (
+            <button onClick={()=>{ const e = embaixadores.find(x=>x.id===selecionado.id); if(e) setCriarAcessoPara(e); }}
+              style={{flexShrink:0,padding:'9px 15px',background:NB.azul,border:'none',borderRadius:9,fontSize:13,fontWeight:500,color:'#fff',cursor:'pointer'}}>
+              Criar acesso ao portal
+            </button>
+          )}
         </div>
+
+        {selecionado.semPortal && (
+          <div style={{maxWidth:640,background:'#FFF6DE',border:'1px solid #E8CE8E',borderRadius:11,padding:'12px 15px',marginBottom:20,display:'flex',gap:10,alignItems:'flex-start'}}>
+            <span style={{fontSize:15,flexShrink:0}}>👀</span>
+            <p style={{fontSize:12.5,color:'#8A6206',lineHeight:1.55,margin:0}}>
+              Essa é uma prévia vazia: contrato, LP e materiais são definidos na hora de criar o acesso.
+              Ela ainda não consegue entrar no portal.
+            </p>
+          </div>
+        )}
         <div style={{maxWidth:640}}>
           <EmbaixadorPortalConteudo p={selecionado}/>
 
-          <div style={{marginTop:28}}>
+          <div style={{marginTop:28,display:selecionado.semPortal?'none':'block'}}>
             <h3 style={{fontSize:16,fontWeight:600,color:NB.txt,marginBottom:4}}>Fotos que ela mandou ({enviosDela.length})</h3>
             <p style={{fontSize:12.5,color:NB.mut,marginBottom:14}}>Enviadas pelo Portal, pra usar em posts, depoimentos e materiais.</p>
             {enviosDela.length===0 ? (
@@ -8689,14 +8749,19 @@ function PortalEmbaixadorGestaoView() {
                   background: estaAtivo(e) ? '#E1F5EE' : NB.col, color: estaAtivo(e) ? '#0F6E56' : NB.mut2}}>
                   {estaAtivo(e) ? 'Contrato ativo' : 'Inativo'}
                 </span>
+                <button onClick={()=>setEditando(e)} title="Editar nome, cargo, foto e redes"
+                  style={{marginLeft:'auto',fontSize:11,fontWeight:600,color:NB.azul,background:'none',border:'none',cursor:'pointer'}}>
+                  Editar
+                </button>
                 <button onClick={()=>alternarStatusEmbaixador(e.id, !estaAtivo(e))}
                   title={estaAtivo(e) ? 'Marcar como inativo — some da lista de ativos, mas o histórico fica' : 'Reativar o contrato'}
-                  style={{marginLeft:'auto',fontSize:11,color:NB.mut2,background:'none',border:'none',cursor:'pointer',textDecoration:'underline'}}>
+                  style={{fontSize:11,color:NB.mut2,background:'none',border:'none',cursor:'pointer',textDecoration:'underline'}}>
                   {estaAtivo(e) ? 'inativar' : 'reativar'}
                 </button>
               </div>
-              <button onClick={()=>p && setSelId(p.id)} disabled={!p}
-                style={{textAlign:'left',background:'none',border:'none',padding:0,display:'flex',alignItems:'center',gap:12,cursor:p?'pointer':'default'}}>
+              <button onClick={()=>setSelId(p ? p.id : e.id)}
+                title={p ? 'Ver o portal dela' : 'Ver como o portal vai aparecer'}
+                style={{textAlign:'left',background:'none',border:'none',padding:0,display:'flex',alignItems:'center',gap:12,cursor:'pointer'}}>
                 {/* A foto que o próprio embaixador colocou no portal vale
                     mais que a do cadastro — é como ele quer ser visto. */}
                 {(p && p.fotoPerfil)
@@ -8764,6 +8829,7 @@ function PortalEmbaixadorGestaoView() {
         </div>
       )}
       {novoEmb && <EmbaixadorModal onClose={()=>setNovoEmb(false)}/>}
+      {editando && <EmbaixadorModal embaixador={editando} onClose={()=>setEditando(null)}/>}
       {criarAcessoPara && <CriarAcessoPortalModal embaixador={criarAcessoPara} onClose={()=>setCriarAcessoPara(null)}/>}
     </div>
   );
