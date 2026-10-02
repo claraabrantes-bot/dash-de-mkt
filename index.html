@@ -929,6 +929,24 @@ function Provider({ children }) {
     db.collection('embaixadorEnvios').doc(id).delete().catch(()=>{});
   }, []);
 
+  /* Foto de perfil do embaixador: fica no próprio doc do portal, então
+     aparece na hora pra ele e pro time (os dois escutam a mesma coleção). */
+  const salvarFotoPerfilEmbaixador = useCallback(async (portalId, dataUrl) => {
+    const db = dbRef.current; if (!db) return { ok:false, erro:'Sem conexão com o banco.' };
+    try {
+      await db.collection('embaixadoresPortal').doc(portalId)
+        .update({ fotoPerfil: dataUrl, fotoPerfilEm: new Date().toISOString() });
+      return { ok:true };
+    } catch (e) {
+      return { ok:false, erro:(e && e.message) || 'Não consegui salvar a foto.' };
+    }
+  }, []);
+
+  const pularFotoPerfil = useCallback(async (portalId) => {
+    const db = dbRef.current; if (!db) return;
+    try { await db.collection('embaixadoresPortal').doc(portalId).update({ pulouFoto: true }); } catch(e) {}
+  }, []);
+
   /* ---------- Pacotes de tarefas ---------- */
   /* Um método só: id existente = atualiza (inclusive "assumir" um pacote
      padrão embutido, tipo 'webinar', que ainda não é um doc de verdade);
@@ -1127,7 +1145,7 @@ function Provider({ children }) {
   window.__nbDem = demands;
   window.__nbPosts = posts;
 
-  return <Ctx.Provider value={{ demands, active, activeOficiais, archived, filtered, aprovarPedidoSlack, recusarPedidoSlack, pararRecorrencia, dispararManual, slack, slackTemplate, salvarSlackTemplate, slackTemplatePrevOpen, setSlackTemplatePrevOpen, showNotifCard, setShowNotifCard, alertasTab, setAlertasTab, user, isTeamMember, authReady, authError, setAuthError, preferirCentral, setPreferirCentral, dbReady, dbErro, seed, pedidos, aceitarPedido, recusarPedido, posts, addPost, updatePost, deletePost, campanhas, updateCampanha, publicarCampanha, despublicarCampanha, deleteCampanha, enviarCampanhaDeDemanda, pecas, addPeca, removePeca, redesSociais, salvarRedesSociais, arquivos, addArquivo, removeArquivo, embaixadores, addEmbaixador, removeEmbaixador, pacotes, salvarPacote, removePacote, meuPortalEmbaixador, portalCarregado, isEmbaixador, criarPortalEmbaixador, removerPortalEmbaixador, portaisEmbaixador, meusEnviosFotos, todosEnviosFotos, enviarFotoEmbaixador, removerEnvioFoto, view, setView, layout, setLayout, area, setArea, query, setQuery, mesFiltro, setMesFiltro, priFilter, setPriFilter, reqFilter, setReqFilter, respFilter, setRespFilter, selDemand, setModal, newOpen, setNewOpen, presetNovo, setPresetNovo, pacoteOpen, setPacoteOpen, notifyPending, setNotifyPending, profileOpen, setProfileOpen, editStages, setEditStages, dragging, setDragging, previewMember, setPreviewMember, photos, googlePhotos, profiles, pipes, salvarPipes, attach, comments, storageWarn, MAX_FILE, addAttachment, uploadFile, migrarLocal, carregarAnexo, removeAttachment, addComment, removeComment, logout, savePhoto, removePhoto, saveProfile, addDemand, moveStage, moveArea, reordenarCards, setAssignees, updateDemand, archiveDemand, restoreDemand, delDemand }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ demands, active, activeOficiais, archived, filtered, aprovarPedidoSlack, recusarPedidoSlack, pararRecorrencia, dispararManual, slack, slackTemplate, salvarSlackTemplate, slackTemplatePrevOpen, setSlackTemplatePrevOpen, showNotifCard, setShowNotifCard, alertasTab, setAlertasTab, user, isTeamMember, authReady, authError, setAuthError, preferirCentral, setPreferirCentral, dbReady, dbErro, seed, pedidos, aceitarPedido, recusarPedido, posts, addPost, updatePost, deletePost, campanhas, updateCampanha, publicarCampanha, despublicarCampanha, deleteCampanha, enviarCampanhaDeDemanda, pecas, addPeca, removePeca, redesSociais, salvarRedesSociais, arquivos, addArquivo, removeArquivo, embaixadores, addEmbaixador, removeEmbaixador, pacotes, salvarPacote, removePacote, meuPortalEmbaixador, portalCarregado, isEmbaixador, criarPortalEmbaixador, removerPortalEmbaixador, portaisEmbaixador, meusEnviosFotos, todosEnviosFotos, enviarFotoEmbaixador, removerEnvioFoto, salvarFotoPerfilEmbaixador, pularFotoPerfil, view, setView, layout, setLayout, area, setArea, query, setQuery, mesFiltro, setMesFiltro, priFilter, setPriFilter, reqFilter, setReqFilter, respFilter, setRespFilter, selDemand, setModal, newOpen, setNewOpen, presetNovo, setPresetNovo, pacoteOpen, setPacoteOpen, notifyPending, setNotifyPending, profileOpen, setProfileOpen, editStages, setEditStages, dragging, setDragging, previewMember, setPreviewMember, photos, googlePhotos, profiles, pipes, salvarPipes, attach, comments, storageWarn, MAX_FILE, addAttachment, uploadFile, migrarLocal, carregarAnexo, removeAttachment, addComment, removeComment, logout, savePhoto, removePhoto, saveProfile, addDemand, moveStage, moveArea, reordenarCards, setAssignees, updateDemand, archiveDemand, restoreDemand, delDemand }}>{children}</Ctx.Provider>;
 }
 
 const useApp = () => useContext(Ctx);
@@ -1318,7 +1336,7 @@ function NavItem({ label, Icon, iconColor, count, active, onClick, indent }) {
 
 /* =========== SIDEBAR =========== */
 function Sidebar() {
-  const { view, setView, area, setArea, user, active, slack, archived, pipes, pedidos, posts, campanhas, setNewOpen, setPresetNovo, setPacoteOpen, setProfileOpen, logout, previewMember, setPreviewMember, setPreferirCentral, setModal, alertasTab, setAlertasTab } = useApp();
+  const { view, setView, area, setArea, user, active, slack, archived, pipes, pedidos, posts, campanhas, embaixadores, setNewOpen, setPresetNovo, setPacoteOpen, setProfileOpen, logout, previewMember, setPreviewMember, setPreferirCentral, setModal, alertasTab, setAlertasTab } = useApp();
   const areas = ['Social','Design','Mídia Paga','Produto','RevOps','Eventos'];
   const efetivo = previewMember || user;
   /* Quem tem uma área fixa (todo mundo, menos a Mariana, que acompanha
@@ -1447,7 +1465,8 @@ function Sidebar() {
             active={view==='central'} onClick={()=>setView('central')}/>
           <NavItem label="Campanhas" Icon={ITarget} iconColor={NB.mut}
             count={campanhas.length||undefined} active={view==='campanhas'} onClick={()=>setView('campanhas')}/>
-          <NavItem label="Gestão de Embaixadores" Icon={IStamp} iconColor={NB.mut}
+          <NavItem label="Gestão de Embaixadores" Icon={IStar} iconColor={NB.pink}
+            count={embaixadores.length||undefined}
             active={view==='portalEmbaixador'} onClick={()=>setView('portalEmbaixador')}/>
         </div>
 
@@ -7869,6 +7888,113 @@ function TrocarSenhaPrimeiroAcesso() {
   );
 }
 
+/* Avatar do embaixador — usado tanto no portal dele quanto nas telas do
+   time, pra todo mundo ver exatamente a mesma foto. */
+function AvatarEmbaixador({ portal, nome, size = 36, ring }) {
+  const n = (portal && portal.nome) || nome || '';
+  const iniciais = n.split(/\s+/).filter(Boolean).map(s=>s[0]).slice(0,2).join('').toUpperCase() || '?';
+  const foto = portal && portal.fotoPerfil;
+  const base = {
+    width:size, height:size, borderRadius:'50%', flexShrink:0, overflow:'hidden',
+    display:'flex', alignItems:'center', justifyContent:'center',
+    boxShadow: ring ? '0 0 0 2px #fff, 0 0 0 3.5px '+NB.azul : 'none',
+  };
+  if (foto) return <img src={foto} alt={n} title={n} style={{...base, objectFit:'cover'}}/>;
+  return (
+    <div title={n} style={{...base, background:NB.col, border:'1px solid '+NB.bd,
+      fontSize:Math.max(10, Math.round(size*0.36)), fontWeight:600, color:NB.mut}}>
+      {iniciais}
+    </div>
+  );
+}
+
+/* Reduz a imagem antes de salvar: documento do Firestore tem limite de 1 MB,
+   e uma foto de celular crua passa disso fácil. */
+function redimensionarImagem(file, lado) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const escala = Math.min(1, lado / Math.max(img.width, img.height));
+        const l = Math.round(img.width * escala), a = Math.round(img.height * escala);
+        const canvas = document.createElement('canvas');
+        canvas.width = l; canvas.height = a;
+        canvas.getContext('2d').drawImage(img, 0, 0, l, a);
+        resolve(canvas.toDataURL('image/jpeg', 0.82));
+      };
+      img.onerror = () => reject(new Error('Não consegui ler essa imagem.'));
+      img.src = reader.result;
+    };
+    reader.onerror = () => reject(new Error('Não consegui ler o arquivo.'));
+    reader.readAsDataURL(file);
+  });
+}
+
+function AdicionarFotoPrimeiroAcesso() {
+  const { meuPortalEmbaixador, user, salvarFotoPerfilEmbaixador, pularFotoPerfil } = useApp();
+  const [previa, setPrevia] = useState('');
+  const [erro, setErro] = useState('');
+  const [salvando, setSalvando] = useState(false);
+  const inputRef = useRef(null);
+  const p = meuPortalEmbaixador;
+  const nome = (p && p.nome) || (user && user.name) || '';
+  const iniciais = nome.split(/\s+/).filter(Boolean).map(s=>s[0]).slice(0,2).join('').toUpperCase();
+
+  const escolher = async (file) => {
+    if (!file) return;
+    setErro('');
+    if (!/^image\//.test(file.type)) { setErro('Escolha um arquivo de imagem.'); return; }
+    try { setPrevia(await redimensionarImagem(file, 400)); }
+    catch (e) { setErro(e.message); }
+  };
+
+  const salvar = async () => {
+    if (!previa) return;
+    setSalvando(true);
+    const r = await salvarFotoPerfilEmbaixador(p.id, previa);
+    if (!r.ok) { setErro(r.erro); setSalvando(false); }
+  };
+
+  return (
+    <div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',background:NB.bg,padding:20}}>
+      <div style={{width:'100%',maxWidth:430,background:'#fff',border:'1px solid '+NB.bd,borderRadius:16,padding:'30px 32px',boxShadow:'0 8px 32px rgba(0,42,114,0.10)',textAlign:'center'}}>
+        <h1 style={{fontSize:19,fontWeight:700,color:NB.navy1,marginBottom:7}}>Boas-vindas, {nome.split(' ')[0]}!</h1>
+        <p style={{fontSize:13.5,color:NB.mut,lineHeight:1.6,marginBottom:24}}>
+          Adicione uma foto de perfil — é assim que o time do Nibo vai te reconhecer por aqui.
+        </p>
+
+        <button onClick={()=>inputRef.current && inputRef.current.click()}
+          style={{width:120,height:120,borderRadius:'50%',margin:'0 auto 18px',display:'block',cursor:'pointer',
+                  border:'2px dashed '+(previa?'transparent':NB.bd),background:previa?'transparent':NB.col,padding:0,overflow:'hidden',position:'relative'}}>
+          {previa
+            ? <img src={previa} alt="" style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}}/>
+            : <span style={{fontSize:26,fontWeight:600,color:NB.mut2}}>{iniciais}</span>
+          }
+        </button>
+        <input ref={inputRef} type="file" accept="image/*" style={{display:'none'}}
+          onChange={e=>escolher(e.target.files && e.target.files[0])}/>
+
+        <button onClick={()=>inputRef.current && inputRef.current.click()}
+          style={{background:'none',border:'none',fontSize:13,fontWeight:600,color:NB.azul,cursor:'pointer',marginBottom:20}}>
+          {previa ? 'Escolher outra foto' : 'Escolher uma foto'}
+        </button>
+
+        {erro && <p style={{fontSize:12.5,color:'#B4232A',background:'#FEECEC',border:'1px solid #FBD5D5',borderRadius:8,padding:'9px 12px',marginBottom:16,lineHeight:1.5,textAlign:'left'}}>{erro}</p>}
+
+        <button onClick={salvar} disabled={!previa || salvando}
+          style={{width:'100%',padding:'12px',background:(!previa||salvando)?'#9FB6D4':NB.navy1,border:'none',borderRadius:10,fontSize:14,fontWeight:600,color:'#fff',cursor:(!previa||salvando)?'default':'pointer',marginBottom:10}}>
+          {salvando ? 'Salvando…' : 'Salvar e continuar'}
+        </button>
+        <button onClick={()=>pularFotoPerfil(p.id)}
+          style={{width:'100%',padding:'9px',background:'none',border:'none',fontSize:12.5,color:NB.mut,cursor:'pointer'}}>
+          Depois eu coloco
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function EmbaixadorPortalView() {
   const { user, meuPortalEmbaixador, logout } = useApp();
   const p = meuPortalEmbaixador;
@@ -7883,6 +8009,7 @@ function EmbaixadorPortalView() {
           <div style={{fontSize:15,fontWeight:700,color:NB.navy1}}>Área do Embaixador</div>
           <div style={{fontSize:12,color:NB.mut}}>{nome}</div>
         </div>
+        <AvatarEmbaixador portal={p} nome={nome} size={34}/>
         <button onClick={logout} title="Sair" style={{padding:9,background:'#fff',border:'1px solid '+NB.bd,borderRadius:9,color:NB.mut,display:'flex'}}><ILogout s={15}/></button>
       </div>
 
@@ -8428,8 +8555,16 @@ function PortalEmbaixadorGestaoView() {
         <button onClick={()=>setSelId(null)} style={{display:'flex',alignItems:'center',gap:7,background:'none',border:'none',color:NB.mut,fontSize:12.5,marginBottom:18}}>
           <IArrowL s={13}/> Voltar pra lista
         </button>
-        <h2 style={{fontSize:20,fontWeight:600,color:NB.txt,marginBottom:4}}>{selecionado.nome}</h2>
-        <p style={{fontSize:13,color:NB.mut,marginBottom:22}}>{selecionado.email} · o que essa conta vê ao entrar no portal</p>
+        <div style={{display:'flex',alignItems:'center',gap:14,marginBottom:22}}>
+          <AvatarEmbaixador portal={selecionado} nome={selecionado.nome} size={52}/>
+          <div style={{minWidth:0}}>
+            <h2 style={{fontSize:20,fontWeight:600,color:NB.txt,marginBottom:3}}>{selecionado.nome}</h2>
+            <p style={{fontSize:13,color:NB.mut}}>
+              {selecionado.email} · o que essa conta vê ao entrar no portal
+              {!selecionado.fotoPerfil && <span style={{color:NB.mut2}}> · ainda sem foto de perfil</span>}
+            </p>
+          </div>
+        </div>
         <div style={{maxWidth:640}}>
           <EmbaixadorPortalConteudo p={selecionado}/>
 
@@ -8482,9 +8617,15 @@ function PortalEmbaixadorGestaoView() {
             <div key={e.id} style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:14,padding:'16px 18px',display:'flex',flexDirection:'column',gap:10}}>
               <button onClick={()=>p && setSelId(p.id)} disabled={!p}
                 style={{textAlign:'left',background:'none',border:'none',padding:0,display:'flex',alignItems:'center',gap:12,cursor:p?'pointer':'default'}}>
-                <div style={{width:38,height:38,borderRadius:'50%',overflow:'hidden',background:NB.pink,color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',fontSize:13,fontWeight:600,flexShrink:0}}>
-                  {e.foto ? <img src={e.foto} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/> : (e.nome||'').split(/\s+/).filter(Boolean).map(s=>s[0]).slice(0,2).join('').toUpperCase()}
-                </div>
+                {/* A foto que o próprio embaixador colocou no portal vale
+                    mais que a do cadastro — é como ele quer ser visto. */}
+                {(p && p.fotoPerfil)
+                  ? <AvatarEmbaixador portal={p} nome={e.nome} size={38}/>
+                  : (
+                    <div style={{width:38,height:38,borderRadius:'50%',overflow:'hidden',background:NB.pink,color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',fontSize:13,fontWeight:600,flexShrink:0}}>
+                      {e.foto ? <img src={e.foto} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/> : (e.nome||'').split(/\s+/).filter(Boolean).map(s=>s[0]).slice(0,2).join('').toUpperCase()}
+                    </div>
+                  )}
                 <div style={{minWidth:0}}>
                   <div style={{fontSize:13.5,fontWeight:600,color:NB.txt,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{e.nome}</div>
                   <div style={{fontSize:11.5,color:NB.mut2,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p ? p.email : (e.cargo || 'sem portal ainda')}</div>
@@ -8555,10 +8696,11 @@ function AppContent() {
   if (!isTeamMember || preferirCentral) {
     if (!isTeamMember && !portalCarregado) return <Splash/>;
     if (isEmbaixador) {
-      /* Portais antigos não têm o campo; só exige a troca de quem foi
-         criado a partir de agora, pra não travar quem já usa o portal. */
-      const precisaTrocar = meuPortalEmbaixador && meuPortalEmbaixador.senhaTrocada === false;
-      if (precisaTrocar) return <TrocarSenhaPrimeiroAcesso/>;
+      /* Portais antigos não têm esses campos; só o que foi criado a partir
+         de agora passa pelo primeiro acesso, pra não travar quem já usa. */
+      const p = meuPortalEmbaixador;
+      if (p && p.senhaTrocada === false) return <TrocarSenhaPrimeiroAcesso/>;
+      if (p && p.senhaTrocada === true && !p.fotoPerfil && !p.pulouFoto) return <AdicionarFotoPrimeiroAcesso/>;
       return <EmbaixadorPortalView/>;
     }
     return <VisitorApp/>;
