@@ -1447,18 +1447,6 @@ function Sidebar() {
             count={minhasSubPendentes||undefined} active={view==='minhasSubtarefas'} onClick={()=>setView('minhasSubtarefas')}/>
         </div>
 
-        <div style={secLbl}>Gestão</div>
-        <div style={{marginBottom:20}}>
-          <NavItem label="Painel de aprovações" Icon={IStamp} iconColor={aguardandoDecisao?'#C98A00':NB.mut}
-            count={aguardandoDecisao||undefined} active={view==='aprovacoes'} onClick={()=>setView('aprovacoes')}/>
-          <NavItem label="Aprovações e pedidos" Icon={IInbox} iconColor={emAprovacao?'#C98A00':NB.mut}
-            count={emAprovacao||undefined} active={view==='gestao'} onClick={()=>setView('gestao')}/>
-          {!meuSetorFixo && (
-            <NavItem label="Resumo" Icon={ITrend} iconColor={NB.mut}
-              active={view==='resumo'} onClick={()=>setView('resumo')}/>
-          )}
-        </div>
-
         <div style={secLbl}>Central</div>
         <div style={{marginBottom:20}}>
           <NavItem label="Central de Informações" Icon={IGlobe} iconColor={NB.mut}
@@ -1487,6 +1475,33 @@ function Sidebar() {
               </div>
             </div>
           </button>
+        </div>
+
+        {/* Gestão fica logo abaixo de Embaixadores: são as duas frentes
+            que a Mariana acompanha, e as duas ganham destaque. */}
+        <div style={secLbl}>Gestão</div>
+        <div style={{marginBottom:20}}>
+          <button onClick={()=>setView('aprovacoes')}
+            style={{width:'100%',textAlign:'left',padding:'12px 13px',borderRadius:12,cursor:'pointer',marginBottom:8,
+              background: view==='aprovacoes' ? 'linear-gradient(120deg,#FFF9EC 0%,#FEF3D8 100%)' : '#fff',
+              border:'1.5px solid '+(view==='aprovacoes' ? '#E0A100' : NB.bd),
+              display:'flex',alignItems:'center',gap:11,transition:'all 0.14s'}}>
+            <div style={{width:30,height:30,borderRadius:9,background:'#E0A100',display:'flex',alignItems:'center',justifyContent:'center',color:'#fff',flexShrink:0}}>
+              <IStamp s={15}/>
+            </div>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontSize:13,fontWeight:600,color:NB.txt,lineHeight:1.25}}>Painel de aprovações</div>
+              <div style={{fontSize:10.5,color:aguardandoDecisao?'#C98A00':NB.mut2,marginTop:1,fontWeight:aguardandoDecisao?600:400}}>
+                {aguardandoDecisao ? aguardandoDecisao+' esperando decisão' : 'nada parado'}
+              </div>
+            </div>
+          </button>
+          <NavItem label="Aprovações e pedidos" Icon={IInbox} iconColor={emAprovacao?'#C98A00':NB.mut}
+            count={emAprovacao||undefined} active={view==='gestao'} onClick={()=>setView('gestao')}/>
+          {!meuSetorFixo && (
+            <NavItem label="Resumo" Icon={ITrend} iconColor={NB.mut}
+              active={view==='resumo'} onClick={()=>setView('resumo')}/>
+          )}
         </div>
 
         <div style={secLbl}>Módulos</div>
@@ -7518,9 +7533,9 @@ function EntryChooser({ onEscolherEmbaixador }) {
         <div style={{marginTop:36,marginBottom:48,paddingTop:28,textAlign:'center'}}>
           <p style={{fontSize:12.5,color:NB.mut2,marginBottom:10}}>É do time de Marketing?</p>
           <button onClick={()=>entrar('gestao')} disabled={busy}
-            style={{display:'inline-flex',alignItems:'center',gap:7,fontSize:13.5,fontWeight:600,color:NB.mut,padding:'9px 16px',borderRadius:999,border:'1px solid '+NB.bd,background:'#fff',opacity:busy?0.7:1}}
-            onMouseEnter={e=>{if(!busy){e.currentTarget.style.borderColor=NB.azul; e.currentTarget.style.color=NB.azul; e.currentTarget.style.background='#EAF3FD';}}}
-            onMouseLeave={e=>{e.currentTarget.style.borderColor=NB.bd; e.currentTarget.style.color=NB.mut; e.currentTarget.style.background='#fff';}}>
+            style={{display:'inline-flex',alignItems:'center',gap:7,fontSize:13.5,fontWeight:600,color:NB.pink,padding:'9px 16px',borderRadius:999,border:'1px solid '+NB.pink,background:'#fff',opacity:busy?0.7:1,cursor:busy?'default':'pointer',transition:'all 0.14s'}}
+            onMouseEnter={e=>{if(!busy){e.currentTarget.style.color='#fff'; e.currentTarget.style.background=NB.pink;}}}
+            onMouseLeave={e=>{e.currentTarget.style.color=NB.pink; e.currentTarget.style.background='#fff';}}>
             <ILock s={13}/> {busy?'Entrando…':'Acessar Gestão de Tarefas do MKT'}
           </button>
         </div>
