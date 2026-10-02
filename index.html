@@ -1336,7 +1336,7 @@ function NavItem({ label, Icon, iconColor, count, active, onClick, indent }) {
 
 /* =========== SIDEBAR =========== */
 function Sidebar() {
-  const { view, setView, area, setArea, user, active, slack, archived, pipes, pedidos, posts, campanhas, embaixadores, setNewOpen, setPresetNovo, setPacoteOpen, setProfileOpen, logout, previewMember, setPreviewMember, setPreferirCentral, setModal, alertasTab, setAlertasTab } = useApp();
+  const { view, setView, area, setArea, user, active, slack, archived, pipes, pedidos, posts, campanhas, embaixadores, portaisEmbaixador, setNewOpen, setPresetNovo, setPacoteOpen, setProfileOpen, logout, previewMember, setPreviewMember, setPreferirCentral, setModal, alertasTab, setAlertasTab } = useApp();
   const areas = ['Social','Design','Mídia Paga','Produto','RevOps','Eventos'];
   const efetivo = previewMember || user;
   /* Quem tem uma área fixa (todo mundo, menos a Mariana, que acompanha
@@ -1465,9 +1465,28 @@ function Sidebar() {
             active={view==='central'} onClick={()=>setView('central')}/>
           <NavItem label="Campanhas" Icon={ITarget} iconColor={NB.mut}
             count={campanhas.length||undefined} active={view==='campanhas'} onClick={()=>setView('campanhas')}/>
-          <NavItem label="Gestão de Embaixadores" Icon={IStar} iconColor={NB.pink}
-            count={embaixadores.length||undefined}
-            active={view==='portalEmbaixador'} onClick={()=>setView('portalEmbaixador')}/>
+        </div>
+
+        {/* Embaixadores tem peso de área própria, não é um item solto
+            dentro da Central — por isso ganha seção e destaque. */}
+        <div style={secLbl}>Embaixadores</div>
+        <div style={{marginBottom:20}}>
+          <button onClick={()=>setView('portalEmbaixador')}
+            style={{width:'100%',textAlign:'left',padding:'12px 13px',borderRadius:12,cursor:'pointer',
+              background: view==='portalEmbaixador' ? 'linear-gradient(120deg,#FFF0F7 0%,#FDE8F3 100%)' : '#fff',
+              border:'1.5px solid '+(view==='portalEmbaixador' ? NB.pink : NB.bd),
+              display:'flex',alignItems:'center',gap:11,transition:'all 0.14s'}}>
+            <div style={{width:30,height:30,borderRadius:9,background:NB.pink,display:'flex',alignItems:'center',justifyContent:'center',color:'#fff',flexShrink:0}}>
+              <IStar s={15}/>
+            </div>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontSize:13,fontWeight:600,color:NB.txt,lineHeight:1.25}}>Gestão de Embaixadores</div>
+              <div style={{fontSize:10.5,color:NB.mut2,marginTop:1}}>
+                {embaixadores.length} cadastrado{embaixadores.length===1?'':'s'}
+                {portaisEmbaixador.length>0 && ' · '+portaisEmbaixador.length+' com portal'}
+              </div>
+            </div>
+          </button>
         </div>
 
         <div style={secLbl}>Módulos</div>
@@ -8533,10 +8552,11 @@ function CriarAcessoPortalModal({ embaixador, onClose }) {
 }
 
 function PortalEmbaixadorGestaoView() {
-  const { embaixadores, portaisEmbaixador, todosEnviosFotos, removerEnvioFoto } = useApp();
+  const { embaixadores, portaisEmbaixador, todosEnviosFotos, removerEnvioFoto, removerPortalEmbaixador } = useApp();
   const [selId, setSelId] = useState(null);
   const [criarAcessoPara, setCriarAcessoPara] = useState(null);
   const [novoEmb, setNovoEmb] = useState(false);
+  const [confirmarRemocao, setConfirmarRemocao] = useState(null);
   const normaliza = s => (s||'').trim().toLowerCase();
   const selecionado = portaisEmbaixador.find(p=>p.id===selId) || null;
 
@@ -8632,7 +8652,27 @@ function PortalEmbaixadorGestaoView() {
                 </div>
               </button>
               {p ? (
-                <span style={{fontSize:11,fontWeight:600,color:'#0F6E56',background:'#E1F5EE',borderRadius:6,padding:'4px 9px',alignSelf:'flex-start'}}>Portal ativo</span>
+                <div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
+                  <span style={{fontSize:11,fontWeight:600,color:'#0F6E56',background:'#E1F5EE',borderRadius:6,padding:'4px 9px'}}>Portal ativo</span>
+                  {confirmarRemocao===p.id ? (
+                    <React.Fragment>
+                      <button onClick={()=>{ removerPortalEmbaixador(p.id); setConfirmarRemocao(null); }}
+                        style={{fontSize:11,fontWeight:600,color:'#fff',background:'#B4232A',border:'none',borderRadius:6,padding:'4px 10px',cursor:'pointer'}}>
+                        Confirmar
+                      </button>
+                      <button onClick={()=>setConfirmarRemocao(null)}
+                        style={{fontSize:11,color:NB.mut,background:'none',border:'none',cursor:'pointer'}}>
+                        cancelar
+                      </button>
+                    </React.Fragment>
+                  ) : (
+                    <button onClick={()=>setConfirmarRemocao(p.id)}
+                      title="Tira o acesso ao portal — o cadastro do embaixador continua aqui"
+                      style={{fontSize:11,color:NB.mut2,background:'none',border:'none',cursor:'pointer',textDecoration:'underline'}}>
+                      remover acesso
+                    </button>
+                  )}
+                </div>
               ) : (
                 <button onClick={()=>setCriarAcessoPara(e)}
                   style={{fontSize:12,fontWeight:600,color:NB.azul,background:'#EAF3FD',border:'none',borderRadius:8,padding:'8px 12px',alignSelf:'flex-start'}}>
