@@ -8072,11 +8072,84 @@ function AdicionarFotoPrimeiroAcesso() {
   );
 }
 
+/* Cabeçalho do portal — usado no portal de verdade e na prévia da Gestão,
+   pra que o time veja exatamente o que o embaixador vê. */
+function EmbaixadorPortalHero({ p, nome }) {
+  const iniciais = (nome||'').split(/\s+/).filter(Boolean).map(s=>s[0]).slice(0,2).join('').toUpperCase();
+  const foto = (p && (p.fotoPerfil || p.foto)) || '';
+  return (
+    <div style={{background:'linear-gradient(120deg,#0A1B3D 0%, #0F2A5C 40%, #0C3D82 70%, #0055A7 100%)',padding:'48px 24px 56px'}}>
+      <div style={{maxWidth:760,margin:'0 auto',display:'flex',alignItems:'center',justifyContent:'space-between',gap:28,flexWrap:'wrap'}}>
+        <div style={{flex:'1 1 320px'}}>
+          <span style={{display:'inline-flex',alignItems:'center',gap:7,background:'rgba(255,255,255,0.12)',padding:'5px 12px',borderRadius:20,fontSize:11.5,color:'#DCE4FA',marginBottom:10}}>
+            🤝 Área exclusiva de relacionamento com o Nibo
+          </span>
+          <h1 style={{fontSize:22,fontWeight:600,color:'#fff',marginBottom:5}}>Olá, {(nome||'').split(' ')[0]} — que bom te ver por aqui.</h1>
+          <p style={{fontSize:13,color:'#B9C6E8',lineHeight:1.55,maxWidth:420}}>Aqui ficam os materiais de divulgação, o link da sua LP e seus dados contratuais, tudo em um só lugar.</p>
+        </div>
+        <div style={{position:'relative',width:130,height:163,flexShrink:0}}>
+          <div style={{width:'100%',height:'100%',borderRadius:20,overflow:'hidden',background:foto?'#EAF3FD':'rgba(255,255,255,0.15)',border:'2px solid rgba(255,255,255,0.25)',display:'flex',alignItems:'center',justifyContent:'center'}}>
+            {foto ? <img src={foto} alt="" style={{width:'100%',height:'100%',objectFit:'cover',objectPosition:'center top'}}/> : <span style={{fontSize:34,fontWeight:600,color:'#fff'}}>{iniciais}</span>}
+          </div>
+          <div style={{position:'absolute',bottom:-8,right:-8,width:36,height:36,borderRadius:'50%',background:'#fff',display:'flex',alignItems:'center',justifyContent:'center',boxShadow:'0 4px 10px rgba(0,0,0,0.2)'}}>
+            <NiboSymbol size={18} color={NB.navy1}/>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* Dúvidas: busca direto na Central de Ajuda do Nibo, sem o embaixador
+   precisar sair do portal pra procurar. */
+function CentralDuvidasEmbaixador() {
+  const [busca, setBusca] = useState('');
+  const BASE = 'https://ajuda.nibo.com.br/pt-BR';
+  const buscar = () => {
+    const q = busca.trim();
+    window.open(q ? BASE+'/search?q='+encodeURIComponent(q) : BASE, '_blank', 'noopener');
+  };
+  const atalhos = [
+    { t:'Segurança e tratamento de dados', u:BASE+'/articles/7983668-seguranca-e-tratamento-de-dados' },
+    { t:'Nibo Gestão Financeira', u:BASE+'/collections/3804821-nibo-gestao-financeira' },
+    { t:'Nibo Obrigações', u:BASE+'/collections/3805418-nibo-obrigacoes' },
+    { t:'Nibo BPO', u:BASE+'/collections/5676762-nibo-bpo' },
+  ];
+  return (
+    <div style={{marginTop:36}}>
+      <h3 style={{fontSize:17,fontWeight:600,color:NB.txt,marginBottom:4}}>Central de dúvidas</h3>
+      <p style={{fontSize:13,color:NB.mut,marginBottom:14}}>
+        Pergunte qualquer coisa sobre o Nibo — a resposta provavelmente já está na nossa Central de Ajuda.
+      </p>
+      <div style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:14,padding:'18px 20px'}}>
+        <div style={{display:'flex',gap:9,marginBottom:14,flexWrap:'wrap'}}>
+          <input value={busca} onChange={e=>setBusca(e.target.value)}
+            onKeyDown={e=>{ if(e.key==='Enter') buscar(); }}
+            placeholder="Ex: como emitir nota fiscal, conciliação bancária…"
+            style={{flex:1,minWidth:200,background:NB.col,border:'1.5px solid '+NB.bd,borderRadius:10,padding:'11px 14px',fontSize:13.5,color:NB.txt,outline:'none'}}/>
+          <button onClick={buscar}
+            style={{padding:'11px 20px',background:NB.navy1,border:'none',borderRadius:10,fontSize:13.5,fontWeight:600,color:'#fff',cursor:'pointer',flexShrink:0}}>
+            Buscar
+          </button>
+        </div>
+        <div style={{fontSize:11.5,fontWeight:600,color:NB.mut2,textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:9}}>Temas mais procurados</div>
+        <div style={{display:'flex',flexWrap:'wrap',gap:8}}>
+          {atalhos.map(a=>(
+            <a key={a.u} href={a.u} target="_blank" rel="noopener noreferrer"
+              style={{fontSize:12.5,color:NB.azul,background:'#EAF3FD',border:'1px solid #D6E6F8',borderRadius:20,padding:'6px 13px',textDecoration:'none'}}>
+              {a.t}
+            </a>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function EmbaixadorPortalView() {
   const { user, meuPortalEmbaixador, logout } = useApp();
   const p = meuPortalEmbaixador;
   const nome = (p&&p.nome)||user.name;
-  const iniciais = nome.split(/\s+/).filter(Boolean).map(s=>s[0]).slice(0,2).join('').toUpperCase();
 
   return (
     <div style={{height:'100vh',width:'100%',overflowY:'auto',background:NB.bg}}>
@@ -8090,29 +8163,12 @@ function EmbaixadorPortalView() {
         <button onClick={logout} title="Sair" style={{padding:9,background:'#fff',border:'1px solid '+NB.bd,borderRadius:9,color:NB.mut,display:'flex'}}><ILogout s={15}/></button>
       </div>
 
-      <div style={{background:'linear-gradient(120deg,#0A1B3D 0%, #0F2A5C 40%, #0C3D82 70%, #0055A7 100%)',padding:'48px 24px 56px'}}>
-        <div style={{maxWidth:760,margin:'0 auto',display:'flex',alignItems:'center',justifyContent:'space-between',gap:28,flexWrap:'wrap'}}>
-          <div style={{flex:'1 1 320px'}}>
-            <span style={{display:'inline-flex',alignItems:'center',gap:7,background:'rgba(255,255,255,0.12)',padding:'5px 12px',borderRadius:20,fontSize:11.5,color:'#DCE4FA',marginBottom:10}}>
-              🤝 Área exclusiva de relacionamento com o Nibo
-            </span>
-            <h1 style={{fontSize:22,fontWeight:600,color:'#fff',marginBottom:5}}>Olá, {nome.split(' ')[0]} — que bom te ver por aqui.</h1>
-            <p style={{fontSize:13,color:'#B9C6E8',lineHeight:1.55,maxWidth:420}}>Aqui ficam os materiais de divulgação, o link da sua LP e seus dados contratuais, tudo em um só lugar.</p>
-          </div>
-          <div style={{position:'relative',width:130,height:163,flexShrink:0}}>
-            <div style={{width:'100%',height:'100%',borderRadius:20,overflow:'hidden',background:p&&p.foto?'#EAF3FD':'rgba(255,255,255,0.15)',border:'2px solid rgba(255,255,255,0.25)',display:'flex',alignItems:'center',justifyContent:'center'}}>
-              {p&&p.foto ? <img src={p.foto} alt="" style={{width:'100%',height:'100%',objectFit:'cover',objectPosition:'center top'}}/> : <span style={{fontSize:34,fontWeight:600,color:'#fff'}}>{iniciais}</span>}
-            </div>
-            <div style={{position:'absolute',bottom:-8,right:-8,width:36,height:36,borderRadius:'50%',background:'#fff',display:'flex',alignItems:'center',justifyContent:'center',boxShadow:'0 4px 10px rgba(0,0,0,0.2)'}}>
-              <NiboSymbol size={18} color={NB.navy1}/>
-            </div>
-          </div>
-        </div>
-      </div>
+      <EmbaixadorPortalHero p={p} nome={nome}/>
 
       <div style={{maxWidth:760,margin:'0 auto',padding:'32px 24px 0'}}>
         <EmbaixadorPortalConteudo p={p}/>
         <EnvioFotosEmbaixador/>
+        <CentralDuvidasEmbaixador/>
         <div style={{borderTop:'1px solid '+NB.bd,padding:'32px 0 40px',color:NB.mut2,fontSize:13,display:'flex',justifyContent:'space-between',flexWrap:'wrap',gap:8,marginTop:36}}>
           <span>© {new Date().getFullYear()} Nibo · Central de Materiais de Marketing</span>
           <span>Dúvidas? marketingteam@nibo.com</span>
@@ -8683,8 +8739,14 @@ function PortalEmbaixadorGestaoView() {
             </p>
           </div>
         )}
-        <div style={{maxWidth:640}}>
-          <EmbaixadorPortalConteudo p={selecionado}/>
+        <div style={{maxWidth:760,borderRadius:16,overflow:'hidden',border:'1px solid '+NB.bd,marginBottom:4}}>
+          <EmbaixadorPortalHero p={selecionado} nome={selecionado.nome}/>
+        </div>
+        <div style={{maxWidth:760}}>
+          <div style={{padding:'24px 0 0'}}>
+            <EmbaixadorPortalConteudo p={selecionado}/>
+          </div>
+          <CentralDuvidasEmbaixador/>
 
           <div style={{marginTop:28,display:selecionado.semPortal?'none':'block'}}>
             <h3 style={{fontSize:16,fontWeight:600,color:NB.txt,marginBottom:4}}>Fotos que ela mandou ({enviosDela.length})</h3>
