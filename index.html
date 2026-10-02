@@ -892,6 +892,7 @@ function Provider({ children }) {
       await secApp.auth().signOut();
       await db.collection('embaixadoresPortal').add({
         ...dados, criadoEm:new Date().toISOString(), criadoPor:(user&&user.name)||'',
+        senhaTrocada: false,   // obriga a trocar a senha provisória no 1º acesso
       });
       await secApp.delete();
       return { ok:true };
@@ -7801,6 +7802,73 @@ function EnvioFotosEmbaixador() {
   );
 }
 
+/* Primeiro acesso do embaixador: a senha foi definida por quem criou o
+   portal e provavelmente passou por WhatsApp/e-mail. Antes de liberar
+   contrato e dados de pagamento, ele troca por uma senha que só ele sabe. */
+function TrocarSenhaPrimeiroAcesso() {
+  const { meuPortalEmbaixador, logout } = useApp();
+  const [senha, setSenha] = useState('');
+  const [confirma, setConfirma] = useState('');
+  const [erro, setErro] = useState('');
+  const [salvando, setSalvando] = useState(false);
+
+  const trocar = async () => {
+    setErro('');
+    if (senha.length < 8) { setErro('Use pelo menos 8 caracteres.'); return; }
+    if (senha !== confirma) { setErro('As duas senhas não estão iguais.'); return; }
+    setSalvando(true);
+    try {
+      const u = firebase.auth().currentUser;
+      if (!u) throw new Error('Sessão expirada. Entre de novo.');
+      await u.updatePassword(senha);
+      await firebase.firestore().collection('embaixadoresPortal').doc(meuPortalEmbaixador.id)
+        .update({ senhaTrocada: true, senhaTrocadaEm: new Date().toISOString() });
+    } catch (e) {
+      const msg = e && e.code === 'auth/requires-recent-login'
+        ? 'Por segurança, entre de novo e troque a senha logo em seguida.'
+        : (e && e.message) || 'Não consegui trocar a senha.';
+      setErro(msg);
+      setSalvando(false);
+    }
+  };
+
+  const inp = { width:'100%', background:'#fff', border:'1.5px solid '+NB.bd, borderRadius:10,
+                padding:'11px 13px', fontSize:14, color:NB.txt, outline:'none', boxSizing:'border-box' };
+
+  return (
+    <div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',background:NB.bg,padding:20}}>
+      <div style={{width:'100%',maxWidth:430,background:'#fff',border:'1px solid '+NB.bd,borderRadius:16,padding:'30px 32px',boxShadow:'0 8px 32px rgba(0,42,114,0.10)'}}>
+        <div style={{fontSize:30,marginBottom:14}}>🔐</div>
+        <h1 style={{fontSize:19,fontWeight:700,color:NB.navy1,marginBottom:7}}>Crie sua senha</h1>
+        <p style={{fontSize:13.5,color:NB.mut,lineHeight:1.6,marginBottom:22}}>
+          Você entrou com uma senha provisória. Escolha uma senha pessoal para continuar —
+          aqui ficam seu contrato e seus dados, então ninguém além de você deve saber.
+        </p>
+
+        <label style={{display:'block',fontSize:12,fontWeight:600,color:NB.mut,marginBottom:6}}>Nova senha</label>
+        <input type="password" value={senha} onChange={e=>setSenha(e.target.value)}
+          placeholder="pelo menos 8 caracteres" style={{...inp, marginBottom:14}}/>
+
+        <label style={{display:'block',fontSize:12,fontWeight:600,color:NB.mut,marginBottom:6}}>Repita a nova senha</label>
+        <input type="password" value={confirma} onChange={e=>setConfirma(e.target.value)}
+          onKeyDown={e=>{ if(e.key==='Enter') trocar(); }}
+          placeholder="digite de novo" style={{...inp, marginBottom:erro?10:20}}/>
+
+        {erro && <p style={{fontSize:12.5,color:'#B4232A',background:'#FEECEC',border:'1px solid #FBD5D5',borderRadius:8,padding:'9px 12px',marginBottom:16,lineHeight:1.5}}>{erro}</p>}
+
+        <button onClick={trocar} disabled={salvando}
+          style={{width:'100%',padding:'12px',background:salvando?'#9FB6D4':NB.navy1,border:'none',borderRadius:10,fontSize:14,fontWeight:600,color:'#fff',cursor:salvando?'default':'pointer',marginBottom:12}}>
+          {salvando ? 'Salvando…' : 'Salvar e entrar'}
+        </button>
+        <button onClick={logout}
+          style={{width:'100%',padding:'9px',background:'none',border:'none',fontSize:12.5,color:NB.mut,cursor:'pointer'}}>
+          Sair
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function EmbaixadorPortalView() {
   const { user, meuPortalEmbaixador, logout } = useApp();
   const p = meuPortalEmbaixador;
@@ -8244,6 +8312,16 @@ function MinhasSubtarefasView() {
   );
 }
 
+/* Senha provisória legível, mas única por embaixador — evita o padrão de
+   usar a mesma senha para todo mundo, que deixaria um ver o portal do outro. */
+function gerarSenhaProvisoria() {
+  const palavras = ['nibo','portal','parceiro','embaixa','conteudo','marca','projeto','entrega'];
+  const p = palavras[Math.floor(Math.random()*palavras.length)];
+  const n = Math.floor(1000 + Math.random()*9000);
+  const s = 'xkmprvz'[Math.floor(Math.random()*7)];
+  return p + '-' + n + s;
+}
+
 function CriarAcessoPortalModal({ embaixador, onClose }) {
   const { criarPortalEmbaixador } = useApp();
   const [portal, setPortal] = useState({ email:'', senha:'', contratoUrl:'', lpUrl:'' });
@@ -8284,8 +8362,19 @@ function CriarAcessoPortalModal({ embaixador, onClose }) {
       <div style={{padding:'20px 24px',display:'flex',flexDirection:'column',gap:12,maxHeight:'56vh',overflowY:'auto'}}>
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
           <input type="email" value={portal.email} onChange={e=>setP('email',e.target.value)} placeholder="E-mail de acesso" style={{...inp,padding:'9px 12px',fontSize:13.5}}/>
-          <input type="text" value={portal.senha} onChange={e=>setP('senha',e.target.value)} placeholder="Senha inicial (mín. 6)" style={{...inp,padding:'9px 12px',fontSize:13.5}}/>
+          <div style={{display:'flex',gap:6}}>
+            <input type="text" value={portal.senha} onChange={e=>setP('senha',e.target.value)} placeholder="Senha provisória" style={{...inp,padding:'9px 12px',fontSize:13.5,flex:1,minWidth:0}}/>
+            <button type="button" onClick={()=>setP('senha', gerarSenhaProvisoria())}
+              title="Gera uma senha diferente para este embaixador"
+              style={{flexShrink:0,padding:'9px 12px',background:NB.col,border:'1px solid '+NB.bd,borderRadius:9,fontSize:12,fontWeight:600,color:NB.azul,cursor:'pointer',whiteSpace:'nowrap'}}>
+              Gerar
+            </button>
+          </div>
         </div>
+        <p style={{fontSize:11.5,color:NB.mut2,lineHeight:1.5,margin:'-2px 0 2px'}}>
+          Use uma senha diferente para cada embaixador — no primeiro acesso ele troca por uma pessoal,
+          e a provisória deixa de valer.
+        </p>
         <input value={portal.contratoUrl} onChange={e=>setP('contratoUrl',e.target.value)} placeholder="Link do contrato (opcional)" style={{...inp,padding:'9px 12px',fontSize:13.5}}/>
         <input value={portal.lpUrl} onChange={e=>setP('lpUrl',e.target.value)} placeholder="Link da LP personalizada (opcional)" style={{...inp,padding:'9px 12px',fontSize:13.5}}/>
         <div>
@@ -8456,7 +8545,7 @@ function VisitorApp() {
 }
 
 function AppContent() {
-  const { view, user, isTeamMember, isEmbaixador, portalCarregado, authReady, preferirCentral, setDragging, editStages, setEditStages, dbReady, dbErro, previewMember, setPreviewMember } = useApp();
+  const { view, user, isTeamMember, isEmbaixador, meuPortalEmbaixador, portalCarregado, authReady, preferirCentral, setDragging, editStages, setEditStages, dbReady, dbErro, previewMember, setPreviewMember } = useApp();
   const [entrada, setEntrada] = useState('escolha'); // 'escolha' | 'embaixador'
   if (!authReady) return <Splash/>;
   if (!user) {
@@ -8465,7 +8554,13 @@ function AppContent() {
   }
   if (!isTeamMember || preferirCentral) {
     if (!isTeamMember && !portalCarregado) return <Splash/>;
-    if (isEmbaixador) return <EmbaixadorPortalView/>;
+    if (isEmbaixador) {
+      /* Portais antigos não têm o campo; só exige a troca de quem foi
+         criado a partir de agora, pra não travar quem já usa o portal. */
+      const precisaTrocar = meuPortalEmbaixador && meuPortalEmbaixador.senhaTrocada === false;
+      if (precisaTrocar) return <TrocarSenhaPrimeiroAcesso/>;
+      return <EmbaixadorPortalView/>;
+    }
     return <VisitorApp/>;
   }
   return (
