@@ -98,20 +98,20 @@ const DEFAULT_PIPELINES = {
 
 const AUTO = {
   Social: {
-    'soc-2':{ action:'Briefing de copy ativado — equipe Social notificada', next:'Design de Arte → @Millena Barros' },
+    'soc-2':{ action:'Briefing de copy ativado, equipe Social notificada', next:'Design de Arte → @Millena Barros' },
     'soc-3':{ action:'Ticket de arte criado para @Millena Barros', next:'Aprovação → @Mariana Araújo' },
     'soc-4':{ action:'@Mariana Araújo notificada para revisão e aprovação', next:'Aprovado → Agendamento | Ajuste → volta para Design' },
     'soc-5':{ action:'Post publicado + relatório de performance iniciado automaticamente', next:'Monitorar métricas por 7 dias' },
   },
   Design: {
     'des-2':{ action:'Briefing registrado e equipe de Design notificada', next:'Em Criação → @Millena Barros ou @Mikaella' },
-    'des-3':{ action:'Arquivo iniciado no Canva — checklist de criação ativado', next:'Aprovação → @Mariana Araújo' },
+    'des-3':{ action:'Arquivo iniciado no Canva, checklist de criação ativado', next:'Aprovação → @Mariana Araújo' },
     'des-4':{ action:'Arte enviada para aprovação de @Mariana Araújo', next:'Aprovado → Entregue | Ajuste → volta para Em Criação' },
     'des-5':{ action:'Arte entregue e arquivada no Drive do Nibo', next:'Encerrado' },
   },
   'Mídia Paga': {
     'mid-2':{ action:'Setup de campanha iniciado no Meta Ads Manager', next:'Em Veiculação → aguardar aprovação Meta' },
-    'mid-3':{ action:'Campanha ativa — monitoramento automático ligado via Metabase', next:'Revisão de performance → @Vivian' },
+    'mid-3':{ action:'Campanha ativa, monitoramento automático ligado via Metabase', next:'Revisão de performance → @Vivian' },
     'mid-4':{ action:'Relatório de performance gerado + aprovação de @Mariana Araújo', next:'Aprovado → Encerrado | Ajuste → otimização de criativos' },
     'mid-5':{ action:'Campanha encerrada + relatório final arquivado no Drive', next:'Encerrado' },
   },
@@ -122,7 +122,7 @@ const AUTO = {
     'pro-5':{ action:'Feature em produção + comunicado automático enviado ao time no Slack', next:'Encerrado' },
   },
   RevOps: {
-    'rev-2':{ action:'Análise de processo iniciada — @Jéssica notificada', next:'Implementação → @Cláudio' },
+    'rev-2':{ action:'Análise de processo iniciada, @Jéssica notificada', next:'Implementação → @Cláudio' },
     'rev-3':{ action:'Automação configurada no n8n + testes de integração ativados', next:'Validação → @Mariana Araújo' },
     'rev-4':{ action:'Relatório técnico gerado + aprovação de go-live solicitada', next:'Aprovado → Produção | Ajuste → revisão técnica' },
     'rev-5':{ action:'Automação em produção + documentação publicada no Notion', next:'Monitorar por 30 dias' },
@@ -154,19 +154,19 @@ const dStr = (n) => { const d=new Date(tod); d.setDate(d.getDate()+n); return d.
 
 const INIT_DEMANDS = [
   { id:'d1', code:'DEM-101', title:'Carousel BPO Financeiro na Prática', area:'Social', priority:'Alta', stageId:'soc-2', assignees:['CA','RO'], deadline:dStr(2), description:'Carousel para lançamento do curso BPO Financeiro com Barbara Maciel. Foco em contadores que já usam Nibo.', requester:'Clara Abrantes' },
-  { id:'d2', code:'DEM-102', title:'Banner Radar e-CAC — Reforma Tributária', area:'Design', priority:'Urgente', stageId:'des-3', assignees:['MB'], deadline:dStr(0), description:'Banner destacando a funcionalidade do Radar e-CAC no contexto da Reforma Tributária (IBS/CBS).', requester:'Mariana Araújo' },
-  { id:'d3', code:'DEM-103', title:'Campanha Open Finance — Meta Ads', area:'Mídia Paga', priority:'Média', stageId:'mid-2', assignees:['VI'], deadline:dStr(5), description:'Campanha de conversão no Meta Ads para o Conciliador Open Finance. Público: empresários PME.', requester:'Vivian Santos' },
-  { id:'d4', code:'DEM-104', title:'Webinar Barbara Maciel — LP + e-mail sequence', area:'Social', priority:'Alta', stageId:'soc-4', assignees:['CA'], deadline:dStr(8), description:'Landing page HubSpot e sequência de 3 e-mails para webinar de 20/08 sobre onboarding de clientes.', requester:'Clara Abrantes' },
-  { id:'d5', code:'DEM-105', title:'Post LinkedIn — Split Payment IBS/CBS', area:'Social', priority:'Média', stageId:'soc-1', assignees:['RO'], deadline:dStr(10), description:'Post educativo sobre split payment na Reforma Tributária para público contador.', requester:'Roberta Rocha' },
-  { id:'d6', code:'DEM-106', title:'Automação intake de arte — Slack + n8n', area:'RevOps', priority:'Alta', stageId:'rev-3', assignees:['CL','JE'], deadline:dStr(3), description:'Formulário de intake de demandas de arte integrado ao Slack com triagem automática via n8n.', requester:'Clara Abrantes' },
-  { id:'d7', code:'DEM-107', title:'Ebook Emissão NFS-e para contadores', area:'Design', priority:'Baixa', stageId:'des-1', assignees:['MK'], deadline:dStr(15), description:'Ebook sobre o Emissor NFS-e do Nibo — guia prático para contadores configurarem emissão.', requester:'Roberta Rocha' },
+  { id:'d2', code:'DEM-102', title:'Banner Radar e-CAC: Reforma Tributária', area:'Design', priority:'Urgente', stageId:'des-3', assignees:['MB'], deadline:dStr(0), description:'Banner destacando a funcionalidade do Radar e-CAC no contexto da Reforma Tributária (IBS/CBS).', requester:'Mariana Araújo' },
+  { id:'d3', code:'DEM-103', title:'Campanha Open Finance: Meta Ads', area:'Mídia Paga', priority:'Média', stageId:'mid-2', assignees:['VI'], deadline:dStr(5), description:'Campanha de conversão no Meta Ads para o Conciliador Open Finance. Público: empresários PME.', requester:'Vivian Santos' },
+  { id:'d4', code:'DEM-104', title:'Webinar Barbara Maciel: LP + e-mail sequence', area:'Social', priority:'Alta', stageId:'soc-4', assignees:['CA'], deadline:dStr(8), description:'Landing page HubSpot e sequência de 3 e-mails para webinar de 20/08 sobre onboarding de clientes.', requester:'Clara Abrantes' },
+  { id:'d5', code:'DEM-105', title:'Post LinkedIn: Split Payment IBS/CBS', area:'Social', priority:'Média', stageId:'soc-1', assignees:['RO'], deadline:dStr(10), description:'Post educativo sobre split payment na Reforma Tributária para público contador.', requester:'Roberta Rocha' },
+  { id:'d6', code:'DEM-106', title:'Automação intake de arte: Slack + n8n', area:'RevOps', priority:'Alta', stageId:'rev-3', assignees:['CL','JE'], deadline:dStr(3), description:'Formulário de intake de demandas de arte integrado ao Slack com triagem automática via n8n.', requester:'Clara Abrantes' },
+  { id:'d7', code:'DEM-107', title:'Ebook Emissão NFS-e para contadores', area:'Design', priority:'Baixa', stageId:'des-1', assignees:['MK'], deadline:dStr(15), description:'Ebook sobre o Emissor NFS-e do Nibo, guia prático para contadores configurarem emissão.', requester:'Roberta Rocha' },
   { id:'d8', code:'DEM-108', title:'Feature Brief App Personalizado', area:'Produto', priority:'Média', stageId:'pro-2', assignees:['RO'], deadline:dStr(12), description:'Documentação de funcionalidades do App Personalizado para página de produto do site.', requester:'Roberta Rocha' },
 ];
 
 const t = (d) => new Date(d).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
 
 const INIT_SLACK = [
-  { id:'s1', code:'DEM-101', area:'Social', time:'09:14', stagePath:'Solicitado → Em Redação', action:'Briefing de copy ativado — equipe Social notificada', next:'Design de Arte → @Millena Barros', type:'move' },
+  { id:'s1', code:'DEM-101', area:'Social', time:'09:14', stagePath:'Solicitado → Em Redação', action:'Briefing de copy ativado, equipe Social notificada', next:'Design de Arte → @Millena Barros', type:'move' },
   { id:'s2', code:'DEM-104', area:'Social', time:'10:33', stagePath:'Design de Arte → Aprovação', action:'@Mariana Araújo notificada para revisão e aprovação', next:'Aprovado → Agendamento | Ajuste → volta para Design', type:'approval' },
   { id:'s3', code:'DEM-106', area:'RevOps', time:'11:05', stagePath:'Em Análise → Implementação', action:'Automação configurada no n8n + testes de integração ativados', next:'Validação → @Mariana Araújo', type:'move' },
 ];
@@ -497,7 +497,7 @@ function Provider({ children }) {
     db.collection('demandas').add(nd).then(ref => {
       const who = data.assignees && data.assignees.length ? mentionNames(data.assignees) : 'equipe de '+data.area;
       feed({ code, area:data.area }, 'Nova demanda criada',
-        'Solicitação registrada por '+data.requester+' — destinada a '+who,
+        'Solicitação registrada por '+data.requester+', destinada a '+who,
         'Demanda solicitada no Slack para '+who, 'new');
       if (onCreated) onCreated({ id: ref.id, ...nd });
     }).catch(e => setDbErro('Não foi possível criar a demanda: '+e.message));
@@ -519,7 +519,7 @@ function Provider({ children }) {
       : (newStage && newStage.isApproval) ? 'Aguardando aprovação de @Mariana Araújo'
       : (newStage && newStage.isDone)     ? 'Etapa final de '+d.area
       : 'Equipe de '+d.area+' segue com a demanda';
-    if (notifyTargets && notifyTargets.length) action += ' — ' + mentionNames(notifyTargets) + ' notificados no Slack';
+    if (notifyTargets && notifyTargets.length) action += ', ' + mentionNames(notifyTargets) + ' notificados no Slack';
     feed(d, (oldStage?oldStage.name:'?')+' → '+(newStage?newStage.name:'?'), action, passo,
          newStage && newStage.isApproval ? 'approval' : 'move');
   }, [patch, feed]);
@@ -795,7 +795,7 @@ function Provider({ children }) {
   const publicarCampanha = useCallback((camp) => {
     updateCampanha(camp.id, { status:'publicada', publicadaEm:new Date().toISOString(), publicadaPor:(user&&user.name)||'' });
     feed({ code:'CAMP', area:'Gestão' }, 'Campanha publicada',
-      '"'+camp.titulo+'" está publicada — visível na Central de Informações para todo o Nibo',
+      '"'+camp.titulo+'" está publicada, visível na Central de Informações para todo o Nibo',
       camp.desconto ? 'Desconto: '+camp.desconto : 'Sem desconto informado', 'approval');
   }, [updateCampanha, user]);
 
@@ -830,7 +830,7 @@ function Provider({ children }) {
     }).then(ref => {
       db.collection('demandas').doc(demand.id).update({ campanhaId: ref.id }).catch(()=>{});
       feed({ code:demand.code, area:demand.area }, 'Campanha enviada pra Central',
-        '"'+demand.title+'" está publicada — visível na Central de Informações para todo o Nibo',
+        '"'+demand.title+'" está publicada, visível na Central de Informações para todo o Nibo',
         demand.campanhaDesconto ? 'Desconto: '+demand.campanhaDesconto : 'Sem desconto informado', 'approval');
     }).catch(e => setDbErro('Não foi possível enviar a campanha: '+e.message));
   }, [user, feed]);
@@ -916,8 +916,8 @@ function Provider({ children }) {
     } catch (e) {
       if (secApp) { try { await secApp.delete(); } catch(_){} }
       const msg = e && e.code==='auth/email-already-in-use' ? 'Já existe uma conta com esse e-mail.'
-        : e && e.code==='auth/weak-password' ? 'Senha fraca demais — use pelo menos 6 caracteres.'
-        : e && e.code==='auth/operation-not-allowed' ? 'Login por e-mail/senha não está habilitado no Firebase — habilite em Authentication → Sign-in method.'
+        : e && e.code==='auth/weak-password' ? 'Senha fraca demais, use pelo menos 6 caracteres.'
+        : e && e.code==='auth/operation-not-allowed' ? 'Login por e-mail/senha não está habilitado no Firebase, habilite em Authentication → Sign-in method.'
         : (e && e.message) || 'Erro desconhecido.';
       return { ok:false, erro: msg };
     }
@@ -930,7 +930,7 @@ function Provider({ children }) {
   /* Envio de foto pelo próprio embaixador — usa firestore() direto porque
      dbRef só existe pra quem é do time; embaixador não é. */
   const enviarFotoEmbaixador = useCallback(async (dataUrl) => {
-    if (!fbUser || !fbUser.email) return { ok:false, erro:'Sessão expirada — recarrega a página.' };
+    if (!fbUser || !fbUser.email) return { ok:false, erro:'Sessão expirada, recarrega a página.' };
     try {
       const db = firebase.firestore();
       await db.collection('embaixadorEnvios').add({
@@ -1067,14 +1067,14 @@ function Provider({ children }) {
       if (jaNotificados[d.id] === hoje) return; // já notificou hoje
       // Browser notification
       try {
-        new Notification('⏰ Tarefa vencida — Nibo', {
+        new Notification('⏰ Tarefa vencida no Nibo', {
           body: d.title,
           icon: '/favicon.ico',
           tag: 'dem-' + d.id,
         });
       } catch(e) {}
       // Feed (Slack interno)
-      feed(d, 'Vencimento', d.title + ' venceu — ' + user.name + ' notificado(a)', 'Remarcar ou mover para próxima etapa', 'alert');
+      feed(d, 'Vencimento', d.title + ' venceu, ' + user.name + ' notificado(a)', 'Remarcar ou mover para próxima etapa', 'alert');
       jaNotificados[d.id] = hoje;
     });
     localStorage.setItem('nb_notif_sent', JSON.stringify(jaNotificados));
@@ -1388,7 +1388,7 @@ function Sidebar() {
   return (
     <aside style={{width:272,flexShrink:0,height:'100vh',background:'#fff',borderRight:'1px solid '+NB.bd,display:'flex',flexDirection:'column'}}>
 
-      {/* Marca — símbolo Nibo em destaque, versão navy sobre fundo branco */}
+      {/* Marca, símbolo Nibo em destaque, versão navy sobre fundo branco */}
       <div style={{padding:'28px 24px 22px',borderBottom:'1px solid '+NB.bdSoft}}>
         <div style={{display:'flex',alignItems:'center',gap:13}}>
           <NiboSymbol size={40} color={NB.navy1}/>
@@ -1623,10 +1623,10 @@ function ContentHeader() {
     slack:      ['Automações Slack', 'Histórico das automações disparadas ao mover os cards.'],
     arquivadas: ['Arquivadas', 'Demandas fora do quadro. Restaure quando precisar ou exclua de vez.'],
     variacoes:  ['Variações de peça', 'Suba uma peça e gere os cortes de formato, versões de fundo e o briefing do que testar.'],
-    publicacoes:['Fila de Publicação', 'Monte o post, deixe pronto e publique — por enquanto manualmente no Meta Business Suite.'],
+    publicacoes:['Fila de Publicação', 'Monte o post, deixe pronto e publique, por enquanto manualmente no Meta Business Suite.'],
     gestao:     ['Gestão', 'Aprovações pendentes e pedidos de outros setores em um só lugar.'],
     central:    ['Central de Informações', 'Busque peças, veja campanhas ativas e gere mensagens para WhatsApp.'],
-    campanhas:  ['Campanhas', 'Crie e publique campanhas — o que estiver "Publicada" aparece pra todo o Nibo na Central de Informações.'],
+    campanhas:  ['Campanhas', 'Crie e publique campanhas, o que estiver "Publicada" aparece pra todo o Nibo na Central de Informações.'],
   };
   const [title, sub] = titles[view] || [
     area==='Todas' ? 'Todos os Pipelines' : area,
@@ -2816,7 +2816,7 @@ function SolicitarPecaInline() {
   const enviar = async () => {
     if (!f.titulo.trim()) return setErr('Conta o que você precisa.');
     if (!f.setor.trim()) return setErr('Preenche o seu setor.');
-    if (!f.descricao.trim()) return setErr('Descreve o contexto e o objetivo — isso ajuda bastante o time a entender rápido.');
+    if (!f.descricao.trim()) return setErr('Descreve o contexto e o objetivo, isso ajuda bastante o time a entender rápido.');
     setEnviando(true);
     try {
       const db = firebase.firestore();
@@ -2907,7 +2907,7 @@ function RedesSociaisTab({ podeEditar }) {
               {podeEditar && <button onClick={()=>setEditandoHandle(true)} style={{fontSize:11.5,color:NB.azul,background:'none',border:'none'}}>trocar conta</button>}
             </div>
           )}
-          <p style={{fontSize:12.5,color:NB.mut,marginTop:4}}>Curta e comente nos posts — isso aumenta o alcance.</p>
+          <p style={{fontSize:12.5,color:NB.mut,marginTop:4}}>Curta e comente nos posts, isso aumenta o alcance.</p>
         </div>
         <span style={{fontSize:11.5,color:sincronizado?'#0F6E56':NB.mut2,background:sincronizado?'#E1F5EE':NB.col,borderRadius:7,padding:'5px 11px',flexShrink:0,display:'flex',alignItems:'center',gap:6}}>
           {sincronizado ? <ICheck s={12}/> : <IClock s={12}/>}
@@ -2981,7 +2981,7 @@ function ArquivoModal({ onClose }) {
         <h2 style={{fontSize:17,fontWeight:600,color:NB.txt}}>Novo item na pasta</h2>
       </div>
       <div style={{padding:'20px 24px',display:'flex',flexDirection:'column',gap:12}}>
-        <input value={f.nome} onChange={e=>set('nome',e.target.value)} placeholder="Nome — ex: Pasta de Divulgação" style={{...inp,padding:'9px 12px',fontSize:13.5}}/>
+        <input value={f.nome} onChange={e=>set('nome',e.target.value)} placeholder="Nome, ex: Pasta de Divulgação" style={{...inp,padding:'9px 12px',fontSize:13.5}}/>
         <input value={f.descricao} onChange={e=>set('descricao',e.target.value)} placeholder="Descrição curta" style={{...inp,padding:'9px 12px',fontSize:13.5}}/>
         <input value={f.url} onChange={e=>set('url',e.target.value)} placeholder="Link (Drive, Canva...)" style={{...inp,padding:'9px 12px',fontSize:13.5}}/>
         <select value={f.categoria} onChange={e=>set('categoria',e.target.value)} style={{...inp,padding:'9px 12px',fontSize:13.5}}>
@@ -3008,7 +3008,7 @@ const ARQUIVOS_CORRIGIDOS = [
   { nome:'Guia de Gravação',           descricao:'Orientações para gravação de vídeos', url:'https://drive.google.com/drive/folders/1_YHtvLpW4cbFaZNGv84ADS-fJPZEItnI?usp=drive_link', categoria:'eventos' },
   { nome:'Apresentação de Vendas',     descricao:'', url:'https://drive.google.com/drive/folders/1C0bmN7pD2RAqF7Q9dEt-uZgENJnPlCqL?usp=drive_link', categoria:'conteudo' },
   { nome:'Imagens do Ecossistema',     descricao:'', url:'https://drive.google.com/drive/folders/1yl-IaUwx6-t3CEAre2D_jmVmwKegDFob?usp=drive_link', categoria:'conteudo' },
-  { nome:'Manifesto — Ecossistema Nibo', descricao:'', url:'https://drive.google.com/drive/folders/15EP5H9IBlLEZheEXuTGIzYbSuzb4Ki7p?usp=drive_link', categoria:'conteudo' },
+  { nome:'Manifesto: Ecossistema Nibo', descricao:'', url:'https://drive.google.com/drive/folders/15EP5H9IBlLEZheEXuTGIzYbSuzb4Ki7p?usp=drive_link', categoria:'conteudo' },
   { nome:'Materiais de Produto Nibo',  descricao:'', url:'https://drive.google.com/drive/folders/1UeLd12GB49A5qeg0VY6kHfQjro-GU03J', categoria:'conteudo' },
   /* Itens da central antiga que nunca tiveram link duplicado — nunca precisaram de correção */
   { nome:'Peças de Produtos Nibo', descricao:'Peças e artes dos produtos Nibo',                  url:'https://drive.google.com/drive/folders/1FWwG_F3uzH2W__Z661ZTrYGu-ZiwKPe8', categoria:'conteudo' },
@@ -3142,7 +3142,7 @@ function EmbaixadorModal({ onClose, embaixador }) {
   const escolherFoto = async e => {
     const file = e.target.files && e.target.files[0];
     if (!file) return;
-    if (file.size > 8*1024*1024) return setErr('A foto tem '+Math.round(file.size/1024)+'KB — tenta uma bem menor (até uns 8MB de origem).');
+    if (file.size > 8*1024*1024) return setErr('A foto tem '+Math.round(file.size/1024)+'KB, tenta uma bem menor (até uns 8MB de origem).');
     setErr(''); setRemovendoFundo(true);
 
     /* Junta o recorte (com ou sem fundo removido) num fundo azul claro e
@@ -3166,7 +3166,7 @@ function EmbaixadorModal({ onClose, embaixador }) {
       img.src = URL.createObjectURL(blob);
     });
     const verificarTamanho = dataUrl => {
-      if (dataUrl.length > MAX_FILE) throw new Error('A foto ficou com '+Math.round(dataUrl.length/1024)+'KB depois de processada — o limite é '+Math.round(MAX_FILE/1024)+'KB. Tenta uma foto de origem menor ou mais simples.');
+      if (dataUrl.length > MAX_FILE) throw new Error('A foto ficou com '+Math.round(dataUrl.length/1024)+'KB depois de processada, o limite é '+Math.round(MAX_FILE/1024)+'KB. Tenta uma foto de origem menor ou mais simples.');
       return dataUrl;
     };
     try {
@@ -3178,7 +3178,7 @@ function EmbaixadorModal({ onClose, embaixador }) {
       try {
         const dataUrl = verificarTamanho(await achatarEmJpeg(file));
         setF(x=>({...x, foto: dataUrl}));
-        setErr('Não deu pra remover o fundo automaticamente ('+(err&&err.message?err.message:'erro desconhecido')+') — a foto foi salva do jeito que veio.');
+        setErr('Não deu pra remover o fundo automaticamente ('+(err&&err.message?err.message:'erro desconhecido')+'), a foto foi salva do jeito que veio.');
       } catch (err2) {
         setErr(err2 && err2.message ? err2.message : 'Não foi possível processar essa foto.');
       }
@@ -3557,7 +3557,7 @@ function AbordagemTab() {
       <div style={{...lbl,marginBottom:11}}>Qual campanha você vai abordar?</div>
       {publicadas.length===0 ? (
         <div style={{background:NB.col,border:'1px dashed '+NB.bd,borderRadius:11,padding:'18px 16px',marginBottom:8}}>
-          <p style={{fontSize:13,color:NB.mut,lineHeight:1.6}}>Nenhuma campanha publicada no momento. A abordagem sempre parte de uma campanha real — assim que o marketing publicar uma, ela aparece aqui pra escolher.</p>
+          <p style={{fontSize:13,color:NB.mut,lineHeight:1.6}}>Nenhuma campanha publicada no momento. A abordagem sempre parte de uma campanha real, assim que o marketing publicar uma, ela aparece aqui pra escolher.</p>
         </div>
       ) : (
         <div style={{display:'flex',gap:9,flexWrap:'wrap',marginBottom:22}}>
@@ -3629,7 +3629,7 @@ function CampanhaEditModal({ camp, onClose }) {
     const file = e.target.files && e.target.files[0];
     e.target.value = '';
     if (!file) return;
-    if (file.size > 8*1024*1024) return setErr('A foto tem '+Math.round(file.size/1024)+'KB — tenta uma bem menor (até uns 8MB de origem).');
+    if (file.size > 8*1024*1024) return setErr('A foto tem '+Math.round(file.size/1024)+'KB, tenta uma bem menor (até uns 8MB de origem).');
     setErr(''); setComprimindo(true);
     const img = new Image();
     img.onload = () => {
@@ -3644,7 +3644,7 @@ function CampanhaEditModal({ camp, onClose }) {
       ctx.drawImage(img, 0, 0, w, h);
       const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
       setComprimindo(false);
-      if (dataUrl.length > MAX_FILE) { setErr('A foto ficou grande demais mesmo comprimida — tenta outra imagem.'); return; }
+      if (dataUrl.length > MAX_FILE) { setErr('A foto ficou grande demais mesmo comprimida, tenta outra imagem.'); return; }
       set('foto', dataUrl);
     };
     img.onerror = () => { setComprimindo(false); setErr('Não foi possível processar essa foto.'); };
@@ -3676,7 +3676,7 @@ function CampanhaEditModal({ camp, onClose }) {
     <Modal onClose={onClose} width={520}>
       <div style={{padding:'22px 24px 16px',borderBottom:'1px solid '+NB.bdSoft}}>
         <h2 style={{fontSize:17,fontWeight:600,color:NB.txt,marginBottom:5}}>Editar campanha</h2>
-        <p style={{fontSize:12.5,color:NB.mut}}>Pra corrigir algo que veio errado da demanda — não recria, só ajusta.</p>
+        <p style={{fontSize:12.5,color:NB.mut}}>Pra corrigir algo que veio errado da demanda, não recria, só ajusta.</p>
       </div>
       <div style={{padding:'20px 24px',display:'flex',flexDirection:'column',gap:14,maxHeight:'60vh',overflowY:'auto'}}>
         <div>
@@ -4151,7 +4151,7 @@ function GestaoView() {
 
       {novos.length===0 ? (
         <div style={{background:'#fff',borderRadius:14,border:'1px solid '+NB.bd,padding:'26px 22px',marginBottom:30,fontSize:13.5,color:NB.mut,lineHeight:1.6}}>
-          Nenhum pedido externo na fila. Compartilhe o link do formulário com RH, Comercial e demais áreas — o que chegar aparece aqui para você distribuir.
+          Nenhum pedido externo na fila. Compartilhe o link do formulário com RH, Comercial e demais áreas, o que chegar aparece aqui para você distribuir.
         </div>
       ) : (
         <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(400px,1fr))',gap:14,marginBottom:30}}>
@@ -4750,7 +4750,7 @@ function EditableText({ value, onSave, multiline, placeholder, required, textSty
 
   const commit = () => {
     const v = (draft || '').trim();
-    const apagouTudo = (value || '').trim() && !v;   // tinha texto, ficou vazio — provável acidente
+    const apagouTudo = (value || '').trim() && !v;   // tinha texto, ficou vazio, provável acidente
     if ((required || apagouTudo) && !v) { setInvalido(true); return; }
     setEditing(false); setInvalido(false);
     if (v !== (value || '')) onSave(v);
@@ -4771,7 +4771,7 @@ function EditableText({ value, onSave, multiline, placeholder, required, textSty
     return (
       <div>
         {multiline ? <textarea rows={rows||3} {...common}/> : <input {...common}/>}
-        {invalido && <div style={{fontSize:11,color:'#E4534A',marginTop:4}}>Ficou vazio — escreve algo ou aperta Esc pra descartar e voltar como estava.</div>}
+        {invalido && <div style={{fontSize:11,color:'#E4534A',marginTop:4}}>Ficou vazio, escreve algo ou aperta Esc pra descartar e voltar como estava.</div>}
       </div>
     );
   }
@@ -4954,7 +4954,7 @@ function AttachPanel({ demand }) {
           <span style={{width:32,height:32,borderRadius:9,background:'#F1ECFE',color:NB.roxo,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><ILink s={16}/></span>
           <span>
             <div style={{fontSize:13,fontWeight:600,color:NB.txt,marginBottom:2}}>Colar link</div>
-            <div style={{fontSize:11.5,color:NB.mut2,lineHeight:1.4}}>Canva, Drive — sem limite de tamanho</div>
+            <div style={{fontSize:11.5,color:NB.mut2,lineHeight:1.4}}>Canva, Drive, sem limite de tamanho</div>
           </span>
         </button>
       </div>
@@ -4964,7 +4964,7 @@ function AttachPanel({ demand }) {
           <input value={ln.url} autoFocus placeholder="drive.google.com/..." onChange={e=>{setLn(v=>({...v,url:e.target.value})); setErr('');}}
             onKeyDown={e=>{ if(e.key==='Enter') saveLink(); }}
             style={{...inp,padding:'9px 12px',fontSize:13.5}}/>
-          <input value={ln.name} placeholder="Nome (opcional) — ex: Briefing no Drive" onChange={e=>setLn(v=>({...v,name:e.target.value}))}
+          <input value={ln.name} placeholder="Nome (opcional), ex: Briefing no Drive" onChange={e=>setLn(v=>({...v,name:e.target.value}))}
             onKeyDown={e=>{ if(e.key==='Enter') saveLink(); }}
             style={{...inp,padding:'9px 12px',fontSize:13.5}}/>
           <div style={{display:'flex',gap:8,justifyContent:'flex-end'}}>
@@ -5307,21 +5307,21 @@ const PERSONAS = [
 const PACOTES_TAREFAS_PADRAO = {
   webinar: {
     nome: 'Pacote Webinar',
-    descricao: 'Cria uma tarefa principal com o checklist de subtarefas do webinar — cada uma libera pra próxima pessoa só depois de aprovada.',
+    descricao: 'Cria uma tarefa principal com o checklist de subtarefas do webinar, cada uma libera pra próxima pessoa só depois de aprovada.',
     campoData: 'Data do webinar',
-    tituloPrincipal: 'Organizar Webinar — {tema}',
+    tituloPrincipal: 'Organizar Webinar: {tema}',
     area: 'Social',
     responsavelPrincipal: 'CA',
     priority: 'Alta',
     subtarefas: [
-      { titulo:'Roteiro e questionário pro embaixador — {tema}', responsavel:'CA', diasAntes:15 },
-      { titulo:'Landing Page do webinar — {tema}',               responsavel:'MB', diasAntes:12 },
-      { titulo:'Sequência de e-mails de convite — {tema}',        responsavel:'JE', diasAntes:10 },
-      { titulo:'Peças estáticas (orgânico + Meta Ads) — {tema}',  responsavel:'MK', diasAntes:8 },
-      { titulo:'Stories de divulgação — {tema}',                  responsavel:'MK', diasAntes:6 },
-      { titulo:'Arte "Estamos ao vivo" — {tema}',                 responsavel:'MB', diasAntes:3 },
-      { titulo:'Capa para YouTube — {tema}',                      responsavel:'MB', diasAntes:3 },
-      { titulo:'Configurar links (YouTube/StreamYard) — {tema}',  responsavel:'JE', diasAntes:2 },
+      { titulo:'Roteiro e questionário pro embaixador, {tema}', responsavel:'CA', diasAntes:15 },
+      { titulo:'Landing Page do webinar: {tema}',               responsavel:'MB', diasAntes:12 },
+      { titulo:'Sequência de e-mails de convite, {tema}',        responsavel:'JE', diasAntes:10 },
+      { titulo:'Peças estáticas (orgânico + Meta Ads), {tema}',  responsavel:'MK', diasAntes:8 },
+      { titulo:'Stories de divulgação: {tema}',                  responsavel:'MK', diasAntes:6 },
+      { titulo:'Arte "Estamos ao vivo": {tema}',                 responsavel:'MB', diasAntes:3 },
+      { titulo:'Capa para YouTube: {tema}',                      responsavel:'MB', diasAntes:3 },
+      { titulo:'Configurar links (YouTube/StreamYard): {tema}',  responsavel:'JE', diasAntes:2 },
     ],
   },
 };
@@ -5333,11 +5333,11 @@ function personaVariants(personaId, camp) {
   const desc = camp && camp.desconto ? camp.desconto : '';
   const produtos = camp && (camp.produtos||[]).length ? (camp.produtos||[]).join(', ') : '';
   const ofertaFrase = nomeOferta
-    ? nomeOferta + (desc ? ' — ' + desc : '') + (produtos ? ' (válido pra ' + produtos + ')' : '')
+    ? nomeOferta + (desc ? ', ' + desc : '') + (produtos ? ' (válido pra ' + produtos + ')' : '')
     : null;
 
   const contexto = {
-    contador: { area:'escritório contábil', dor:'reconciliação bancária, emissão de NFS-e e obrigações fiscais — sem trocar de sistema' },
+    contador: { area:'escritório contábil', dor:'reconciliação bancária, emissão de NFS-e e obrigações fiscais, sem trocar de sistema' },
     empresa:  { area:'empresa',             dor:'conciliação automática, gestão financeira e obrigações em um só lugar' },
     bpo:      { area:'operação de BPO Financeiro', dor:'conciliação e emissão pros seus clientes, sem aumentar equipe' },
   };
@@ -5345,16 +5345,16 @@ function personaVariants(personaId, camp) {
 
   if (!ofertaFrase) {
     return [
-      { rotulo:'SDR — Primeiro contato', texto:'Oi! Trabalho com o Nibo e ajudamos '+c.area+' com '+c.dor+'. Posso te mostrar como funciona?' },
-      { rotulo:'CS — Upsell / Retenção', texto:'Oi! Vi que você já usa o Nibo — tem uma novidade que pode facilitar ainda mais o seu dia a dia. Posso te contar?' },
+      { rotulo:'SDR: Primeiro contato', texto:'Oi! Trabalho com o Nibo e ajudamos '+c.area+' com '+c.dor+'. Posso te mostrar como funciona?' },
+      { rotulo:'CS: Upsell / Retenção', texto:'Oi! Vi que você já usa o Nibo, tem uma novidade que pode facilitar ainda mais o seu dia a dia. Posso te contar?' },
     ];
   }
 
   return [
-    { rotulo:'SDR — Primeiro contato', texto:
-      'Oi! Trabalho com o Nibo e queria te contar sobre '+ofertaFrase+' — a gente ajuda '+c.area+' com '+c.dor+'. Posso te explicar como funciona?' },
-    { rotulo:'CS — Upsell / Retenção', texto:
-      'Oi! Vi que você já usa o Nibo — separei uma condição especial: '+ofertaFrase+'. Faz sentido eu te explicar rapidinho?' },
+    { rotulo:'SDR: Primeiro contato', texto:
+      'Oi! Trabalho com o Nibo e queria te contar sobre '+ofertaFrase+', a gente ajuda '+c.area+' com '+c.dor+'. Posso te explicar como funciona?' },
+    { rotulo:'CS: Upsell / Retenção', texto:
+      'Oi! Vi que você já usa o Nibo, separei uma condição especial: '+ofertaFrase+'. Faz sentido eu te explicar rapidinho?' },
   ];
 }
 
@@ -5363,20 +5363,20 @@ function whatsappVariants(camp) {
   const desc = camp.desconto ? camp.desconto : '';
   return [
     { rotulo:'Direto', texto:
-      'Oi! Vi que você usa o Nibo e queria te contar sobre '+camp.titulo+(desc?' — '+desc:'')+(produtos?', válido pra '+produtos:'')+'. Posso te explicar como funciona?' },
+      'Oi! Vi que você usa o Nibo e queria te contar sobre '+camp.titulo+(desc?', '+desc:'')+(produtos?', válido pra '+produtos:'')+'. Posso te explicar como funciona?' },
     { rotulo:'Contextual', texto:
       'Oi! Passando pra avisar de uma condição especial que abrimos'+(desc?': '+desc:'')+' em '+camp.titulo+(produtos?' ('+produtos+')':'')+'. Faz sentido pra você agora?' },
     { rotulo:'Curto', texto:
-      camp.titulo+(desc?' — '+desc:'')+'. Quer que eu te mande os detalhes?' },
+      camp.titulo+(desc?', '+desc:'')+'. Quer que eu te mande os detalhes?' },
   ];
 }
 
 function briefing(tema, publico) {
   return {
     'Ângulos de headline (3 versões pra testar)': [
-      'Problema urgente — abrir pela dor: o que trava o dia do ' + publico + ' hoje em ' + tema,
-      'Consequência — o custo de não resolver, em número ou tempo perdido',
-      'Virada — o Nibo entrando como saída natural, sem soar catálogo',
+      'Problema urgente, abrir pela dor: o que trava o dia do ' + publico + ' hoje em ' + tema,
+      'Consequência, o custo de não resolver, em número ou tempo perdido',
+      'Virada, o Nibo entrando como saída natural, sem soar catálogo',
     ],
     'Variações de CTA': [
       'Direto: "Testar agora"',
@@ -5384,9 +5384,9 @@ function briefing(tema, publico) {
       'Prova: "Ver o Nibo na prática"',
     ],
     'Direções visuais pro fundo': [
-      'Navy sólido com o elemento principal em Sky — máximo contraste no feed',
-      'Gelo com tipografia navy — leitura mais leve, bom pra texto longo',
-      'Azul com respiro maior nas laterais — destaca o produto isolado',
+      'Navy sólido com o elemento principal em Sky, máximo contraste no feed',
+      'Gelo com tipografia navy, leitura mais leve, bom pra texto longo',
+      'Azul com respiro maior nas laterais, destaca o produto isolado',
     ],
     'Checklist antes de subir': [
       'O público ("' + publico + '") aparece escrito no criativo, não só na segmentação',
@@ -5604,7 +5604,7 @@ function VariationsView() {
         {modo==='capa' && (
           <div>
             <p style={{fontSize:13,color:NB.mut,lineHeight:1.6,marginBottom:16}}>
-              Gera uma capa/thumbnail pronta — com foto de fundo se você subir uma, ou no degradê do Nibo se não subir nada.
+              Gera uma capa/thumbnail pronta, com foto de fundo se você subir uma, ou no degradê do Nibo se não subir nada.
             </p>
             <div style={{display:'flex',alignItems:'center',gap:11,marginBottom:16}}>
               <button onClick={()=>capaFileRef.current && capaFileRef.current.click()}
@@ -5649,7 +5649,7 @@ function VariationsView() {
         {modo==='encerramento' && (
           <div>
             <p style={{fontSize:13,color:NB.mut,lineHeight:1.6,marginBottom:16}}>
-              Card final padronizado — logo do Nibo no degradê da marca. Cole como o último frame de vídeos simples, sem precisar editar do zero cada vez.
+              Card final padronizado, logo do Nibo no degradê da marca. Cole como o último frame de vídeos simples, sem precisar editar do zero cada vez.
             </p>
             <div style={{marginBottom:14}}>
               <div style={{...lbl,marginBottom:7}}>Frase de encerramento (opcional)</div>
@@ -5697,7 +5697,7 @@ function VariationsView() {
             <button onClick={()=>{
               const b = briefing(tema||imgName, pub);
               const txt = Object.entries(b).map(([s,i])=>s+'\n'+i.map(x=>'- '+x).join('\n')).join('\n\n');
-              navigator.clipboard && navigator.clipboard.writeText((tema||imgName)+' — variações\n\n'+txt);
+              navigator.clipboard && navigator.clipboard.writeText((tema||imgName)+', variações\n\n'+txt);
             }}
               style={{padding:'9px 16px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:9,fontSize:13,fontWeight:500,color:NB.mut}}>
               Copiar briefing
@@ -5713,7 +5713,7 @@ function VariationsView() {
             <div style={{display:'flex',gap:9,alignItems:'center',flexWrap:'wrap'}}>
               <select value={alvo} onChange={e=>{setAlvo(e.target.value); setErr('');}} style={{...inp,padding:'8px 11px',fontSize:12.5,width:'auto'}}>
                 <option value="">Salvar nos anexos de…</option>
-                {designs.map(d=><option key={d.id} value={d.id}>{d.code} — {d.title.slice(0,38)}</option>)}
+                {designs.map(d=><option key={d.id} value={d.id}>{d.code}: {d.title.slice(0,38)}</option>)}
               </select>
               <button onClick={()=>outs.forEach((o,i)=>setTimeout(()=>baixar(o), i*250))}
                 style={{display:'flex',alignItems:'center',gap:7,padding:'9px 15px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:9,fontSize:12.5,fontWeight:500,color:NB.azul}}>
@@ -6030,7 +6030,7 @@ function AlertasView() {
                       </button>
                       {ehRecorrentes ? (
                         <button onClick={()=>pararRecorrencia(d.id)}
-                          title="Para de gerar cópias novas — a demanda atual continua no quadro"
+                          title="Para de gerar cópias novas, a demanda atual continua no quadro"
                           style={{flexShrink:0,padding:'6px 12px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:8,fontSize:12,fontWeight:500,color:NB.mut,cursor:'pointer'}}
                           onMouseEnter={e=>{e.currentTarget.style.color='#B4232A'; e.currentTarget.style.borderColor='#FBD5D5';}}
                           onMouseLeave={e=>{e.currentTarget.style.color=NB.mut; e.currentTarget.style.borderColor=NB.bd;}}>
@@ -6079,7 +6079,7 @@ function NotifPermCard() {
       <div style={{fontSize:26,lineHeight:1,flexShrink:0}}>🔔</div>
       <div style={{flex:1}}>
         <div style={{fontSize:14,fontWeight:600,color:NB.txt,marginBottom:4}}>Ativar notificações?</div>
-        <p style={{fontSize:12.5,color:NB.mut,lineHeight:1.5,marginBottom:12}}>Avisa quando chegar demanda nova da sua área e quando uma tarefa sua vencer — mesmo com o navegador em segundo plano.</p>
+        <p style={{fontSize:12.5,color:NB.mut,lineHeight:1.5,marginBottom:12}}>Avisa quando chegar demanda nova da sua área e quando uma tarefa sua vencer, mesmo com o navegador em segundo plano.</p>
         <div style={{display:'flex',gap:8}}>
           <button onClick={ativar}
             style={{flex:1,padding:'8px 0',background:NB.azul,border:'none',borderRadius:8,fontSize:13,fontWeight:500,color:'#fff',cursor:'pointer'}}>
@@ -6104,7 +6104,7 @@ function NotifBloqueadaAviso() {
     <div style={{position:'fixed',bottom:24,left:'50%',transform:'translateX(-50%)',zIndex:1999,maxWidth:440,background:'#FFF6DE',border:'1px solid #F0DFAE',borderRadius:12,padding:'12px 16px',display:'flex',gap:10,alignItems:'center',boxShadow:'0 4px 18px rgba(0,42,114,0.10)'}}>
       <span style={{fontSize:18,flexShrink:0}}>🔕</span>
       <p style={{flex:1,fontSize:12.5,color:'#8A6206',lineHeight:1.5,margin:0}}>
-        Notificações bloqueadas neste navegador — você não será avisado de demandas novas da sua área.
+        Notificações bloqueadas neste navegador, você não será avisado de demandas novas da sua área.
         Para reativar, clique no cadeado ao lado do endereço do site e permita notificações.
       </p>
       <button onClick={()=>setEscondido(true)} title="Fechar"
@@ -6644,7 +6644,7 @@ function CardModal() {
             )}
             {d.recorrente && (
               <button onClick={()=>pararRecorrencia(d.id)}
-                title="Para de gerar cópias novas — esta demanda continua no quadro"
+                title="Para de gerar cópias novas, esta demanda continua no quadro"
                 style={{display:'flex',alignItems:'center',gap:7,padding:'10px 16px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:9,fontSize:13,fontWeight:500,color:NB.mut}}
                 onMouseEnter={e=>{e.currentTarget.style.color=NB.txt; e.currentTarget.style.borderColor='#D3DCEA';}}
                 onMouseLeave={e=>{e.currentTarget.style.color=NB.mut; e.currentTarget.style.borderColor=NB.bd;}}>
@@ -6958,7 +6958,7 @@ function PacoteModal() {
                 <span style={{color:NB.mut2,flexShrink:0,fontSize:11}}>{s.responsavel}</span>
               </div>
             ))}
-            {(pacote.subtarefas||[]).length===0 && <p style={{fontSize:12.5,color:NB.mut2}}>Esse pacote ainda não tem subtarefas — clica em "Editar este" pra adicionar.</p>}
+            {(pacote.subtarefas||[]).length===0 && <p style={{fontSize:12.5,color:NB.mut2}}>Esse pacote ainda não tem subtarefas, clica em "Editar este" pra adicionar.</p>}
           </div>
         </div>
 
@@ -6987,7 +6987,7 @@ function SubtarefaRow({ subtarefa, ordem, onChange, onRemove }) {
     <div style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:10,padding:'12px 13px',display:'flex',flexDirection:'column',gap:9}}>
       <div style={{display:'flex',gap:8,alignItems:'center'}}>
         <span style={{width:20,height:20,borderRadius:'50%',background:NB.col,color:NB.mut2,fontSize:10,fontWeight:700,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>{ordem+1}</span>
-        <input value={subtarefa.titulo} onChange={e=>set('titulo',e.target.value)} placeholder="Título — use {tema} pra puxar o nome do fluxo"
+        <input value={subtarefa.titulo} onChange={e=>set('titulo',e.target.value)} placeholder="Título, use {tema} pra puxar o nome do fluxo"
           style={{...inp,padding:'8px 11px',fontSize:12.5,flex:1}}/>
         <button type="button" onClick={onRemove} style={{padding:8,background:'#fff',border:'1px solid '+NB.bd,borderRadius:8,color:'#B4232A',display:'flex',flexShrink:0}}><ITrash s={13}/></button>
       </div>
@@ -7056,7 +7056,7 @@ function PacoteEditModal({ id, pacote, onClose, onSaved }) {
     <Modal onClose={onClose} width={620}>
       <div style={{padding:'22px 24px 16px',borderBottom:'1px solid '+NB.bdSoft}}>
         <h2 style={{fontSize:18,fontWeight:600,color:NB.txt}}>{editando?'Editar pacote':'Novo pacote'}</h2>
-        {ehEmbutido && <p style={{fontSize:12,color:NB.mut,marginTop:4}}>Esse é um pacote padrão do sistema — salvar aqui cria a sua própria versão editável dele.</p>}
+        {ehEmbutido && <p style={{fontSize:12,color:NB.mut,marginTop:4}}>Esse é um pacote padrão do sistema, salvar aqui cria a sua própria versão editável dele.</p>}
       </div>
       <div style={{padding:'20px 24px',display:'flex',flexDirection:'column',gap:14,maxHeight:'62vh',overflowY:'auto'}}>
         <div>
@@ -7075,8 +7075,8 @@ function PacoteEditModal({ id, pacote, onClose, onSaved }) {
         <div style={{background:NB.col,border:'1px solid '+NB.bd,borderRadius:11,padding:'14px 16px',display:'flex',flexDirection:'column',gap:12}}>
           <div style={{fontSize:12,fontWeight:600,color:NB.mut,textTransform:'uppercase',letterSpacing:'0.05em'}}>Tarefa principal</div>
           <div>
-            <div style={{...lbl,marginBottom:6}}>Título — use {'{tema}'} pra puxar o nome do fluxo</div>
-            <input value={form.tituloPrincipal} onChange={e=>set('tituloPrincipal',e.target.value)} placeholder="ex: Organizar Webinar — {tema}" style={{...inp,padding:'8px 11px',fontSize:12.5,background:'#fff'}}/>
+            <div style={{...lbl,marginBottom:6}}>Título, use {'{tema}'} pra puxar o nome do fluxo</div>
+            <input value={form.tituloPrincipal} onChange={e=>set('tituloPrincipal',e.target.value)} placeholder="ex: Organizar Webinar: {tema}" style={{...inp,padding:'8px 11px',fontSize:12.5,background:'#fff'}}/>
           </div>
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
             <div>
@@ -7115,7 +7115,7 @@ function PacoteEditModal({ id, pacote, onClose, onSaved }) {
               <IPlus s={12}/> Adicionar subtarefa
             </button>
           </div>
-          <p style={{fontSize:11.5,color:NB.mut2,marginBottom:10}}>A ordem daqui é a ordem do checklist — cada uma só libera depois que a de cima for aprovada.</p>
+          <p style={{fontSize:11.5,color:NB.mut2,marginBottom:10}}>A ordem daqui é a ordem do checklist, cada uma só libera depois que a de cima for aprovada.</p>
           <div style={{display:'flex',flexDirection:'column',gap:9}}>
             {form.subtarefas.map((s,i)=>(
               <SubtarefaRow key={i} subtarefa={s} ordem={i} onChange={n=>updateSubtarefa(i,n)} onRemove={()=>removeSubtarefa(i)}/>
@@ -7337,7 +7337,7 @@ function NewModal() {
 
         <div>
           <div style={{...lbl,marginBottom:8}}>Espelhar também em outra área? (opcional)</div>
-          <p style={{fontSize:11.5,color:NB.mut2,marginBottom:9,marginTop:-4}}>Cria uma cópia independente da demanda em cada área marcada — cada uma segue seu próprio pipeline e responsável.</p>
+          <p style={{fontSize:11.5,color:NB.mut2,marginBottom:9,marginTop:-4}}>Cria uma cópia independente da demanda em cada área marcada, cada uma segue seu próprio pipeline e responsável.</p>
           <div style={{display:'flex',flexWrap:'wrap',gap:7}}>
             {Object.keys(pipes).filter(a=>a!==form.area).map(a=>(
               <button key={a} type="button" onClick={()=>toggleEspelho(a)}
@@ -7544,7 +7544,7 @@ function EntryChooser({ onEscolherEmbaixador }) {
               <IGrid s={22}/>
             </div>
             <h3 style={{fontSize:19,fontWeight:600,color:NB.txt,marginBottom:10}}>Central de Conteúdo de MKT</h3>
-            <p style={{fontSize:14,color:NB.mut,lineHeight:1.6,marginBottom:20,flex:1}}>Campanhas ativas, peças prontas, materiais institucionais e pedidos de novas artes — para todos os colaboradores Nibo.</p>
+            <p style={{fontSize:14,color:NB.mut,lineHeight:1.6,marginBottom:20,flex:1}}>Campanhas ativas, peças prontas, materiais institucionais e pedidos de novas artes, para todos os colaboradores Nibo.</p>
             <span style={badgeStyle}>
               <ILock s={12}/> Login com conta Nibo (Google Workspace)
             </span>
@@ -7608,7 +7608,7 @@ function EmbaixadorLoginPage({ onVoltar }) {
       const code = err && err.code;
       setErro(
         code==='auth/invalid-credential' || code==='auth/wrong-password' || code==='auth/user-not-found' ? 'E-mail ou senha incorretos.'
-        : code==='auth/too-many-requests' ? 'Muitas tentativas — espera um pouco e tenta de novo.'
+        : code==='auth/too-many-requests' ? 'Muitas tentativas, espera um pouco e tenta de novo.'
         : code==='auth/invalid-email' ? 'E-mail inválido.'
         : 'Não foi possível entrar. Erro: '+(code||'desconhecido')
       );
@@ -7655,7 +7655,7 @@ function ContratoModal({ p, onClose }) {
           <IFile s={23}/>
         </div>
         <h2 style={{fontSize:17,fontWeight:600,color:NB.txt,marginBottom:6}}>Contrato de Parceria</h2>
-        <p style={{fontSize:13,color:NB.mut,lineHeight:1.55}}>Embaixador(a) Nibo — consulte o documento sempre que precisar.</p>
+        <p style={{fontSize:13,color:NB.mut,lineHeight:1.55}}>Embaixador(a) Nibo, consulte o documento sempre que precisar.</p>
       </div>
       <div style={{padding:'0 24px 24px'}}>
         {p.contratoUrl ? (
@@ -7665,12 +7665,32 @@ function ContratoModal({ p, onClose }) {
           </a>
         ) : (
           <div style={{background:NB.col,border:'1px dashed '+NB.bd,borderRadius:10,padding:'16px',textAlign:'center',fontSize:12.5,color:NB.mut2}}>
-            Ainda não disponibilizado — fala com a equipe de Marketing.
+            Ainda não disponibilizado, fala com a equipe de Marketing.
           </div>
         )}
       </div>
     </Modal>
   );
+}
+
+/* Landing page de cada embaixador. Chave = nome sem acento e em minúsculas.
+   Se o portal tiver um link próprio cadastrado, ele vale mais que esta lista. */
+const LP_EMBAIXADORES = {
+  'mayara junges':   'https://conteudo.nibo.com.br/indicacao-mayara-junges',
+  'luiz henrique':   'https://conteudo.nibo.com.br/embaixadores/luiz-henrique-mentor',
+  'barbara maciel':  'https://conteudo.nibo.com.br/embaixadores/barbara-maciel',
+  'adriana martins': 'https://conteudo.nibo.com.br/embaixadores/moneypause',
+  'lilian vercosa':  'https://conteudo.nibo.com.br/embaixadores/lilian-vercosa',
+  'alisson bezerra': 'https://conteudo.nibo.com.br/embaixadores/alisson-bezerra',
+  'kati antony':     'https://conteudo.nibo.com.br/embaixadores/antony-contabilidade',
+  'gabriel villena': 'https://conteudo.nibo.com.br/embaixadores/gabriel-villena',
+};
+function lpDoEmbaixador(p) {
+  if (!p) return '';
+  if (p.lpUrl) return p.lpUrl;
+  const n = (p.nome || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+  const chave = Object.keys(LP_EMBAIXADORES).find(k => n.includes(k));
+  return chave ? LP_EMBAIXADORES[chave] : '';
 }
 
 function EmbaixadorPortalConteudo({ p }) {
@@ -7782,7 +7802,7 @@ function EmbaixadorPortalConteudo({ p }) {
             <IFile s={21}/>
           </div>
           <div style={{flex:1,minWidth:0}}>
-            <div style={{fontSize:15.5,fontWeight:600,color:NB.txt,marginBottom:4}}>Contrato de Parceria — Embaixador(a) Nibo</div>
+            <div style={{fontSize:15.5,fontWeight:600,color:NB.txt,marginBottom:4}}>Contrato de Parceria: Embaixador(a) Nibo</div>
             <div style={{fontSize:13,color:NB.mut}}>{p.contratoUrl ? 'Disponível pra consulta' : 'Ainda não disponibilizado'}</div>
           </div>
           <span style={{display:'flex',alignItems:'center',gap:6,fontSize:13.5,fontWeight:600,color:NB.navy1,flexShrink:0,whiteSpace:'nowrap'}}>
@@ -7794,15 +7814,15 @@ function EmbaixadorPortalConteudo({ p }) {
       <div>
         <h2 style={{fontSize:19,fontWeight:600,color:NB.txt,marginBottom:4}}>Sua Landing Page</h2>
         <p style={{fontSize:13.5,color:NB.mut,marginBottom:16}}>Link pra indicar o Nibo e gerar seus cupons.</p>
-        {p.lpUrl ? (
-          <a href={p.lpUrl} target="_blank" rel="noopener noreferrer"
+        {lpDoEmbaixador(p) ? (
+          <a href={lpDoEmbaixador(p)} target="_blank" rel="noopener noreferrer"
             style={{display:'flex',alignItems:'center',gap:16,background:'#fff',border:'1px solid '+NB.bd,borderRadius:14,padding:'18px 20px',textDecoration:'none'}}>
             <div style={{width:44,height:44,borderRadius:12,background:NB.pink,color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
               <IGlobe s={19}/>
             </div>
             <div style={{flex:1,minWidth:0}}>
               <div style={{fontSize:14.5,fontWeight:600,color:NB.txt,marginBottom:3}}>Sua página personalizada</div>
-              <div style={{fontSize:12.5,color:NB.mut2,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p.lpUrl}</div>
+              <div style={{fontSize:12.5,color:NB.mut2,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{lpDoEmbaixador(p)}</div>
             </div>
             <span style={{display:'flex',alignItems:'center',gap:6,fontSize:12.5,fontWeight:600,color:NB.pink,flexShrink:0}}>
               Abrir <IExt s={13}/>
@@ -7848,11 +7868,11 @@ function EnvioFotosEmbaixador() {
     const file = e.target.files && e.target.files[0];
     e.target.value = '';
     if (!file) return;
-    if (file.size > 10*1024*1024) return setErr('A foto tem '+Math.round(file.size/1024)+'KB — tenta uma bem menor (até uns 10MB de origem).');
+    if (file.size > 10*1024*1024) return setErr('A foto tem '+Math.round(file.size/1024)+'KB, tenta uma bem menor (até uns 10MB de origem).');
     setErr(''); setOk(false); setEnviando(true);
     try {
       const dataUrl = await comprimirImagem(file);
-      if (dataUrl.length > MAX_FILE) throw new Error('A foto ficou grande demais mesmo depois de comprimida — tenta outra.');
+      if (dataUrl.length > MAX_FILE) throw new Error('A foto ficou grande demais mesmo depois de comprimida, tenta outra.');
       const r = await enviarFotoEmbaixador(dataUrl);
       setEnviando(false);
       if (!r.ok) setErr(r.erro); else { setOk(true); setTimeout(()=>setOk(false), 3000); }
@@ -7865,7 +7885,7 @@ function EnvioFotosEmbaixador() {
   return (
     <div style={{marginTop:28}}>
       <h2 style={{fontSize:19,fontWeight:600,color:NB.txt,marginBottom:4}}>Enviar fotos suas</h2>
-      <p style={{fontSize:13.5,color:NB.mut,marginBottom:16}}>Manda fotos suas pro time de Marketing usar em posts, depoimentos e materiais — não precisa ter nada a ver com o seu perfil.</p>
+      <p style={{fontSize:13.5,color:NB.mut,marginBottom:16}}>Manda fotos suas pro time de Marketing usar em posts, depoimentos e materiais, não precisa ter nada a ver com o seu perfil.</p>
       <div style={{background:'#fff',border:'1px dashed '+NB.bd,borderRadius:14,padding:'20px',display:'flex',alignItems:'center',gap:16,flexWrap:'wrap',marginBottom:16}}>
         <div style={{width:44,height:44,borderRadius:12,background:'#EAF3FD',color:NB.azul,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
           <ICamera s={19}/>
@@ -8038,7 +8058,7 @@ function AdicionarFotoPrimeiroAcesso() {
       <div style={{width:'100%',maxWidth:430,background:'#fff',border:'1px solid '+NB.bd,borderRadius:16,padding:'30px 32px',boxShadow:'0 8px 32px rgba(0,42,114,0.10)',textAlign:'center'}}>
         <h1 style={{fontSize:19,fontWeight:700,color:NB.navy1,marginBottom:7}}>Boas-vindas, {nome.split(' ')[0]}!</h1>
         <p style={{fontSize:13.5,color:NB.mut,lineHeight:1.6,marginBottom:24}}>
-          Adicione uma foto de perfil — é assim que o time do Nibo vai te reconhecer por aqui.
+          Adicione uma foto de perfil, é assim que o time do Nibo vai te reconhecer por aqui.
         </p>
 
         <button onClick={()=>inputRef.current && inputRef.current.click()}
@@ -8082,9 +8102,9 @@ function EmbaixadorPortalHero({ p, nome }) {
       <div style={{maxWidth:760,margin:'0 auto',display:'flex',alignItems:'center',justifyContent:'space-between',gap:28,flexWrap:'wrap'}}>
         <div style={{flex:'1 1 320px'}}>
           <span style={{display:'inline-flex',alignItems:'center',gap:7,background:'rgba(255,255,255,0.12)',padding:'5px 12px',borderRadius:20,fontSize:11.5,color:'#DCE4FA',marginBottom:10}}>
-            🤝 Área exclusiva de relacionamento com o Nibo
+            Área exclusiva de relacionamento com o Nibo
           </span>
-          <h1 style={{fontSize:22,fontWeight:600,color:'#fff',marginBottom:5}}>Olá, {(nome||'').split(' ')[0]} — que bom te ver por aqui.</h1>
+          <h1 style={{fontSize:22,fontWeight:600,color:'#fff',marginBottom:5}}>Olá, {(nome||'').split(' ')[0]}! Que bom te ver por aqui.</h1>
           <p style={{fontSize:13,color:'#B9C6E8',lineHeight:1.55,maxWidth:420}}>Aqui ficam os materiais de divulgação, o link da sua LP e seus dados contratuais, tudo em um só lugar.</p>
         </div>
         <div style={{position:'relative',width:130,height:163,flexShrink:0}}>
@@ -8119,7 +8139,7 @@ function CentralDuvidasEmbaixador() {
     <div style={{marginTop:36}}>
       <h3 style={{fontSize:17,fontWeight:600,color:NB.txt,marginBottom:4}}>Central de dúvidas</h3>
       <p style={{fontSize:13,color:NB.mut,marginBottom:14}}>
-        Pergunte qualquer coisa sobre o Nibo — a resposta provavelmente já está na nossa Central de Ajuda.
+        Pergunte qualquer coisa sobre o Nibo, a resposta provavelmente já está na nossa Central de Ajuda.
       </p>
       <div style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:14,padding:'18px 20px'}}>
         <div style={{display:'flex',gap:9,marginBottom:14,flexWrap:'wrap'}}>
@@ -8386,7 +8406,7 @@ function ResumoView() {
 
       <div style={{background:'#fff',border:'1px solid '+NB.bd,borderRadius:14,padding:'18px 20px',maxWidth:1020}}>
         <h3 style={{fontSize:14,fontWeight:600,color:NB.txt,marginBottom:4}}>Demandas do período ({tabela.length})</h3>
-        <p style={{fontSize:12,color:NB.mut2,marginBottom:14}}>Só as demandas principais (sem contar subtarefas de checklist) — clica em qualquer linha pra abrir o card. Pra puxar direto na reunião de update.</p>
+        <p style={{fontSize:12,color:NB.mut2,marginBottom:14}}>Só as demandas principais (sem contar subtarefas de checklist), clica em qualquer linha pra abrir o card. Pra puxar direto na reunião de update.</p>
 
         <div style={{display:'flex',gap:9,flexWrap:'wrap',marginBottom:16}}>
           <select value={filtroArea} onChange={e=>setFiltroArea(e.target.value)}
@@ -8617,7 +8637,7 @@ function CriarAcessoPortalModal({ embaixador, onClose }) {
     <Modal onClose={onClose} width={460}>
       <div style={{padding:'22px 24px 16px',borderBottom:'1px solid '+NB.bdSoft}}>
         <h2 style={{fontSize:17,fontWeight:600,color:NB.txt}}>Criar acesso ao portal</h2>
-        <p style={{fontSize:12.5,color:NB.mut,marginTop:4}}>Pra {embaixador.nome} — o cadastro dela já existe, isso só libera o login.</p>
+        <p style={{fontSize:12.5,color:NB.mut,marginTop:4}}>Pra {embaixador.nome}, o cadastro dela já existe, isso só libera o login.</p>
       </div>
       <div style={{padding:'20px 24px',display:'flex',flexDirection:'column',gap:12,maxHeight:'56vh',overflowY:'auto'}}>
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
@@ -8632,7 +8652,7 @@ function CriarAcessoPortalModal({ embaixador, onClose }) {
           </div>
         </div>
         <p style={{fontSize:11.5,color:NB.mut2,lineHeight:1.5,margin:'-2px 0 2px'}}>
-          Use uma senha diferente para cada embaixador — no primeiro acesso ele troca por uma pessoal,
+          Use uma senha diferente para cada embaixador, no primeiro acesso ele troca por uma pessoal,
           e a provisória deixa de valer.
         </p>
         <input value={portal.contratoUrl} onChange={e=>setP('contratoUrl',e.target.value)} placeholder="Link do contrato (opcional)" style={{...inp,padding:'9px 12px',fontSize:13.5}}/>
@@ -8718,7 +8738,7 @@ function PortalEmbaixadorGestaoView() {
             <h2 style={{fontSize:20,fontWeight:600,color:NB.txt,marginBottom:3}}>{selecionado.nome}</h2>
             <p style={{fontSize:13,color:NB.mut}}>
               {selecionado.semPortal
-                ? 'prévia — como o portal vai aparecer pra ela'
+                ? 'prévia, como o portal vai aparecer pra ela'
                 : selecionado.email + ' · o que essa conta vê ao entrar no portal'}
               {!selecionado.semPortal && !selecionado.fotoPerfil && <span style={{color:NB.mut2}}> · ainda sem foto de perfil</span>}
             </p>
@@ -8819,7 +8839,7 @@ function PortalEmbaixadorGestaoView() {
                   Editar
                 </button>
                 <button onClick={()=>alternarStatusEmbaixador(e.id, !estaAtivo(e))}
-                  title={estaAtivo(e) ? 'Marcar como inativo — some da lista de ativos, mas o histórico fica' : 'Reativar o contrato'}
+                  title={estaAtivo(e) ? 'Marcar como inativo, some da lista de ativos, mas o histórico fica' : 'Reativar o contrato'}
                   style={{fontSize:11,color:NB.mut2,background:'none',border:'none',cursor:'pointer',textDecoration:'underline'}}>
                   {estaAtivo(e) ? 'inativar' : 'reativar'}
                 </button>
@@ -8857,7 +8877,7 @@ function PortalEmbaixadorGestaoView() {
                     </React.Fragment>
                   ) : (
                     <button onClick={()=>setConfirmarRemocao(p.id)}
-                      title="Tira o acesso ao portal — o cadastro do embaixador continua aqui"
+                      title="Tira o acesso ao portal, o cadastro do embaixador continua aqui"
                       style={{fontSize:11,color:NB.mut2,background:'none',border:'none',cursor:'pointer',textDecoration:'underline'}}>
                       remover acesso
                     </button>
@@ -8883,7 +8903,7 @@ function PortalEmbaixadorGestaoView() {
                   </div>
                 ) : (
                   <button onClick={()=>setConfirmarExclusao(e.id)}
-                    title="Apaga o cadastro e o portal — se o contrato só acabou, prefira inativar"
+                    title="Apaga o cadastro e o portal, se o contrato só acabou, prefira inativar"
                     style={{fontSize:11,color:NB.mut2,background:'none',border:'none',cursor:'pointer'}}>
                     Excluir embaixador
                   </button>
@@ -8916,7 +8936,7 @@ function VisitorApp() {
             </div>
           ) : (
             <div style={{background:'#EAF3FD',borderBottom:'1px solid #BFDDF7',padding:'10px 28px',fontSize:12.5,color:NB.navy1,display:'flex',alignItems:'center',gap:9}}>
-              <IAlert s={14}/> Essa conta não tem acesso à Gestão do Marketing — aqui vai o que dá pra ver.
+              <IAlert s={14}/> Essa conta não tem acesso à Gestão do Marketing, aqui vai o que dá pra ver.
             </div>
           )
         }
@@ -8966,7 +8986,7 @@ function AppContent() {
         {previewMember && (
           <div style={{background:'#EAF3FD',borderBottom:'1px solid #BBD8F5',padding:'9px 28px',fontSize:12.5,color:'#0B4F92',display:'flex',alignItems:'center',gap:9,flexShrink:0,flexWrap:'wrap'}}>
             <IEye s={14}/>
-            <span>Visualizando como <strong style={{fontWeight:600}}>{previewMember.name}</strong> — suas ações continuam sendo registradas como {user.name}.</span>
+            <span>Visualizando como <strong style={{fontWeight:600}}>{previewMember.name}</strong>, suas ações continuam sendo registradas como {user.name}.</span>
             <button onClick={()=>setPreviewMember(null)}
               style={{marginLeft:'auto',display:'flex',alignItems:'center',gap:6,padding:'4px 11px',background:'#fff',border:'1px solid #BBD8F5',borderRadius:7,fontSize:12,fontWeight:600,color:NB.azul,whiteSpace:'nowrap'}}>
               <IEyeOff s={12}/> Sair da pré-visualização
