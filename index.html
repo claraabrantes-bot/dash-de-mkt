@@ -8707,7 +8707,8 @@ function PortalEmbaixadorGestaoView() {
   if (selecionado) {
     const enviosDela = todosEnviosFotos.filter(f=>f.email===selecionado.email);
     return (
-      <div style={{padding:'22px 30px 30px',overflowY:'auto',height:'100%'}}>
+      <div style={{overflowY:'auto',height:'100%'}}>
+        <div style={{padding:'22px 30px 0'}}>
         <button onClick={()=>setSelId(null)} style={{display:'flex',alignItems:'center',gap:7,background:'none',border:'none',color:NB.mut,fontSize:12.5,marginBottom:18}}>
           <IArrowL s={13}/> Voltar pra lista
         </button>
@@ -8731,7 +8732,7 @@ function PortalEmbaixadorGestaoView() {
         </div>
 
         {selecionado.semPortal && (
-          <div style={{maxWidth:640,background:'#FFF6DE',border:'1px solid #E8CE8E',borderRadius:11,padding:'12px 15px',marginBottom:20,display:'flex',gap:10,alignItems:'flex-start'}}>
+          <div style={{background:'#FFF6DE',border:'1px solid #E8CE8E',borderRadius:11,padding:'12px 15px',marginBottom:20,display:'flex',gap:10,alignItems:'flex-start'}}>
             <span style={{fontSize:15,flexShrink:0}}>👀</span>
             <p style={{fontSize:12.5,color:'#8A6206',lineHeight:1.55,margin:0}}>
               Essa é uma prévia vazia: contrato, LP e materiais são definidos na hora de criar o acesso.
@@ -8739,13 +8740,15 @@ function PortalEmbaixadorGestaoView() {
             </p>
           </div>
         )}
-        <div style={{maxWidth:760,borderRadius:16,overflow:'hidden',border:'1px solid '+NB.bd,marginBottom:4}}>
+        </div>
+
+        {/* A partir daqui é o portal como o embaixador vê: hero de ponta a
+            ponta e conteúdo centralizado em 760px, idêntico ao real. */}
+        <div style={{borderTop:'1px solid '+NB.bd,marginTop:6}}>
           <EmbaixadorPortalHero p={selecionado} nome={selecionado.nome}/>
         </div>
-        <div style={{maxWidth:760}}>
-          <div style={{padding:'24px 0 0'}}>
-            <EmbaixadorPortalConteudo p={selecionado}/>
-          </div>
+        <div style={{maxWidth:760,margin:'0 auto',padding:'32px 24px 40px'}}>
+          <EmbaixadorPortalConteudo p={selecionado}/>
           <CentralDuvidasEmbaixador/>
 
           <div style={{marginTop:28,display:selecionado.semPortal?'none':'block'}}>
