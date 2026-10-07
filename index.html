@@ -253,6 +253,7 @@ function Provider({ children }) {
   const [respFilter, setRespFilter] = useState([]);
   const [modal, setModal]   = useState(null);
   const [newOpen, setNewOpen] = useState(false);
+  const [quickOpen, setQuickOpen] = useState(false);
   const [presetNovo, setPresetNovo] = useState(null); // { area, stageId } | null
   const [pacoteOpen, setPacoteOpen] = useState(false);
   const [notifyPending, setNotifyPending] = useState(null);
@@ -1162,7 +1163,7 @@ function Provider({ children }) {
   window.__nbDem = demands;
   window.__nbPosts = posts;
 
-  return <Ctx.Provider value={{ demands, active, activeOficiais, archived, filtered, aprovarPedidoSlack, recusarPedidoSlack, pararRecorrencia, dispararManual, slack, slackTemplate, salvarSlackTemplate, slackTemplatePrevOpen, setSlackTemplatePrevOpen, showNotifCard, setShowNotifCard, alertasTab, setAlertasTab, user, isTeamMember, authReady, authError, setAuthError, preferirCentral, setPreferirCentral, dbReady, dbErro, seed, pedidos, aceitarPedido, recusarPedido, posts, addPost, updatePost, deletePost, campanhas, updateCampanha, publicarCampanha, despublicarCampanha, deleteCampanha, enviarCampanhaDeDemanda, pecas, addPeca, removePeca, redesSociais, salvarRedesSociais, arquivos, addArquivo, removeArquivo, embaixadores, addEmbaixador, removeEmbaixador, updateEmbaixador, alternarStatusEmbaixador, pacotes, salvarPacote, removePacote, meuPortalEmbaixador, portalCarregado, isEmbaixador, criarPortalEmbaixador, removerPortalEmbaixador, portaisEmbaixador, meusEnviosFotos, todosEnviosFotos, enviarFotoEmbaixador, removerEnvioFoto, salvarFotoPerfilEmbaixador, pularFotoPerfil, view, setView, layout, setLayout, area, setArea, query, setQuery, mesFiltro, setMesFiltro, priFilter, setPriFilter, reqFilter, setReqFilter, respFilter, setRespFilter, selDemand, setModal, newOpen, setNewOpen, presetNovo, setPresetNovo, pacoteOpen, setPacoteOpen, notifyPending, setNotifyPending, profileOpen, setProfileOpen, editStages, setEditStages, dragging, setDragging, previewMember, setPreviewMember, photos, googlePhotos, profiles, pipes, salvarPipes, attach, comments, storageWarn, MAX_FILE, addAttachment, uploadFile, migrarLocal, carregarAnexo, removeAttachment, addComment, removeComment, logout, savePhoto, removePhoto, saveProfile, addDemand, moveStage, moveArea, reordenarCards, setAssignees, updateDemand, archiveDemand, restoreDemand, delDemand }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ demands, active, activeOficiais, archived, filtered, aprovarPedidoSlack, recusarPedidoSlack, pararRecorrencia, dispararManual, slack, slackTemplate, salvarSlackTemplate, slackTemplatePrevOpen, setSlackTemplatePrevOpen, showNotifCard, setShowNotifCard, alertasTab, setAlertasTab, user, isTeamMember, authReady, authError, setAuthError, preferirCentral, setPreferirCentral, dbReady, dbErro, seed, pedidos, aceitarPedido, recusarPedido, posts, addPost, updatePost, deletePost, campanhas, updateCampanha, publicarCampanha, despublicarCampanha, deleteCampanha, enviarCampanhaDeDemanda, pecas, addPeca, removePeca, redesSociais, salvarRedesSociais, arquivos, addArquivo, removeArquivo, embaixadores, addEmbaixador, removeEmbaixador, updateEmbaixador, alternarStatusEmbaixador, pacotes, salvarPacote, removePacote, meuPortalEmbaixador, portalCarregado, isEmbaixador, criarPortalEmbaixador, removerPortalEmbaixador, portaisEmbaixador, meusEnviosFotos, todosEnviosFotos, enviarFotoEmbaixador, removerEnvioFoto, salvarFotoPerfilEmbaixador, pularFotoPerfil, view, setView, layout, setLayout, area, setArea, query, setQuery, mesFiltro, setMesFiltro, priFilter, setPriFilter, reqFilter, setReqFilter, respFilter, setRespFilter, selDemand, setModal, newOpen, setNewOpen, quickOpen, setQuickOpen, presetNovo, setPresetNovo, pacoteOpen, setPacoteOpen, notifyPending, setNotifyPending, profileOpen, setProfileOpen, editStages, setEditStages, dragging, setDragging, previewMember, setPreviewMember, photos, googlePhotos, profiles, pipes, salvarPipes, attach, comments, storageWarn, MAX_FILE, addAttachment, uploadFile, migrarLocal, carregarAnexo, removeAttachment, addComment, removeComment, logout, savePhoto, removePhoto, saveProfile, addDemand, moveStage, moveArea, reordenarCards, setAssignees, updateDemand, archiveDemand, restoreDemand, delDemand }}>{children}</Ctx.Provider>;
 }
 
 const useApp = () => useContext(Ctx);
@@ -1235,6 +1236,7 @@ const ILink    = ({s=15})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}
 const IChatBox = ({s=16})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8z"/></svg>;
 const IFile    = ({s=15})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>;
 const IExt     = ({s=13})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>;
+const IMic     = ({s=16})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><line x1="12" y1="18" x2="12" y2="22"/></svg>;
 const IDown    = ({s=13})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>;
 const ITrash   = ({s=14})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>;
 const IStamp   = ({s=18})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}><path d="M5 21h14"/><path d="M4 17.5h16v-1a2 2 0 0 0-2-2h-3.2l.6-4.3A3.4 3.4 0 0 0 12 6.2a3.4 3.4 0 0 0-3.4 4l.6 4.3H6a2 2 0 0 0-2 2z"/></svg>;
@@ -1353,7 +1355,7 @@ function NavItem({ label, Icon, iconColor, count, active, onClick, indent }) {
 
 /* =========== SIDEBAR =========== */
 function Sidebar() {
-  const { view, setView, area, setArea, user, active, slack, archived, pipes, pedidos, posts, campanhas, embaixadores, portaisEmbaixador, setNewOpen, setPresetNovo, setPacoteOpen, setProfileOpen, logout, previewMember, setPreviewMember, setPreferirCentral, setModal, alertasTab, setAlertasTab } = useApp();
+  const { view, setView, area, setArea, user, active, slack, archived, pipes, pedidos, posts, campanhas, embaixadores, portaisEmbaixador, setNewOpen, setQuickOpen, setPresetNovo, setPacoteOpen, setProfileOpen, logout, previewMember, setPreviewMember, setPreferirCentral, setModal, alertasTab, setAlertasTab } = useApp();
   const areas = ['Social','Design','Mídia Paga','Produto','RevOps','Eventos'];
   const efetivo = previewMember || user;
   /* Quem tem uma área fixa (todo mundo, menos a Mariana, que acompanha
@@ -1405,6 +1407,13 @@ function Sidebar() {
           onMouseEnter={e=>{e.currentTarget.style.background='#0082E8';}}
           onMouseLeave={e=>{e.currentTarget.style.background=NB.azul;}}>
           <IPlus s={16}/> Nova demanda
+        </button>
+        <button onClick={()=>setQuickOpen(true)}
+          title="Fale ou escreva a demanda e a plataforma monta para você"
+          style={{width:'100%',display:'flex',alignItems:'center',justifyContent:'center',gap:8,padding:'10px 14px',margin:'8px 0',background:'#fff',border:'1.5px solid '+NB.azul,borderRadius:10,color:NB.azul,fontSize:12.5,fontWeight:600}}
+          onMouseEnter={e=>{e.currentTarget.style.background='#EAF3FD';}}
+          onMouseLeave={e=>{e.currentTarget.style.background='#fff';}}>
+          <IMic s={14}/> Criar falando
         </button>
         <button onClick={()=>setPacoteOpen(true)}
           style={{width:'100%',display:'flex',alignItems:'center',justifyContent:'center',gap:8,padding:'10px 14px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:10,color:NB.mut,fontSize:12.5,fontWeight:500,marginBottom:14}}>
@@ -7150,6 +7159,367 @@ function PacoteEditModal({ id, pacote, onClose, onSaved }) {
   );
 }
 
+/* =========== CRIAÇÃO RÁPIDA: interpreta uma frase falada ou digitada ===========
+   Sem IA e sem servidor: regras simples em português, que rodam no navegador.
+   Entende área, prioridade, prazo, responsáveis e monta um título limpo. */
+const QR_AREAS = ['Social','Design','Mídia Paga','Produto','RevOps','Eventos'];
+const QR_MESES = ['janeiro','fevereiro','marco','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+const QR_DIAS  = { domingo:0, segunda:1, terca:2, quarta:3, quinta:4, sexta:5, sabado:6 };
+const QR_AREA_NOME = {
+  'Social':     ['conteudo','social','redes sociais'],
+  'Design':     ['design','designer'],
+  'Mídia Paga': ['midia paga','trafego pago'],
+  'Produto':    ['produto'],
+  'RevOps':     ['revops','rev ops'],
+  'Eventos':    ['evento','eventos'],
+};
+const QR_AREA_PALAVRAS = {
+  'Social':     ['post','posts','instagram','linkedin','tiktok','roteiro','roteiros','legenda','carrossel','reels','blog','copy','newsletter','artigo'],
+  'Design':     ['banner','banners','arte','artes','peca','pecas','layout','criativo','criativos','identidade visual','apresentacao','slide','slides','folder','cartaz','logo','ebook','mockup'],
+  'Mídia Paga': ['anuncio','anuncios','google ads','meta ads','facebook ads','trafego','remarketing','lead ads','patrocinado'],
+  'Produto':    ['lancamento','release','novidade','funcionalidade','feature','changelog','atualizacao do produto'],
+  'RevOps':     ['crm','hubspot','automacao','fluxo','lista','leads','lead','segmentacao','disparo','email','e-mail','relatorio','dashboard','integracao'],
+  'Eventos':    ['webinar','feira','congresso','stand','brinde','brindes','palestra','live','patrocinio','camiseta','camisetas'],
+};
+function qrSemAcento(s) { return s.normalize('NFD').replace(/[\u0300-\u036f]/g, ''); }
+function qrEsc(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+
+function interpretarDemandaFalada(bruto, ctx) {
+  ctx = ctx || {};
+  const team = ctx.team || [];
+  const hoje = ctx.hoje ? new Date(ctx.hoje) : new Date();
+  const base = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
+  const texto = (bruto || '').normalize('NFC');
+  const n = qrSemAcento(texto).toLowerCase();   // mesmo tamanho do texto, só sem acento
+  const cortes = [];
+  const marcar = m => { if (m) cortes.push([m.index, m.index + m[0].length]); };
+  const somar = d => { const x = new Date(base); x.setDate(x.getDate() + d); return x; };
+  const fmt = d => d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  const PRE = '(?:(?:para|pra|ate)\\s+(?:o\\s+|a\\s+)?)?';
+  const MESES = QR_MESES.join('|');
+
+  /* ---------- prazo ---------- */
+  let prazo = null, m;
+  const dataSegura = (dia, mesIdx, ano) => {
+    if (dia < 1 || dia > 31 || mesIdx < 0 || mesIdx > 11) return null;
+    let d = new Date(ano, mesIdx, dia);
+    if (d.getMonth() !== mesIdx) return null;                 // dia 31 em mês de 30 dias
+    if (d < base) d = new Date(ano + 1, mesIdx, dia);           // já passou: vale o ano que vem
+    return d;
+  };
+  if ((m = n.match(new RegExp('\\b' + PRE + 'depois de amanha\\b')))) { prazo = somar(2); marcar(m); }
+  else if ((m = n.match(new RegExp('\\b' + PRE + 'amanha\\b'))))      { prazo = somar(1); marcar(m); }
+  else if ((m = n.match(new RegExp('\\b' + PRE + 'hoje\\b'))))        { prazo = somar(0); marcar(m); }
+  else if ((m = n.match(new RegExp('\\b' + PRE + '(domingo|segunda|terca|quarta|quinta|sexta|sabado)(?:[- ]feira)?(?:\\s+(?:que vem|proxima|proximo))?\\b')))) {
+    let diff = (QR_DIAS[m[1]] - base.getDay() + 7) % 7; if (diff === 0) diff = 7;
+    prazo = somar(diff); marcar(m);
+  }
+  else if ((m = n.match(new RegExp('\\b(?:(?:para|pra|ate|no|em)\\s+)?(?:o\\s+)?dia\\s+(\\d{1,2})(?:\\s*(?:/|de)\\s*(\\d{1,2}|' + MESES + '))?\\b')))) {
+    const dia = +m[1]; let d;
+    if (m[2] === undefined) {
+      d = new Date(base.getFullYear(), base.getMonth() + (dia < base.getDate() ? 1 : 0), dia);
+    } else {
+      const mes = /^\d+$/.test(m[2]) ? +m[2] - 1 : QR_MESES.indexOf(m[2]);
+      d = dataSegura(dia, mes, base.getFullYear());
+    }
+    if (d) { prazo = d; marcar(m); }
+  }
+  else if ((m = n.match(new RegExp('\\b' + PRE + '(\\d{1,2})\\s+de\\s+(' + MESES + ')\\b')))) {
+    const d = dataSegura(+m[1], QR_MESES.indexOf(m[2]), base.getFullYear());
+    if (d) { prazo = d; marcar(m); }
+  }
+  else if ((m = n.match(new RegExp('\\b' + PRE + '(\\d{1,2})/(\\d{1,2})(?:/(\\d{2,4}))?\\b')))) {
+    let ano = base.getFullYear();
+    if (m[3]) ano = m[3].length === 2 ? 2000 + +m[3] : +m[3];
+    const d = dataSegura(+m[1], +m[2] - 1, ano);
+    if (d) { prazo = d; marcar(m); }
+  }
+  else if ((m = n.match(/\bem\s+(\d{1,2})\s+dias?\b/))) { prazo = somar(+m[1]); marcar(m); }
+  else if ((m = n.match(new RegExp('\\b' + PRE + '(?:a\\s+)?(?:semana que vem|proxima semana)\\b')))) { prazo = somar(7); marcar(m); }
+  else if ((m = n.match(new RegExp('\\b' + PRE + '(?:fim|final) do mes\\b')))) { prazo = new Date(base.getFullYear(), base.getMonth() + 1, 0); marcar(m); }
+
+  /* ---------- prioridade ---------- */
+  let prioridade = 'Média';
+  if ((m = n.match(/\b(?:prioridade baixa|baixa prioridade|sem pressa|quando der|quando puder|sem urgencia)\b/))) { prioridade = 'Baixa'; marcar(m); }
+  else if ((m = n.match(/\b(?:urgentissimo|urgente|urgencia|pra ontem|o quanto antes)\b/)))                         { prioridade = 'Urgente'; marcar(m); }
+  else if ((m = n.match(/\b(?:prioridade alta|alta prioridade|prioridade maxima|muito importante|importante)\b/)))  { prioridade = 'Alta'; marcar(m); }
+
+  /* ---------- área ---------- */
+  const pontos = {}; QR_AREAS.forEach(a => { pontos[a] = 0; });
+  QR_AREAS.forEach(a => {
+    QR_AREA_NOME[a].forEach(w => {
+      const W = qrEsc(w);
+      const cue = n.match(new RegExp('(?:(?:na|da|de|para|pra|no|do|em)\\s+)?(?:area|time|equipe|pipeline|setor)\\s+(?:de\\s+|do\\s+|da\\s+)?(?:o\\s+|a\\s+)?' + W + '\\b'));
+      const fim = n.match(new RegExp(',\\s*' + W + '\\s*[.!]*\\s*$'));
+      const ini = n.match(new RegExp('^\\s*' + W + '\\s*[:,\\-]'));
+      if (cue) { pontos[a] += 3; marcar(cue); }
+      else if (fim || ini) { pontos[a] += 3; }
+      else if (new RegExp('\\b' + W + '\\b').test(n)) pontos[a] += 1;
+    });
+    QR_AREA_PALAVRAS[a].forEach(w => { if (new RegExp('\\b' + qrEsc(w) + '\\b').test(n)) pontos[a] += 1; });
+  });
+  const maior = Math.max.apply(null, QR_AREAS.map(a => pontos[a]));
+  let area = '', areaDetectada = false;
+  if (maior > 0) { area = QR_AREAS.find(a => pontos[a] === maior); areaDetectada = true; }
+  else if (ctx.areaAtual && QR_AREAS.indexOf(ctx.areaAtual) >= 0) area = ctx.areaAtual;
+
+  /* ---------- responsáveis (pelo primeiro nome) ---------- */
+  const apelidos = { mariana: ['maris'] };
+  const achados = []; const nomesAchados = [];
+  team.forEach(t => {
+    const primeiro = qrSemAcento(t.name).toLowerCase().split(/\s+/)[0];
+    const nomes = [primeiro].concat(apelidos[primeiro] || []);
+    const hit = nomes.find(nm => new RegExp('\\b' + qrEsc(nm) + '\\b').test(n));
+    if (hit) { achados.push(t.initials); nomesAchados.push(hit); }
+  });
+
+  /* ---------- título ---------- */
+  let t = texto;
+  cortes.sort((a, b) => b[0] - a[0]).forEach(c => { t = t.slice(0, c[0]) + ' ' + t.slice(c[1]); });
+  t = t.replace(/\s+/g, ' ').trim();
+  nomesAchados.forEach(nm => {                                  // "Jéssica, preciso de..." no começo
+    t = t.replace(new RegExp('^' + qrEsc(nm).replace(/[eé]/g, '[eé]').replace(/[aá]/g, '[aá]') + '[,:\\s]+', 'i'), '');
+  });
+  const fillers = [
+    /^(?:oi|ola|opa|ei)[,!.\s]+/i,
+    /^(?:por favor|pf)[,\s]+/i,
+    /^(?:cria(?:r)?|crie|abre|abrir|abra|adiciona(?:r)?|registra(?:r)?)\s+(?:uma?\s+)?(?:nova\s+)?(?:demanda|tarefa|card)\s*(?:de|para|pra|sobre|:)?\s*/i,
+    /^(?:uma?\s+)?nova\s+(?:demanda|tarefa|card)\s*(?:de|para|pra|sobre|:)?\s*/i,
+    /^(?:eu\s+)?(?:preciso|precisamos|quero|queria|gostaria|vamos precisar|temos que|tem que|preciso que)\s+(?:de\s+|que\s+)?(?:pedir\s+|solicitar\s+|fazer\s+)?(?:uma?\s+|uns?\s+|umas?\s+)?/i,
+    /^(?:pedir|solicitar|fazer)\s+(?:uma?\s+|uns?\s+|umas?\s+)?/i,
+  ];
+  for (let i = 0; i < 3; i++) fillers.forEach(rx => { t = t.replace(rx, ''); });
+  // pedaços soltos que são só o nome de uma área ("..., design, ...")
+  const nomesArea = [].concat.apply([], QR_AREAS.map(a => QR_AREA_NOME[a]));
+  t = t.split(',').filter(seg => nomesArea.indexOf(qrSemAcento(seg).toLowerCase().trim()) < 0).join(',');
+  const quebra = t.search(/[.!?](\s|$)|\n/);
+  if (quebra > 8) t = t.slice(0, quebra);
+  const conj = qrSemAcento(t).toLowerCase().search(/\s(?:e tambem|alem disso|porque|pois|e depois)\s/);
+  if (conj > 8) t = t.slice(0, conj);
+  t = t.replace(/^[\s,;:\-]+|[\s,;:\-]+$/g, '');
+  for (let i = 0; i < 3; i++) t = t.replace(/\s+(?:e|para|pra|de|do|da|que|com|a|o|no|na|em|ate)$/i, '').replace(/[\s,;:\-]+$/g, '');
+  if (t.length > 80) { t = t.slice(0, 80).replace(/\s+\S*$/, '') + '…'; }
+  if (t) t = t.charAt(0).toUpperCase() + t.slice(1);
+
+  return {
+    title: t, area, areaDetectada,
+    priority: prioridade, prioridadeDetectada: prioridade !== 'Média',
+    deadline: fmt(prazo || somar(7)), prazoDetectado: !!prazo,
+    assignees: achados, assigneesDetectados: achados.length > 0,
+    description: texto.trim(),
+  };
+}
+
+/* Janela "Criar falando": o time dita ou escreve uma frase corrida, a
+   plataforma monta a demanda (título, área, prioridade, prazo, responsáveis)
+   e mostra tudo editável antes de criar. */
+function CriacaoRapidaModal() {
+  const { quickOpen, setQuickOpen, addDemand, user, area: areaAtual } = useApp();
+  const [texto, setTexto] = useState('');
+  const [over, setOver] = useState({});
+  const [ouvindo, setOuvindo] = useState(false);
+  const [erroMic, setErroMic] = useState('');
+  const [criadas, setCriadas] = useState([]);
+  const recRef = useRef(null);
+  const baseRef = useRef('');
+  const suportaVoz = typeof window !== 'undefined' && !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+
+  const parar = () => {
+    if (recRef.current) { try { recRef.current.stop(); } catch (e) {} recRef.current = null; }
+    setOuvindo(false);
+  };
+  useEffect(() => {
+    if (!quickOpen) parar();
+    return () => { if (recRef.current) { try { recRef.current.stop(); } catch (e) {} } };
+  }, [quickOpen]);
+
+  if (!quickOpen) return null;
+
+  const ouvir = () => {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) { setErroMic('Este navegador não tem ditado por voz. No Chrome funciona; aqui você também pode digitar.'); return; }
+    setErroMic('');
+    const rec = new SR();
+    rec.lang = 'pt-BR'; rec.continuous = true; rec.interimResults = true;
+    baseRef.current = texto.trim() ? texto.trim() + ' ' : '';
+    rec.onresult = (e) => {
+      let fin = '', parcial = '';
+      for (let i = 0; i < e.results.length; i++) {
+        const tr = e.results[i][0].transcript;
+        if (e.results[i].isFinal) fin += tr; else parcial += tr;
+      }
+      setTexto(baseRef.current + (fin + parcial).trim());
+    };
+    rec.onerror = (e) => {
+      setOuvindo(false); recRef.current = null;
+      setErroMic(e.error === 'not-allowed' || e.error === 'service-not-allowed'
+        ? 'O navegador bloqueou o microfone. Clique no cadeado ao lado do endereço do site e permita o microfone.'
+        : e.error === 'no-speech'
+          ? 'Não ouvi nada. Tente de novo, falando um pouco mais perto do microfone.'
+          : 'Não consegui ouvir agora. Você pode digitar a demanda.');
+    };
+    rec.onend = () => { setOuvindo(false); recRef.current = null; };
+    recRef.current = rec; rec.start(); setOuvindo(true);
+  };
+
+  const lido = interpretarDemandaFalada(texto, { team: TEAM, areaAtual });
+  const f = { ...lido, ...over };
+  const campo = (k, v) => setOver(o => ({ ...o, [k]: v }));
+
+  const padraoResp = f.area
+    ? TEAM.filter(m => !m.isApprover && (m.area === f.area || (m.areasExtra || []).includes(f.area))).map(m => m.initials)
+    : [];
+  const respFinal = (f.assignees && f.assignees.length) ? f.assignees
+    : (padraoResp.length ? padraoResp : (user && user.initials ? [user.initials] : []));
+  const respSugerido = !(f.assignees && f.assignees.length);
+  const alternarResp = ini => {
+    if (respFinal.includes(ini) && respFinal.length === 1) return;   // sempre fica alguém responsável
+    campo('assignees', respFinal.includes(ini) ? respFinal.filter(x => x !== ini) : [...respFinal, ini]);
+  };
+
+  const temTexto = texto.trim().length > 2;
+  const podeCriar = temTexto && f.title.trim() && f.area && f.deadline && respFinal.length > 0;
+
+  const criar = () => {
+    if (!podeCriar) return;
+    parar();
+    addDemand({
+      title: f.title.trim(), area: f.area, priority: f.priority, deadline: f.deadline,
+      description: f.description || '', requester: user.name, assignees: respFinal,
+    }, dem => setCriadas(c => [{ code: dem.code, title: dem.title, area: dem.area }, ...c].slice(0, 4)));
+    setTexto(''); setOver({});
+  };
+
+  const fechar = () => { parar(); setQuickOpen(false); };
+  const lbl = { fontSize: 11.5, fontWeight: 600, color: NB.mut, marginBottom: 5, display: 'block' };
+  const inp = { width: '100%', boxSizing: 'border-box', background: '#fff', border: '1.5px solid ' + NB.bd, borderRadius: 9, padding: '9px 12px', fontSize: 13.5, color: NB.txt, outline: 'none' };
+  const dica = (ok, textoOk, textoAviso) => (
+    <div style={{ fontSize: 11, marginTop: 4, color: ok ? '#0F6E56' : '#8A6206' }}>{ok ? textoOk : textoAviso}</div>
+  );
+
+  return (
+    <Modal onClose={fechar} width={660}>
+      <div style={{ padding: '24px 28px 14px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 14 }}>
+        <div>
+          <h2 style={{ fontSize: 20, fontWeight: 600, color: NB.txt, marginBottom: 5, letterSpacing: '-0.01em' }}>Criar falando</h2>
+          <p style={{ fontSize: 13.5, color: NB.mut, lineHeight: 1.55 }}>
+            Fale ou escreva do jeito que vier. A plataforma monta a demanda e você só confere antes de criar.
+          </p>
+        </div>
+        <button onClick={fechar} style={{ padding: 8, background: '#fff', border: '1px solid ' + NB.bd, borderRadius: 9, color: NB.mut, display: 'flex', flexShrink: 0 }}><IX/></button>
+      </div>
+
+      <div style={{ padding: '4px 28px 8px' }}>
+        {criadas.map(c => (
+          <div key={c.code} style={{ display: 'flex', alignItems: 'center', gap: 9, background: '#E1F5EE', border: '1px solid #BEE5D6', borderRadius: 10, padding: '9px 13px', marginBottom: 8 }}>
+            <span style={{ color: '#0F6E56', display: 'flex' }}><ICheck s={14}/></span>
+            <span style={{ fontSize: 12.5, color: '#0F6E56', lineHeight: 1.4 }}>
+              <b>{c.code}</b> criada em {c.area}: {c.title}
+            </span>
+          </div>
+        ))}
+
+        <div style={{ position: 'relative' }}>
+          <textarea value={texto} readOnly={ouvindo} rows={4} autoFocus
+            onChange={e => setTexto(e.target.value)}
+            onKeyDown={e => { if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') criar(); }}
+            placeholder={'Ex: Preciso de um banner para a campanha de vagas, design, para dia 10, urgente'}
+            style={{ ...inp, resize: 'vertical', lineHeight: 1.6, padding: '13px 62px 13px 14px', minHeight: 104,
+                     borderColor: ouvindo ? '#E5484D' : NB.bd, background: ouvindo ? '#FFFAFA' : '#fff' }}/>
+          {suportaVoz && (
+            <button onClick={ouvindo ? parar : ouvir}
+              title={ouvindo ? 'Parar de ouvir' : 'Falar a demanda'}
+              style={{ position: 'absolute', right: 12, bottom: 12, width: 40, height: 40, borderRadius: '50%', border: 'none',
+                       background: ouvindo ? '#E5484D' : NB.azul, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                       boxShadow: ouvindo ? '0 0 0 6px rgba(229,72,77,0.18)' : '0 3px 10px rgba(0,132,255,0.35)',
+                       animation: ouvindo ? 'nb-pulse 1.2s ease-in-out infinite' : 'none' }}>
+              <IMic s={18}/>
+            </button>
+          )}
+        </div>
+        <div style={{ fontSize: 12, marginTop: 7, minHeight: 18, color: erroMic ? '#B4232A' : NB.mut2, lineHeight: 1.5 }}>
+          {erroMic || (ouvindo ? 'Ouvindo. Fale a demanda e clique no microfone de novo quando terminar.'
+            : (suportaVoz ? 'Clique no microfone para falar, ou digite. Pode citar área, prazo, prioridade e quem vai fazer.'
+                          : 'Digite a demanda. Pode citar área, prazo, prioridade e quem vai fazer.'))}
+        </div>
+
+        {temTexto && (
+          <div style={{ marginTop: 10, paddingTop: 16, borderTop: '1px solid ' + NB.bdSoft }}>
+            <div style={{ fontSize: 11.5, fontWeight: 700, color: NB.mut2, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>
+              Como a plataforma entendeu
+            </div>
+
+            <div style={{ marginBottom: 13 }}>
+              <label style={lbl}>Título</label>
+              <input value={f.title} onChange={e => campo('title', e.target.value)} style={inp}/>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(170px,1fr))', gap: 13, marginBottom: 13 }}>
+              <div>
+                <label style={lbl}>Área</label>
+                <select value={f.area} onChange={e => campo('area', e.target.value)} style={{ ...inp, borderColor: f.area ? NB.bd : '#E8CE8E' }}>
+                  <option value="">Escolher área</option>
+                  {QR_AREAS.map(a => <option key={a} value={a}>{a === 'Social' ? 'Conteúdo (Social)' : a}</option>)}
+                </select>
+                {over.area === undefined && dica(lido.areaDetectada, 'Entendi pela frase', 'Não identifiquei a área, escolha uma')}
+              </div>
+              <div>
+                <label style={lbl}>Prioridade</label>
+                <select value={f.priority} onChange={e => campo('priority', e.target.value)} style={inp}>
+                  {PRIORITIES.map(p => <option key={p} value={p}>{p}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={lbl}>Prazo</label>
+                <input type="date" value={f.deadline}
+                  onChange={e => { if (e.target.value && isDataValida(e.target.value)) campo('deadline', e.target.value); }} style={inp}/>
+                {over.deadline === undefined && dica(lido.prazoDetectado, 'Entendi pela frase', 'Prazo padrão de 7 dias')}
+              </div>
+            </div>
+
+            <div style={{ marginBottom: 6 }}>
+              <label style={lbl}>Quem vai fazer</label>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+                {TEAM.map(m => {
+                  const sel = respFinal.includes(m.initials);
+                  return (
+                    <button key={m.id} onClick={() => alternarResp(m.initials)}
+                      style={{ padding: '6px 12px', borderRadius: 20, fontSize: 12.5, fontWeight: 500,
+                               border: '1.5px solid ' + (sel ? NB.azul : NB.bd), background: sel ? '#EAF3FD' : '#fff', color: sel ? NB.azul : NB.mut }}>
+                      {m.name.split(' ')[0]}
+                    </button>
+                  );
+                })}
+              </div>
+              {over.assignees === undefined && dica(!respSugerido, 'Entendi pelo nome na frase', 'Sugerido pela área, mude se precisar')}
+            </div>
+
+            {Object.keys(over).length > 0 && (
+              <button onClick={() => setOver({})}
+                style={{ marginTop: 10, background: 'none', border: 'none', fontSize: 12, color: NB.azul, textDecoration: 'underline', padding: 0 }}>
+                Voltar para o que a plataforma entendeu
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div style={{ padding: '14px 28px 22px', display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'flex-end' }}>
+        <span style={{ marginRight: 'auto', fontSize: 11.5, color: NB.mut2 }}>Ctrl + Enter também cria</span>
+        <button onClick={fechar}
+          style={{ padding: '10px 18px', background: '#fff', border: '1px solid ' + NB.bd, borderRadius: 10, fontSize: 13.5, fontWeight: 500, color: NB.mut }}>
+          Fechar
+        </button>
+        <button onClick={criar} disabled={!podeCriar}
+          style={{ padding: '10px 22px', background: podeCriar ? NB.azul : '#B8CCEA', border: 'none', borderRadius: 10, fontSize: 13.5, fontWeight: 600, color: '#fff', cursor: podeCriar ? 'pointer' : 'not-allowed' }}>
+          Criar demanda
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
+
 function NewModal() {
   const { newOpen, setNewOpen, addDemand, uploadFile, user, area, pipes, presetNovo, setPresetNovo, MAX_FILE } = useApp();
   const initArea = presetNovo ? presetNovo.area : (area!=='Todas' ? area : 'Social');
@@ -9076,6 +9446,7 @@ function AppContent() {
       </div>
       <CardModal/>
       <NewModal/>
+      <CriacaoRapidaModal/>
       <PacoteModal/>
       <NotifyModal/>
       <NotifPermCard/>
