@@ -70,6 +70,13 @@ const { useState, createContext, useContext, useEffect, useRef, useCallback } = 
 /* =========== DADOS =========== */
 const NIBO_DOMAIN = '@nibo.com.br';
 
+/* Parametros da URL no momento em que o app abre (ex: ?demanda=DEM-123 vindo
+   de um botao do Slack). Lidos uma vez, antes de qualquer redirecionamento. */
+/* Logo oficial do Nibo (versao azul do brandbook), proporcao original. */
+const NIBO_LOGO_AZUL = 'data:image/png;base64,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';
+
+const NB_LINK_INICIAL = (() => { try { return new URLSearchParams(window.location.search); } catch (e) { return new URLSearchParams(''); } })();
+
 /* Plataforma de planejamento social — embutida na seção Social.
    Trocar de endereço é mudar só esta linha. */
 
@@ -509,17 +516,16 @@ function Provider({ children }) {
     const stages   = pipesRef.current[d.area] || [];
     const oldStage = stages.find(s=>s.id===d.stageId);
     const newStage = stages.find(s=>s.id===newStageId);
-    let assignees = d.assignees || [];
-    if (newStage && newStage.isApproval && !assignees.includes('MA')) assignees = [...assignees, 'MA'];
+    const assignees = d.assignees || [];
     const extra = newStage && newStage.isDone ? { completedAt: new Date().toISOString() } : {};
     patch(demId, { stageId:newStageId, assignees, stageEnteredAt: new Date().toISOString(), ...extra });
 
     const auto = AUTO[d.area] && AUTO[d.area][newStageId];
-    let action = auto ? auto.action : '"'+d.title+'" avançou para '+(newStage?newStage.name:'nova etapa');
-    const passo = auto ? auto.next
-      : (newStage && newStage.isApproval) ? 'Aguardando aprovação de @Mariana Araújo'
+    let action = citarGestorSeEnvolvida(auto ? auto.action : '"'+d.title+'" avançou para '+(newStage?newStage.name:'nova etapa'), assignees);
+    const passo = citarGestorSeEnvolvida(auto ? auto.next
+      : (newStage && newStage.isApproval) ? 'Aguardando aprovação do gestor'
       : (newStage && newStage.isDone)     ? 'Etapa final de '+d.area
-      : 'Equipe de '+d.area+' segue com a demanda';
+      : 'Equipe de '+d.area+' segue com a demanda', assignees);
     if (notifyTargets && notifyTargets.length) action += ', ' + mentionNames(notifyTargets) + ' notificados no Slack';
     feed(d, (oldStage?oldStage.name:'?')+' → '+(newStage?newStage.name:'?'), action, passo,
          newStage && newStage.isApproval ? 'approval' : 'move');
@@ -531,8 +537,7 @@ function Provider({ children }) {
     const stages = pipesRef.current[newArea] || [];
     const target = stages.find(s => s.id === newStageId) || stages[0];
     if (!target) return;
-    let assignees = d.assignees || [];
-    if (target.isApproval && !assignees.includes('MA')) assignees = [...assignees, 'MA'];
+    const assignees = d.assignees || [];
     patch(demId, { area:newArea, stageId:target.id, assignees, stageEnteredAt: new Date().toISOString() });
     feed({ code:d.code, area:newArea }, d.area + ' → ' + newArea,
       '"' + d.title + '" mudou de área e entrou em ' + target.name,
@@ -550,7 +555,7 @@ function Provider({ children }) {
       const partes = [];
       if (added.length)   partes.push(mentionNames(added)+' '+(added.length>1?'entraram':'entrou')+' na demanda');
       if (removed.length) partes.push(mentionNames(removed)+' '+(removed.length>1?'saíram':'saiu'));
-      feed(d, 'Responsáveis atualizados', partes.join(' · '),
+      feed(d, 'Pessoas envolvidas atualizadas', partes.join(' · '),
         added.length ? mentionNames(added)+' notificados no Slack' : 'Equipe atualizada', 'new');
     }
   }, [patch, feed]);
@@ -560,7 +565,7 @@ function Provider({ children }) {
     if (d && campos.deadline && campos.deadline !== d.deadline) {
       feed(d, 'Prazo alterado',
         'Prazo de "'+d.title+'" mudou de '+fmtDate(d.deadline)+' para '+fmtDate(campos.deadline),
-        'Responsáveis notificados no Slack', 'approval');
+        'Pessoas envolvidas notificadas no Slack', 'approval');
     }
     patch(id, campos);
   }, [patch, feed]);
@@ -580,7 +585,8 @@ function Provider({ children }) {
     const d = (window.__nbDem || []).find(x => x.id === id); if (!d) return;
     patch(id, { aguardandoAprovacao: false, stageEnteredAt: new Date().toISOString(),
                 aprovadoEm: new Date().toISOString(), aprovadoPor: 'MA', recusadoEm: null });
-    feed(d, 'Pedido aprovado', '"'+d.title+'" foi aprovado e entrou oficialmente no quadro de '+d.area,
+    const timeDaArea = TEAM.filter(m => !m.isApprover && (m.area === d.area || (m.areasExtra||[]).includes(d.area))).map(m => m.initials);
+    feed(d, 'Pedido aprovado', '"'+d.title+'" foi aprovado e entrou oficialmente no quadro de '+d.area+(timeDaArea.length ? ', '+mentionNames(timeDaArea)+' já podem começar' : ''),
       'Pedido de '+(d.requester||'—'), 'new');
   }, [patch, feed]);
 
@@ -600,6 +606,30 @@ function Provider({ children }) {
     patch(id, { recorrente: false, proximaRecorrencia: null });
     feed(d, 'Recorrência desligada', '"'+d.title+'" não vai mais se repetir automaticamente',
       'Era a cada '+(d.frequenciaDias||30)+' dias', 'move');
+  }, [patch, feed]);
+
+  /* Botao "Pedir aprovacao do gestor": e manual, so a pessoa que pede coloca a
+     Mariana na jogada (ela passa a ser envolvida) e so assim ela e avisada. */
+  const pedirAprovacaoGestor = useCallback((id) => {
+    const d = (window.__nbDem || []).find(x => x.id === id); if (!d) return;
+    const envolvidos = d.assignees || [];
+    const assignees = envolvidos.includes('MA') ? envolvidos : [...envolvidos, 'MA'];
+    patch(id, { pedidoAprovacao:true, pedidoAprovacaoEm:new Date().toISOString(),
+                pedidoAprovacaoPor:(user&&user.initials)||'', assignees });
+    feed(d, 'Aprovação do gestor pedida', '"'+d.title+'": '+((user&&user.name)||'Alguém')+' pediu a aprovação de @Mariana Araújo',
+      '@Mariana Araújo decide e devolve para a equipe', 'approval');
+  }, [patch, feed, user]);
+
+  const decidirPedidoGestor = useCallback((id, aprovado) => {
+    const d = (window.__nbDem || []).find(x => x.id === id); if (!d) return;
+    const agora = new Date().toISOString();
+    patch(id, aprovado
+      ? { pedidoAprovacao:false, aprovadoEm:agora, aprovadoPor:'MA', recusadoEm:null }
+      : { pedidoAprovacao:false, recusadoEm:agora, recusadoPor:'MA' });
+    const quem = d.pedidoAprovacaoPor ? mentionNames([d.pedidoAprovacaoPor]) : 'a equipe';
+    feed(d, aprovado ? 'Aprovado pelo gestor' : 'Devolvido pelo gestor',
+      '"'+d.title+'": '+(aprovado ? 'aprovação concedida' : 'voltou com pedido de ajuste'),
+      quem+' segue com a demanda', aprovado ? 'new' : 'move');
   }, [patch, feed]);
 
   const restoreDemand = useCallback((id) => {
@@ -1081,15 +1111,15 @@ function Provider({ children }) {
     localStorage.setItem('nb_notif_sent', JSON.stringify(jaNotificados));
   }, [active, dbReady, user, pipes]);
 
-  /* Dispara notificação de navegador quando uma demanda chega em etapa
-     de aprovação — só pra quem tem permissão de aprovar (ex: Mariana). */
+  /* Aviso do navegador pra quem DECIDE (a Mariana): so quando algo de fato
+     depende dela, isto e, pedido de fora do marketing, pedido manual de
+     aprovacao do gestor ou etapa de aprovacao em que ela esta envolvida. */
   useEffect(() => {
     if (!dbReady || !user || !user.isApprover || Notification.permission !== 'granted') return;
     const jaNotificados = JSON.parse(localStorage.getItem('nb_notif_aprovacao_sent') || '{}');
     active.forEach(d => {
-      const st = (pipes[d.area] || []).find(s => s.id === d.stageId);
-      if (!st || !st.isApproval) return;
-      const chave = d.id + ':' + d.stageId; // se sair e voltar pra aprovação, notifica de novo
+      if (!precisaDecisaoGestor(d, pipes)) return;
+      const chave = d.id + ':' + (d.pedidoAprovacaoEm || d.stageId || '') + (d.aguardandoAprovacao ? ':ext' : '');
       if (jaNotificados[chave]) return;
       try {
         const notif = new Notification('✅ Aguardando sua aprovação', {
@@ -1106,16 +1136,15 @@ function Provider({ children }) {
     localStorage.setItem('nb_notif_aprovacao_sent', JSON.stringify(jaNotificados));
   }, [active, dbReady, user, pipes]);
 
-  /* Notificação de navegador quando chega demanda nova (via Slack).
-     Quem recebe depende da área: Conteúdo e Design avisam a Mariana (que
-     aprova) junto com a equipe; as outras vão direto pra quem toca.
-     Só avisa demandas criadas nos últimos 10 minutos, pra não disparar
-     notificação antiga quando alguém abre o dashboard. */
+  /* Aviso do navegador pra equipe da area quando chega demanda nova pelo Slack.
+     Pedido que ainda espera aprovacao NAO avisa a equipe: so a Mariana. A equipe
+     e avisada quando ele e aprovado. So vale pro que chegou nos ultimos 10 min,
+     pra nao disparar aviso antigo quando alguem abre o dashboard. */
   useEffect(() => {
     if (!dbReady || !user || Notification.permission !== 'granted') return;
     const AVISAR_POR_AREA = {
-      'Social':     ['CA','MA'],
-      'Design':     ['CA','MA','MB'],
+      'Social':     ['CA'],
+      'Design':     ['CA','MB','MK'],
       'RevOps':     ['JE','BL'],
       'Mídia Paga': ['VI'],
       'Produto':    ['RO'],
@@ -1124,14 +1153,16 @@ function Provider({ children }) {
     const limite = Date.now() - 10 * 60 * 1000;
     active.forEach(d => {
       if (d.origem !== 'slack') return;
+      if (d.aguardandoAprovacao) return;
       const destinatarios = AVISAR_POR_AREA[d.area] || [];
       if (!destinatarios.includes(user.initials)) return;
-      if (jaNotificados[d.id]) return;
-      if (!d.createdAt || new Date(d.createdAt).getTime() < limite) { jaNotificados[d.id] = true; return; }
-      const precisaAprovar = d.aguardandoAprovacao && user.isApprover;
+      const chave = d.id + (d.aprovadoEm ? ':aprov' : '');
+      if (jaNotificados[chave]) return;
+      const quando = d.aprovadoEm || d.createdAt;
+      if (!quando || new Date(quando).getTime() < limite) { jaNotificados[chave] = true; return; }
       try {
         const notif = new Notification(
-          precisaAprovar ? '⏳ Pedido esperando sua aprovação' : '📥 Nova demanda em ' + d.area,
+          d.aprovadoEm ? '✅ Pedido aprovado em ' + d.area : '📥 Nova demanda em ' + d.area,
           {
             body: d.title + (d.requester ? '\nPedido de ' + d.requester : '') + (d.deadline ? '  •  Prazo ' + fmtDate(d.deadline) : ''),
             icon: '/favicon.ico',
@@ -1142,10 +1173,30 @@ function Provider({ children }) {
         );
         notif.onclick = () => { window.focus(); setModal(d.id); notif.close(); };
       } catch (e) {}
-      jaNotificados[d.id] = true;
+      jaNotificados[chave] = true;
     });
     localStorage.setItem('nb_notif_novas_sent', JSON.stringify(jaNotificados));
   }, [active, dbReady, user]);
+
+  /* Links que vem do Slack (?demanda=DEM-123, ?view=aprovacoes) abrem direto na
+     demanda ou na tela certa, em vez de cair no inicio da area. */
+  const linkConsumido = useRef(false);
+  useEffect(() => {
+    if (linkConsumido.current || !dbReady || !user || !isTeamMember) return;
+    const alvo = NB_LINK_INICIAL.get('demanda');
+    const tela = NB_LINK_INICIAL.get('view');
+    if (!alvo && !tela) { linkConsumido.current = true; return; }
+    const VIEWS_OK = ['kanban','aprovacoes','gestao','inicio','minhasSubtarefas','alertas','resumo','central','campanhas'];
+    if (tela && VIEWS_OK.includes(tela)) setView(tela);
+    if (alvo) {
+      const d = demands.find(x => x.code === alvo || x.id === alvo);
+      if (!d) return;
+      setArea(d.area);
+      setModal(d.id);
+    }
+    linkConsumido.current = true;
+    try { window.history.replaceState({}, '', window.location.pathname); } catch (e) {}
+  }, [dbReady, user, isTeamMember, demands]);
 
   const filtered = active.filter(d => {
     if (area !== 'Todas' && d.area !== area) return false;
@@ -1163,7 +1214,7 @@ function Provider({ children }) {
   window.__nbDem = demands;
   window.__nbPosts = posts;
 
-  return <Ctx.Provider value={{ demands, active, activeOficiais, archived, filtered, aprovarPedidoSlack, recusarPedidoSlack, pararRecorrencia, dispararManual, slack, slackTemplate, salvarSlackTemplate, slackTemplatePrevOpen, setSlackTemplatePrevOpen, showNotifCard, setShowNotifCard, alertasTab, setAlertasTab, user, isTeamMember, authReady, authError, setAuthError, preferirCentral, setPreferirCentral, dbReady, dbErro, seed, pedidos, aceitarPedido, recusarPedido, posts, addPost, updatePost, deletePost, campanhas, updateCampanha, publicarCampanha, despublicarCampanha, deleteCampanha, enviarCampanhaDeDemanda, pecas, addPeca, removePeca, redesSociais, salvarRedesSociais, arquivos, addArquivo, removeArquivo, embaixadores, addEmbaixador, removeEmbaixador, updateEmbaixador, alternarStatusEmbaixador, pacotes, salvarPacote, removePacote, meuPortalEmbaixador, portalCarregado, isEmbaixador, criarPortalEmbaixador, removerPortalEmbaixador, portaisEmbaixador, meusEnviosFotos, todosEnviosFotos, enviarFotoEmbaixador, removerEnvioFoto, salvarFotoPerfilEmbaixador, pularFotoPerfil, view, setView, layout, setLayout, area, setArea, query, setQuery, mesFiltro, setMesFiltro, priFilter, setPriFilter, reqFilter, setReqFilter, respFilter, setRespFilter, selDemand, setModal, newOpen, setNewOpen, quickOpen, setQuickOpen, presetNovo, setPresetNovo, pacoteOpen, setPacoteOpen, notifyPending, setNotifyPending, profileOpen, setProfileOpen, editStages, setEditStages, dragging, setDragging, previewMember, setPreviewMember, photos, googlePhotos, profiles, pipes, salvarPipes, attach, comments, storageWarn, MAX_FILE, addAttachment, uploadFile, migrarLocal, carregarAnexo, removeAttachment, addComment, removeComment, logout, savePhoto, removePhoto, saveProfile, addDemand, moveStage, moveArea, reordenarCards, setAssignees, updateDemand, archiveDemand, restoreDemand, delDemand }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ demands, active, activeOficiais, archived, filtered, aprovarPedidoSlack, recusarPedidoSlack, pedirAprovacaoGestor, decidirPedidoGestor, pararRecorrencia, dispararManual, slack, slackTemplate, salvarSlackTemplate, slackTemplatePrevOpen, setSlackTemplatePrevOpen, showNotifCard, setShowNotifCard, alertasTab, setAlertasTab, user, isTeamMember, authReady, authError, setAuthError, preferirCentral, setPreferirCentral, dbReady, dbErro, seed, pedidos, aceitarPedido, recusarPedido, posts, addPost, updatePost, deletePost, campanhas, updateCampanha, publicarCampanha, despublicarCampanha, deleteCampanha, enviarCampanhaDeDemanda, pecas, addPeca, removePeca, redesSociais, salvarRedesSociais, arquivos, addArquivo, removeArquivo, embaixadores, addEmbaixador, removeEmbaixador, updateEmbaixador, alternarStatusEmbaixador, pacotes, salvarPacote, removePacote, meuPortalEmbaixador, portalCarregado, isEmbaixador, criarPortalEmbaixador, removerPortalEmbaixador, portaisEmbaixador, meusEnviosFotos, todosEnviosFotos, enviarFotoEmbaixador, removerEnvioFoto, salvarFotoPerfilEmbaixador, pularFotoPerfil, view, setView, layout, setLayout, area, setArea, query, setQuery, mesFiltro, setMesFiltro, priFilter, setPriFilter, reqFilter, setReqFilter, respFilter, setRespFilter, selDemand, setModal, newOpen, setNewOpen, quickOpen, setQuickOpen, presetNovo, setPresetNovo, pacoteOpen, setPacoteOpen, notifyPending, setNotifyPending, profileOpen, setProfileOpen, editStages, setEditStages, dragging, setDragging, previewMember, setPreviewMember, photos, googlePhotos, profiles, pipes, salvarPipes, attach, comments, storageWarn, MAX_FILE, addAttachment, uploadFile, migrarLocal, carregarAnexo, removeAttachment, addComment, removeComment, logout, savePhoto, removePhoto, saveProfile, addDemand, moveStage, moveArea, reordenarCards, setAssignees, updateDemand, archiveDemand, restoreDemand, delDemand }}>{children}</Ctx.Provider>;
 }
 
 const useApp = () => useContext(Ctx);
@@ -1183,6 +1234,21 @@ function getSla(dl, isDone) {
   return { label:diff+'d', type:'ok' };
 }
 function fmtDate(s) { if(!s) return ''; const [,m,d]=s.split('-'); return d+'/'+m; }
+/* A Mariana so aparece nos textos quando esta envolvida na demanda. */
+function citarGestorSeEnvolvida(texto, assignees) {
+  return (assignees || []).includes('MA') ? texto : texto.replace(/@Mariana Araújo/g, 'gestor(a)');
+}
+
+/* O que realmente espera uma decisao do gestor: pedido de fora do marketing,
+   pedido manual ("Pedir aprovacao do gestor") ou etapa de aprovacao em que a
+   Mariana foi colocada como envolvida. Etapa de aprovacao sozinha nao conta. */
+function precisaDecisaoGestor(d, pipes) {
+  if (!d || d.archivedAt) return false;
+  if (d.aguardandoAprovacao || d.pedidoAprovacao) return true;
+  const st = ((pipes || {})[d.area] || []).find(s => s.id === d.stageId);
+  return !!(st && st.isApproval && (d.assignees || []).includes('MA'));
+}
+
 /* Prazo de aprovação: 2 dias corridos a partir de quando a demanda
    entrou na etapa atual (stageEnteredAt). Independe do prazo geral
    da demanda (deadline) — é só pra cobrar quem precisa decidir. */
@@ -1237,6 +1303,8 @@ const IChatBox = ({s=16})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}
 const IFile    = ({s=15})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>;
 const IExt     = ({s=13})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>;
 const IMic     = ({s=16})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><line x1="12" y1="18" x2="12" y2="22"/></svg>;
+const IBell    = ({s=17})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>;
+const IHome    = ({s=17})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}><path d="M3 11.5 12 4l9 7.5"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/></svg>;
 const IDown    = ({s=13})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>;
 const ITrash   = ({s=14})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>;
 const IStamp   = ({s=18})=><svg width={s} height={s} viewBox="0 0 24 24" {...sw}><path d="M5 21h14"/><path d="M4 17.5h16v-1a2 2 0 0 0-2-2h-3.2l.6-4.3A3.4 3.4 0 0 0 12 6.2a3.4 3.4 0 0 0-3.4 4l.6 4.3H6a2 2 0 0 0-2 2z"/></svg>;
@@ -1354,6 +1422,187 @@ function NavItem({ label, Icon, iconColor, count, active, onClick, indent }) {
 }
 
 /* =========== SIDEBAR =========== */
+/* Sino de notificações: junta num lugar só o que importa pra quem está logado,
+   sem depender do Slack nem do navegador. Não grava nada no banco, só lê. */
+function NotificacoesSino() {
+  const { user, active, slack, pipes, setModal } = useApp();
+  const chave = 'nb_notif_vistos_' + ((user && user.initials) || 'x');
+  const [aberto, setAberto] = useState(false);
+  const [vistos, setVistos] = useState(() => { try { return JSON.parse(localStorage.getItem(chave) || '[]'); } catch (e) { return []; } });
+  const [antes, setAntes] = useState([]);
+  if (!user) return null;
+
+  const ini = user.initials, nome = user.name;
+  const agora = Date.now(), JANELA = 30 * 86400000;
+  const itens = [];
+
+  /* 1) decisões que esperam o gestor */
+  if (user.isApprover) {
+    active.forEach(d => {
+      if (!precisaDecisaoGestor(d, pipes)) return;
+      const desde = d.pedidoAprovacaoEm || d.stageEnteredAt || d.createdAt || '';
+      const sla = getSlaAprovacao(desde);
+      itens.push({ key: 'd:' + d.id + ':' + desde, grupo: 'decisao', titulo: d.title,
+        texto: (sla ? sla.label : 'Esperando decisão') + '  ·  ' + d.area, demanda: d.id,
+        tom: sla && sla.type === 'danger' ? 'perigo' : 'aviso' });
+    });
+  }
+
+  /* 2) quando alguém marcou a pessoa numa atualização (o feed já registra isso) */
+  (slack || []).forEach(f => {
+    if (!f.ts || agora - f.ts > JANELA) return;
+    const texto = (f.action || '') + ' ' + (f.next || '');
+    if (!texto.includes('@' + nome)) return;
+    const dem = active.find(d => d.code === f.code);
+    itens.push({ key: 'f:' + f.id, grupo: 'novidade', ts: f.ts, titulo: f.stagePath || 'Atualização',
+      texto: (f.action || '').replace(/@/g, ''), demanda: dem ? dem.id : null, tom: 'info' });
+  });
+  const novidades = itens.filter(i => i.grupo === 'novidade').sort((a, b) => b.ts - a.ts).slice(0, 12);
+
+  /* 3) prazos das demandas em que a pessoa está envolvida */
+  const prazos = [];
+  active.forEach(d => {
+    if (!(d.assignees || []).includes(ini) || d.aguardandoAprovacao) return;
+    const st = (pipes[d.area] || []).find(s => s.id === d.stageId);
+    if (st && st.isDone) return;
+    const s = getSla(d.deadline);
+    if (!s || s.type === 'ok') return;
+    prazos.push({ key: 'p:' + d.id + ':' + s.label, grupo: 'prazo', titulo: d.title,
+      texto: s.label + '  ·  ' + d.area, demanda: d.id, tom: s.type === 'danger' ? 'perigo' : 'aviso',
+      ordem: s.type === 'danger' ? 0 : 1 });
+  });
+  prazos.sort((a, b) => a.ordem - b.ordem);
+
+  const decisoes = itens.filter(i => i.grupo === 'decisao');
+  const todos = [].concat(decisoes, novidades, prazos.slice(0, 10));
+  const naoLidos = todos.filter(i => !vistos.includes(i.key)).length;
+
+  const abrir = () => {
+    setAntes(vistos);
+    const marcados = Array.from(new Set(vistos.concat(todos.map(i => i.key)))).slice(-400);
+    setVistos(marcados);
+    try { localStorage.setItem(chave, JSON.stringify(marcados)); } catch (e) {}
+    setAberto(true);
+  };
+  const irPara = i => { if (i.demanda) setModal(i.demanda); setAberto(false); };
+
+  const cores = {
+    perigo: { fundo: '#FEECEC', texto: '#B4232A' },
+    aviso:  { fundo: '#FFF6DE', texto: '#8A6206' },
+    info:   { fundo: '#EAF3FD', texto: '#0B4F92' },
+  };
+  const grupo = (titulo, lista) => lista.length === 0 ? null : (
+    <div style={{ marginBottom: 6 }}>
+      <div style={{ fontSize: 10.5, fontWeight: 700, color: NB.mut2, textTransform: 'uppercase', letterSpacing: '0.08em', padding: '10px 18px 6px' }}>{titulo}</div>
+      {lista.map(i => {
+        const novo = !antes.includes(i.key);
+        const c = cores[i.tom] || cores.info;
+        return (
+          <button key={i.key} onClick={() => irPara(i)}
+            style={{ width: '100%', textAlign: 'left', display: 'flex', gap: 11, alignItems: 'flex-start', padding: '10px 18px', background: novo ? '#F7FAFF' : '#fff', border: 'none', cursor: i.demanda ? 'pointer' : 'default' }}
+            onMouseEnter={e => { e.currentTarget.style.background = '#F1F6FD'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = novo ? '#F7FAFF' : '#fff'; }}>
+            <span style={{ width: 8, height: 8, borderRadius: '50%', marginTop: 6, flexShrink: 0, background: novo ? NB.azul : 'transparent' }}/>
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: NB.txt, lineHeight: 1.35, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{i.titulo}</div>
+              <div style={{ display: 'inline-block', marginTop: 4, fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 5, background: c.fundo, color: c.texto, lineHeight: 1.4 }}>{i.texto}</div>
+            </div>
+          </button>
+        );
+      })}
+    </div>
+  );
+
+  return (
+    <div style={{ position: 'relative' }}>
+      <button onClick={aberto ? () => setAberto(false) : abrir} title="Notificações"
+        style={{ position: 'relative', width: 38, height: 38, borderRadius: 11, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                 background: aberto ? '#EAF3FD' : '#fff', border: '1px solid ' + (aberto ? NB.azul : NB.bd), color: aberto ? NB.azul : NB.mut }}>
+        <IBell s={17}/>
+        {naoLidos > 0 && (
+          <span style={{ position: 'absolute', top: -6, right: -6, minWidth: 18, height: 18, padding: '0 5px', borderRadius: 9, background: '#E5484D', color: '#fff',
+                         fontSize: 10.5, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 0 2px #fff' }}>
+            {naoLidos > 9 ? '9+' : naoLidos}
+          </span>
+        )}
+      </button>
+      {aberto && (
+        <React.Fragment>
+          <div onClick={() => setAberto(false)} style={{ position: 'fixed', inset: 0, zIndex: 79 }}/>
+          <div style={{ position: 'fixed', left: 14, top: 76, width: 372, maxWidth: 'calc(100vw - 28px)', maxHeight: 'calc(100vh - 100px)', overflowY: 'auto',
+                        background: '#fff', border: '1px solid ' + NB.bd, borderRadius: 16, boxShadow: '0 20px 56px rgba(4,18,48,0.20)', zIndex: 80 }}>
+            <div style={{ padding: '16px 18px 10px', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 15, fontWeight: 600, color: NB.txt }}>Notificações</span>
+              <span style={{ marginLeft: 'auto', fontSize: 11.5, color: NB.mut2 }}>{todos.length === 0 ? 'em dia' : todos.length + (todos.length === 1 ? ' item' : ' itens')}</span>
+            </div>
+            {todos.length === 0 && (
+              <div style={{ padding: '26px 24px 30px', textAlign: 'center' }}>
+                <div style={{ fontSize: 13.5, fontWeight: 500, color: NB.txt, marginBottom: 5 }}>Tudo em dia por aqui</div>
+                <div style={{ fontSize: 12.5, color: NB.mut2, lineHeight: 1.55 }}>Quando alguém te marcar numa demanda, ou um prazo ficar perto, aparece aqui.</div>
+              </div>
+            )}
+            {grupo('Esperando sua decisão', decisoes)}
+            {grupo('Novidades pra você', novidades)}
+            {grupo('Prazos', prazos.slice(0, 10))}
+            <div style={{ height: 8 }}/>
+          </div>
+        </React.Fragment>
+      )}
+    </div>
+  );
+}
+
+/* Tela de Início: porta de entrada de quem já está logado, sem precisar sair. */
+function InicioView() {
+  const { user, active, pipes, setView, setArea, setPreferirCentral, setQuickOpen, setAlertasTab } = useApp();
+  const primeiro = ((user && user.name) || '').split(' ')[0];
+  const minhas = active.filter(d => {
+    const st = (pipes[d.area] || []).find(s => s.id === d.stageId);
+    return (d.assignees || []).includes(user.initials) && !d.aguardandoAprovacao && !(st && st.isDone);
+  });
+  const atrasadas = minhas.filter(d => { const s = getSla(d.deadline); return s && s.type === 'danger'; }).length;
+  const decisoes = user.isApprover ? active.filter(d => precisaDecisaoGestor(d, pipes)).length : 0;
+
+  const atalhos = [
+    { t: 'Gestão de tarefas', d: 'O quadro com todas as demandas do marketing.', cor: NB.azul, ir: () => { setArea('Todas'); setView('kanban'); } },
+    { t: 'Central de Informações', d: 'Peças, campanhas ativas e mensagens prontas.', cor: NB.petroleo, ir: () => setView('central') },
+    { t: 'Ver como colaborador', d: 'A Central de Conteúdo, do jeito que o resto do Nibo vê.', cor: NB.pink, ir: () => setPreferirCentral(true) },
+    { t: 'Minhas subtarefas', d: 'Tudo que está marcado pra você, em qualquer demanda.', cor: NB.roxo, ir: () => setView('minhasSubtarefas') },
+    { t: 'Criar falando', d: 'Fale ou escreva a demanda e a plataforma monta pra você.', cor: '#059669', ir: () => setQuickOpen(true) },
+  ];
+  if (user.isApprover) atalhos.splice(3, 0, { t: 'Painel de aprovações', d: 'O que espera a sua decisão, em um quadro só.', cor: '#E0A100', ir: () => setView('aprovacoes') });
+
+  const stat = (n, rotulo, perigo) => (
+    <div style={{ background: '#fff', border: '1px solid ' + (perigo && n > 0 ? '#F5D0D0' : NB.bd), borderRadius: 14, padding: '16px 20px', minWidth: 150 }}>
+      <div style={{ fontSize: 26, fontWeight: 700, color: perigo && n > 0 ? '#B4232A' : NB.txt, lineHeight: 1.1 }}>{n}</div>
+      <div style={{ fontSize: 12, color: NB.mut, marginTop: 4 }}>{rotulo}</div>
+    </div>
+  );
+
+  return (
+    <div style={{ height: '100%', overflowY: 'auto', padding: '34px 38px 44px' }}>
+      <h1 style={{ fontSize: 24, fontWeight: 700, color: NB.navy1, marginBottom: 6, letterSpacing: '-0.01em' }}>Olá, {primeiro}!</h1>
+      <p style={{ fontSize: 14, color: NB.mut, marginBottom: 24 }}>Por onde você quer começar?</p>
+      <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginBottom: 30 }}>
+        {stat(minhas.length, 'demandas suas em andamento', false)}
+        {stat(atrasadas, 'suas atrasadas', true)}
+        {user.isApprover && stat(decisoes, 'esperando sua decisão', false)}
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(280px,1fr))', gap: 16, maxWidth: 1000 }}>
+        {atalhos.map(a => (
+          <button key={a.t} onClick={a.ir}
+            style={{ textAlign: 'left', background: '#fff', border: '1px solid ' + NB.bd, borderRadius: 16, padding: '20px 22px', borderTop: '4px solid ' + a.cor, transition: 'box-shadow 0.14s, transform 0.14s' }}
+            onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 10px 28px rgba(7,30,69,0.10)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+            onMouseLeave={e => { e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.transform = 'none'; }}>
+            <div style={{ fontSize: 15.5, fontWeight: 600, color: NB.txt, marginBottom: 6 }}>{a.t}</div>
+            <div style={{ fontSize: 12.8, color: NB.mut, lineHeight: 1.55 }}>{a.d}</div>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function Sidebar() {
   const { view, setView, area, setArea, user, active, slack, archived, pipes, pedidos, posts, campanhas, embaixadores, portaisEmbaixador, setNewOpen, setQuickOpen, setPresetNovo, setPacoteOpen, setProfileOpen, logout, previewMember, setPreviewMember, setPreferirCentral, setModal, alertasTab, setAlertasTab } = useApp();
   const areas = ['Social','Design','Mídia Paga','Produto','RevOps','Eventos'];
@@ -1369,17 +1618,13 @@ function Sidebar() {
   const escopoStats = area!=='Todas' ? escopoAtivas.filter(d=>d.area===area) : escopoAtivas;
   const vencidas = escopoStats.filter(d => { const s=getSla(d.deadline); return s && s.type==='danger'; }).length;
   const emAprovacao = active.filter(d => {
-    if (d.aguardandoAprovacao) return true;
+    if (d.aguardandoAprovacao || d.pedidoAprovacao) return true;
     const st = (pipes[d.area]||[]).find(x => x.id === d.stageId);
     return st && st.isApproval;
   }).length + pedidos.filter(p => p.status === 'novo').length;
   /* Só o que depende de decisão dela — sem contar os pedidos externos,
      que passam antes por triagem. */
-  const aguardandoDecisao = active.filter(d => {
-    if (d.aguardandoAprovacao) return true;
-    const st = (pipes[d.area]||[]).find(x => x.id === d.stageId);
-    return st && st.isApproval;
-  }).length;
+  const aguardandoDecisao = active.filter(d => precisaDecisaoGestor(d, pipes)).length;
   const minhasSubPendentes = active.reduce((n,d)=>n+(d.checklist||[]).filter(it=>it.responsavel===user.initials && !it.feita).length, 0);
   const [menu, setMenu] = useState(false);
   const [mostrarTodasAreas, setMostrarTodasAreas] = useState(!meuSetorFixo);
@@ -1392,12 +1637,12 @@ function Sidebar() {
 
       {/* Marca, símbolo Nibo em destaque, versão navy sobre fundo branco */}
       <div style={{padding:'28px 24px 22px',borderBottom:'1px solid '+NB.bdSoft}}>
-        <div style={{display:'flex',alignItems:'center',gap:13}}>
-          <NiboSymbol size={40} color={NB.navy1}/>
-          <div style={{lineHeight:1.2}}>
-            <div style={{fontSize:21,fontWeight:700,color:NB.navy1,letterSpacing:'-0.02em'}}>Nibo</div>
-            <div style={{fontSize:10.5,fontWeight:600,color:NB.mut,letterSpacing:'0.09em'}}>MARKETING <span style={{color:NB.azul}}>v2</span></div>
+        <div style={{display:'flex',alignItems:'center',gap:12}}>
+          <div style={{flex:1,minWidth:0}}>
+            <img src={NIBO_LOGO_AZUL} alt="Nibo" style={{display:'block',width:128,height:'auto'}}/>
+            <div style={{fontSize:10.5,fontWeight:600,color:NB.mut,letterSpacing:'0.09em',marginTop:8}}>MARKETING</div>
           </div>
+          <NotificacoesSino/>
         </div>
       </div>
 
@@ -1419,6 +1664,7 @@ function Sidebar() {
           style={{width:'100%',display:'flex',alignItems:'center',justifyContent:'center',gap:8,padding:'10px 14px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:10,color:NB.mut,fontSize:12.5,fontWeight:500,marginBottom:14}}>
           <ILayers s={13}/> Criar pacote de tarefas
         </button>
+        {(efetivo && efetivo.isApprover) && (
         <div style={{display:'flex',gap:9}}>
             <button onClick={()=>{ setAlertasTab('ativas'); setView('alertas'); }}
               style={{flex:1,textAlign:'left',background:view==='alertas'&&alertasTab==='ativas'?NB.azulClaro+'33':NB.col,border:view==='alertas'&&alertasTab==='ativas'?'1.5px solid '+NB.azul:'1.5px solid transparent',borderRadius:10,padding:'9px 11px',cursor:'pointer'}}>
@@ -1437,9 +1683,14 @@ function Sidebar() {
               <div style={{fontSize:10.5,color:NB.mut,fontWeight:500}}>recorrentes</div>
             </button>
           </div>
+        )}
       </div>
 
       <div style={{flex:1,overflowY:'auto',padding:'18px 12px'}} className="nb-scrollnone">
+        <div style={{marginBottom:16}}>
+          <NavItem label="Início" Icon={IHome} iconColor={NB.mut} active={view==='inicio'} onClick={()=>setView('inicio')}/>
+        </div>
+
         <div style={secLbl}>Pipelines</div>
         <div style={{display:'flex',flexDirection:'column',gap:2,marginBottom:20}}>
           {meuSetorFixo ? (
@@ -1471,6 +1722,11 @@ function Sidebar() {
         <div style={{marginBottom:20}}>
           <NavItem label="Minhas subtarefas" Icon={ICheck} iconColor={NB.mut}
             count={minhasSubPendentes||undefined} active={view==='minhasSubtarefas'} onClick={()=>setView('minhasSubtarefas')}/>
+          {!(efetivo && efetivo.isApprover) && (
+            <NavItem label="Recorrentes" Icon={IRefresh} iconColor={NB.mut}
+              count={active.filter(d=>d.recorrente).length||undefined}
+              active={view==='alertas'&&alertasTab==='recorrentes'} onClick={()=>{ setAlertasTab('recorrentes'); setView('alertas'); }}/>
+          )}
         </div>
 
         <div style={secLbl}>Central</div>
@@ -1532,7 +1788,6 @@ function Sidebar() {
 
         <div style={secLbl}>Módulos</div>
         <div style={{display:'flex',flexDirection:'column',gap:2}}>
-          <NavItem label="Automações Slack" Icon={ISlack} iconColor={NB.mut} count={slack.length||undefined} active={view==='slack'} onClick={()=>setView('slack')}/>
           <NavItem label="Arquivadas" Icon={IArchive} iconColor={NB.mut} count={archived.length||undefined} active={view==='arquivadas'} onClick={()=>setView('arquivadas')}/>
         </div>
       </div>
@@ -1634,6 +1889,8 @@ function ContentHeader() {
     variacoes:  ['Variações de peça', 'Suba uma peça e gere os cortes de formato, versões de fundo e o briefing do que testar.'],
     publicacoes:['Fila de Publicação', 'Monte o post, deixe pronto e publique, por enquanto manualmente no Meta Business Suite.'],
     gestao:     ['Gestão', 'Aprovações pendentes e pedidos de outros setores em um só lugar.'],
+    inicio:     ['Início', 'Por onde você quer começar hoje.'],
+    aprovacoes: ['Painel de aprovações', 'O que depende da decisão do gestor, em um quadro só.'],
     central:    ['Central de Informações', 'Busque peças, veja campanhas ativas e gere mensagens para WhatsApp.'],
     campanhas:  ['Campanhas', 'Crie e publique campanhas, o que estiver "Publicada" aparece pra todo o Nibo na Central de Informações.'],
   };
@@ -1709,7 +1966,7 @@ function ContentHeader() {
                   );
                 })}
                 <div style={{height:1,background:NB.bdSoft,margin:'11px 0'}}/>
-                <div style={{fontSize:11,fontWeight:500,color:NB.mut2,textTransform:'uppercase',letterSpacing:'0.09em',marginBottom:9}}>Responsável</div>
+                <div style={{fontSize:11,fontWeight:500,color:NB.mut2,textTransform:'uppercase',letterSpacing:'0.09em',marginBottom:9}}>Pessoa envolvida</div>
                 {responsaveis.length===0 ? (
                   <p style={{fontSize:12.5,color:NB.mut2}}>Nenhuma demanda ainda.</p>
                 ) : responsaveis.map(mb=>(
@@ -1828,10 +2085,10 @@ function DemandCard({ demand, colunaOrdenada }) {
       onMouseEnter={e=>{ if(!dragging){ e.currentTarget.style.boxShadow='0 4px 16px rgba(11,42,92,0.09)'; e.currentTarget.style.borderColor='#CFDCF0'; e.currentTarget.style.transform='translateY(-1px)'; } }}
       onMouseLeave={e=>{e.currentTarget.style.boxShadow='none'; e.currentTarget.style.borderColor=NB.bd; e.currentTarget.style.transform='none';}}>
 
-      {demand.aguardandoAprovacao && (
+      {(demand.aguardandoAprovacao || demand.pedidoAprovacao) && (
         <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:9,padding:'5px 9px',background:'#FFF6DE',border:'1px dashed #E8CE8E',borderRadius:7}}>
           <span style={{fontSize:12}}>⏳</span>
-          <span style={{fontSize:11,fontWeight:600,color:'#8A6206',letterSpacing:'0.01em'}}>Aguardando aprovação da Maris</span>
+          <span style={{fontSize:11,fontWeight:600,color:'#8A6206',letterSpacing:'0.01em'}}>{demand.aguardandoAprovacao ? 'Aguardando aprovação da Maris' : 'Aprovação do gestor pendente'}</span>
         </div>
       )}
 
@@ -2322,7 +2579,7 @@ function NewPostModal({ onClose, editingPost }) {
         </div>
 
         <div>
-          <div style={{...lbl,marginBottom:8}}>Responsáveis</div>
+          <div style={{...lbl,marginBottom:8}}>Pessoas envolvidas</div>
           <div style={{display:'flex',flexWrap:'wrap',gap:8}}>
             {ACTIVE_TEAM.map(m=><AssigneePick key={m.id} member={m} checked={form.assignees.includes(m.initials)} onToggle={()=>toggleAssignee(m.initials)}/>)}
           </div>
@@ -3980,7 +4237,7 @@ function ApprovalCard({ demand }) {
 
 /* =========== PAINEL DE APROVAÇÕES — quadro próprio da Mariana =========== */
 function CardAprovacao({ demand, coluna }) {
-  const { setModal, pipes, aprovarPedidoSlack, recusarPedidoSlack, moveStage, updateDemand, user } = useApp();
+  const { setModal, pipes, aprovarPedidoSlack, recusarPedidoSlack, decidirPedidoGestor, moveStage, updateDemand, user } = useApp();
   const stages = pipes[demand.area] || [];
   const idx = stages.findIndex(s => s.id === demand.stageId);
   const etapa = stages[idx];
@@ -3988,7 +4245,8 @@ function CardAprovacao({ demand, coluna }) {
   const Icon = AREA_ICON[demand.area] || IChat;
   const ac = AREA_CLR[demand.area] || NB.mut;
   const doSlack = !!demand.aguardandoAprovacao;
-  const slaAprov = coluna === 'aguardando' ? getSlaAprovacao(demand.stageEnteredAt) : null;
+  const doPedido = !!demand.pedidoAprovacao && !doSlack;
+  const slaAprov = coluna === 'aguardando' ? getSlaAprovacao(demand.pedidoAprovacaoEm || demand.stageEnteredAt) : null;
   const podeDecidir = user && user.isApprover;
 
   const aprovarEtapa = () => {
@@ -4009,7 +4267,7 @@ function CardAprovacao({ demand, coluna }) {
         style={{display:'block',width:'100%',textAlign:'left',background:'none',border:'none',padding:0,cursor:'pointer',marginBottom:9}}>
         <div style={{fontSize:13.5,fontWeight:500,color:NB.txt,lineHeight:1.4,marginBottom:4}}>{demand.title}</div>
         <div style={{fontSize:11.5,color:NB.mut2}}>
-          {doSlack ? 'Entrada pelo Slack' : (etapa ? etapa.name : '—')}
+          {doSlack ? 'Entrada pelo Slack' : doPedido ? 'Aprovação do gestor' : (etapa ? etapa.name : '—')}
           {demand.requester ? '  ·  ' + demand.requester : ''}
         </div>
       </button>
@@ -4024,11 +4282,17 @@ function CardAprovacao({ demand, coluna }) {
 
       {coluna==='aguardando' && podeDecidir && (
         <div style={{display:'flex',gap:7,flexWrap:'wrap'}}>
-          <button onClick={()=> doSlack ? aprovarPedidoSlack(demand.id) : aprovarEtapa()}
-            disabled={!doSlack && !prox}
-            style={{flex:1,minWidth:100,padding:'7px 12px',background:(doSlack||prox)?'#0F6E56':'#CFD8E6',border:'none',borderRadius:8,fontSize:12,fontWeight:600,color:'#fff',cursor:(doSlack||prox)?'pointer':'not-allowed'}}>
-            {doSlack ? 'Aprovar entrada' : (prox ? 'Aprovar → '+prox.name : 'Aprovar')}
+          <button onClick={()=> doSlack ? aprovarPedidoSlack(demand.id) : doPedido ? decidirPedidoGestor(demand.id, true) : aprovarEtapa()}
+            disabled={!doSlack && !doPedido && !prox}
+            style={{flex:1,minWidth:100,padding:'7px 12px',background:(doSlack||doPedido||prox)?'#0F6E56':'#CFD8E6',border:'none',borderRadius:8,fontSize:12,fontWeight:600,color:'#fff',cursor:(doSlack||doPedido||prox)?'pointer':'not-allowed'}}>
+            {doSlack ? 'Aprovar entrada' : doPedido ? 'Aprovar' : (prox ? 'Aprovar → '+prox.name : 'Aprovar')}
           </button>
+          {doPedido && (
+            <button onClick={()=>decidirPedidoGestor(demand.id, false)}
+              style={{padding:'7px 12px',background:'#fff',border:'1px solid #FBD5D5',borderRadius:8,fontSize:12,fontWeight:500,color:'#B4232A',cursor:'pointer'}}>
+              Devolver para ajuste
+            </button>
+          )}
           {doSlack && (
             <button onClick={()=>recusarPedidoSlack(demand.id)}
               style={{padding:'7px 12px',background:'#fff',border:'1px solid #FBD5D5',borderRadius:8,fontSize:12,fontWeight:500,color:'#B4232A',cursor:'pointer'}}>
@@ -4042,7 +4306,7 @@ function CardAprovacao({ demand, coluna }) {
         <div style={{fontSize:11,color:'#0F6E56'}}>✓ aprovada em {fmtDate(demand.aprovadoEm.slice(0,10))}</div>
       )}
       {coluna==='recusadas' && demand.recusadoEm && (
-        <div style={{fontSize:11,color:'#B4232A'}}>recusada em {fmtDate(demand.recusadoEm.slice(0,10))}</div>
+        <div style={{fontSize:11,color:'#B4232A'}}>{demand.archivedAt ? 'recusada' : 'devolvida'} em {fmtDate(demand.recusadoEm.slice(0,10))}</div>
       )}
     </div>
   );
@@ -4055,11 +4319,7 @@ function AprovacoesView() {
   const limite = Date.now() - dias * 24 * 60 * 60 * 1000;
   const recente = iso => iso && new Date(iso).getTime() >= limite;
 
-  const aguardando = active.filter(d => {
-    if (d.aguardandoAprovacao) return true;
-    const st = (pipes[d.area]||[]).find(s => s.id === d.stageId);
-    return st && st.isApproval;
-  }).sort((a,b) => (a.stageEnteredAt||a.createdAt||'').localeCompare(b.stageEnteredAt||b.createdAt||''));
+  const aguardando = active.filter(d => precisaDecisaoGestor(d, pipes)).sort((a,b) => (a.stageEnteredAt||a.createdAt||'').localeCompare(b.stageEnteredAt||b.createdAt||''));
 
   /* Decididas ficam por um tempo à vista e depois somem sozinhas, pra
      coluna não virar um arquivo morto. */
@@ -4069,7 +4329,7 @@ function AprovacoesView() {
                            .sort((a,b) => (b.recusadoEm||'').localeCompare(a.recusadoEm||''));
 
   const colunas = [
-    { id:'aguardando', nome:'Aguardando você',  itens:aguardando, cor:'#E0A100', bg:'#FFFBF0', bd:'#F0E2C0', vazio:'Nada esperando decisão.' },
+    { id:'aguardando', nome:'Para aprovar',  itens:aguardando, cor:'#E0A100', bg:'#FFFBF0', bd:'#F0E2C0', vazio:'Nada esperando decisão.' },
     { id:'aprovadas',  nome:'Aprovadas',        itens:aprovadas,  cor:'#0F6E56', bg:'#F2FAF7', bd:'#CFE9DF', vazio:'Nenhuma aprovada nesse período.' },
     { id:'recusadas',  nome:'Recusadas',        itens:recusadas,  cor:'#B4232A', bg:'#FEF7F7', bd:'#F5D9D9', vazio:'Nenhuma recusada nesse período.' },
   ];
@@ -4132,7 +4392,7 @@ function GestaoView() {
     /* Duas coisas esperam decisão da Mariana: demandas que chegaram numa
        etapa de aprovação do pipeline, e pedidos de Conteúdo/Design que
        entraram pelo Slack e ainda não foram liberados. */
-    if (d.aguardandoAprovacao) return true;
+    if (d.aguardandoAprovacao || d.pedidoAprovacao) return true;
     const st = (pipes[d.area]||[]).find(s => s.id === d.stageId);
     return st && st.isApproval;
   }).sort((a,b) => (a.stageEnteredAt||a.createdAt||'').localeCompare(b.stageEnteredAt||b.createdAt||''));
@@ -4486,7 +4746,7 @@ function ListView() {
               onClick={toggleSort}>
             Prazo{sortIcon}
           </th>
-          <th style={{...th,textAlign:'right'}}>Responsáveis</th>
+          <th style={{...th,textAlign:'right'}}>Pessoas envolvidas</th>
         </tr></thead>
         <tbody>{rows.map(d=><ListRow key={d.id} demand={d}/>)}</tbody>
       </table>
@@ -6123,7 +6383,7 @@ function NotifBloqueadaAviso() {
 }
 
 function CardModal() {
-  const { selDemand, setModal, moveStage, moveArea, delDemand, archiveDemand, setNotifyPending, setAssignees, updateDemand, attach, comments, pipes, enviarCampanhaDeDemanda, demands, dispararManual, user, aprovarPedidoSlack, recusarPedidoSlack, pararRecorrencia } = useApp();
+  const { selDemand, setModal, moveStage, moveArea, delDemand, archiveDemand, setNotifyPending, setAssignees, updateDemand, attach, comments, pipes, enviarCampanhaDeDemanda, demands, dispararManual, user, aprovarPedidoSlack, recusarPedidoSlack, pedirAprovacaoGestor, decidirPedidoGestor, pararRecorrencia } = useApp();
   const [picker, setPicker] = useState(false);
   const [confirmDel, setConfirmDel] = useState(false);
   const [tab, setTab] = useState('anexos');
@@ -6224,24 +6484,28 @@ function CardModal() {
 
   return (
     <Modal onClose={()=>setModal(null)} width={620}>
-      {d.aguardandoAprovacao && (
+      {(d.aguardandoAprovacao || d.pedidoAprovacao) && (
         <div style={{padding:'14px 26px',background:'#FFF6DE',borderBottom:'1px solid #E8CE8E',display:'flex',alignItems:'center',gap:12,flexWrap:'wrap'}}>
           <span style={{fontSize:18,flexShrink:0}}>⏳</span>
           <div style={{flex:1,minWidth:180}}>
-            <div style={{fontSize:13,fontWeight:600,color:'#8A6206'}}>Aguardando aprovação da Maris</div>
+            <div style={{fontSize:13,fontWeight:600,color:'#8A6206'}}>
+              {d.aguardandoAprovacao ? 'Aguardando aprovação da Maris' : 'Aprovação do gestor pendente'}
+            </div>
             <p style={{fontSize:12,color:'#8A6206',margin:'2px 0 0',lineHeight:1.45,opacity:0.85}}>
-              Pedido de {d.requester||'—'} pelo Slack. Só entra oficialmente no quadro depois de aprovado.
+              {d.aguardandoAprovacao
+                ? 'Pedido de ' + (d.requester||'alguém') + ' pelo Slack. Só entra oficialmente no quadro depois de aprovado.'
+                : ((TEAM.find(m=>m.initials===d.pedidoAprovacaoPor)||{}).name || 'Alguém') + ' pediu a aprovação do gestor. A demanda segue no quadro enquanto isso.'}
             </p>
           </div>
           {user && user.isApprover && (
             <div style={{display:'flex',gap:8,flexShrink:0}}>
-              <button onClick={()=>aprovarPedidoSlack(d.id)}
+              <button onClick={()=> d.aguardandoAprovacao ? aprovarPedidoSlack(d.id) : decidirPedidoGestor(d.id, true)}
                 style={{padding:'8px 16px',background:'#0F6E56',border:'none',borderRadius:8,fontSize:13,fontWeight:600,color:'#fff',cursor:'pointer'}}>
                 Aprovar
               </button>
-              <button onClick={()=>recusarPedidoSlack(d.id)}
+              <button onClick={()=> d.aguardandoAprovacao ? recusarPedidoSlack(d.id) : decidirPedidoGestor(d.id, false)}
                 style={{padding:'8px 14px',background:'#fff',border:'1px solid #E8CE8E',borderRadius:8,fontSize:13,color:'#8A6206',cursor:'pointer'}}>
-                Recusar
+                {d.aguardandoAprovacao ? 'Recusar' : 'Devolver para ajuste'}
               </button>
             </div>
           )}
@@ -6489,7 +6753,7 @@ function CardModal() {
 
         <div style={{marginBottom:24}}>
           <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:7,gap:10}}>
-            <span style={{...lbl, marginBottom:0}}>Responsáveis</span>
+            <span style={{...lbl, marginBottom:0}}>Pessoas envolvidas</span>
             <button onClick={()=>setPicker(p=>!p)}
               style={{display:'flex',alignItems:'center',gap:6,padding:'5px 11px',background:picker?'#EAF3FD':'#fff',border:'1px solid '+(picker?NB.azul:NB.bd),borderRadius:8,fontSize:12.5,fontWeight:500,color:picker?NB.azul:NB.mut}}>
               <IPlus s={13}/> {picker ? 'Fechar' : 'Adicionar ou trocar'}
@@ -6590,7 +6854,7 @@ function CardModal() {
                       })}
                     </div>
                     <p style={{fontSize:12,color:NB.mut2,lineHeight:1.55,marginBottom:12}}>
-                      Os responsáveis atuais continuam no card. Ajuste na seção Responsáveis se quem toca a demanda mudou.
+                      As pessoas envolvidas continuam no card. Ajuste na seção Pessoas envolvidas se quem toca a demanda mudou.
                     </p>
                     <button onClick={()=>{
                       moveArea(d.id, tgtArea, tgtStage || pipes[tgtArea][0].id);
@@ -6642,6 +6906,15 @@ function CardModal() {
           </div>
         ) : (
           <div style={{display:'flex',gap:9,flexWrap:'wrap'}}>
+            {user && !user.isApprover && !d.pedidoAprovacao && !d.aguardandoAprovacao && (
+              <button onClick={()=>pedirAprovacaoGestor(d.id)}
+                title="Coloca o gestor na demanda e avisa que precisa da decisão dele. Só use quando precisar mesmo."
+                style={{display:'flex',alignItems:'center',gap:7,padding:'10px 16px',background:'#FFF6DE',border:'1.5px solid #E8CE8E',borderRadius:9,fontSize:13,fontWeight:500,color:'#8A6206'}}
+                onMouseEnter={e=>{e.currentTarget.style.background='#FDEFC4';}}
+                onMouseLeave={e=>{e.currentTarget.style.background='#FFF6DE';}}>
+                Pedir aprovação do gestor
+              </button>
+            )}
             {d.recorrente && (
               <button onClick={()=>{ dispararManual(d); setModal(null); }}
                 title="Gera uma nova instância agora com o checklist do pacote"
@@ -6709,8 +6982,8 @@ function NotifyModal() {
   return (
     <Modal onClose={()=>setNotifyPending(null)} width={450} z={60}>
       <div style={{padding:'24px 26px 16px'}}>
-        <h2 style={{fontSize:17.5,fontWeight:600,color:NB.txt,marginBottom:7}}>Notificar entrega no Slack</h2>
-        <p style={{fontSize:13.5,color:NB.mut,lineHeight:1.6}}>A arte de <strong style={{color:NB.txt,fontWeight:500}}>{notifyPending.demandTitle}</strong> vai para Entregue. Quem deve receber a menção?</p>
+        <h2 style={{fontSize:17.5,fontWeight:600,color:NB.txt,marginBottom:7}}>Avisar alguém da entrega?</h2>
+        <p style={{fontSize:13.5,color:NB.mut,lineHeight:1.6}}>A arte de <strong style={{color:NB.txt,fontWeight:500}}>{notifyPending.demandTitle}</strong> vai para Entregue. Se quiser, marque quem deve receber a menção no Slack. É opcional: dá para só mover.</p>
       </div>
       <div style={{padding:'4px 26px 10px',display:'flex',flexDirection:'column',gap:8}}>
         <label style={{display:'flex',alignItems:'center',gap:11,padding:'11px 14px',borderRadius:11,background:allSelected?'#EAF3FD':'#fff',border:'1px solid '+(allSelected?NB.azul:NB.bd),cursor:'pointer'}}>
@@ -6726,9 +6999,13 @@ function NotifyModal() {
           style={{padding:'10px 18px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:9,fontSize:13,fontWeight:500,color:NB.mut}}>
           Cancelar
         </button>
+        <button onClick={()=>{ moveStage(notifyPending.demandId, notifyPending.stageId, []); setNotifyPending(null); }}
+          style={{padding:'10px 18px',background:'#fff',border:'1px solid '+NB.azul,borderRadius:9,fontSize:13,fontWeight:600,color:NB.azul}}>
+          Só mover
+        </button>
         <button onClick={confirm} disabled={picked.length===0}
           style={{padding:'10px 22px',background:picked.length?NB.azul:'#CFD8E6',border:'none',borderRadius:9,fontSize:13,fontWeight:500,color:'#fff',cursor:picked.length?'pointer':'not-allowed'}}>
-          Mover e notificar
+          Mover e avisar
         </button>
       </div>
     </Modal>
@@ -7478,7 +7755,7 @@ function CriacaoRapidaModal() {
             </div>
 
             <div style={{ marginBottom: 6 }}>
-              <label style={lbl}>Quem vai fazer</label>
+              <label style={lbl}>Pessoas envolvidas</label>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
                 {TEAM.map(m => {
                   const sel = respFinal.includes(m.initials);
@@ -8864,7 +9141,7 @@ function ResumoView() {
                   <th style={{padding:'6px 10px',color:NB.mut2,fontWeight:600}}>Área</th>
                   <th style={{padding:'6px 10px',color:NB.mut2,fontWeight:600}}>Etapa</th>
                   <th style={{padding:'6px 10px',color:NB.mut2,fontWeight:600}}>Prioridade</th>
-                  <th style={{padding:'6px 10px',color:NB.mut2,fontWeight:600}}>Responsáveis</th>
+                  <th style={{padding:'6px 10px',color:NB.mut2,fontWeight:600}}>Pessoas envolvidas</th>
                   <th style={{padding:'6px 10px',color:NB.mut2,fontWeight:600}}>Solicitante</th>
                   <th style={{padding:'6px 10px',color:NB.mut2,fontWeight:600}}>Prazo</th>
                   <th style={{padding:'6px 10px',color:NB.mut2,fontWeight:600}}>Status</th>
@@ -9432,6 +9709,7 @@ function AppContent() {
               {view==='arquivadas' && <ArchivedView/>}
               {view==='variacoes'  && <VariationsView/>}
               {view==='publicacoes'&& <PublishQueueView/>}
+              {view==='inicio'     && <InicioView/>}
               {view==='aprovacoes' && <AprovacoesView/>}
               {view==='gestao'     && <GestaoView/>}
               {view==='central'    && <InfoCentralView/>}
