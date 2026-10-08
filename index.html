@@ -7503,7 +7503,7 @@ const QR_AREA_NOME = {
   'Eventos':    ['evento','eventos'],
 };
 const QR_AREA_PALAVRAS = {
-  'Social':     ['post','posts','instagram','linkedin','tiktok','roteiro','roteiros','legenda','carrossel','reels','blog','copy','newsletter','artigo'],
+  'Social':     ['post','posts','instagram','linkedin','tiktok','roteiro','roteiros','legenda','carrossel','reels','blog','copy','newsletter','artigo','soja'],
   'Design':     ['banner','banners','arte','artes','peca','pecas','layout','criativo','criativos','identidade visual','apresentacao','slide','slides','folder','cartaz','logo','ebook','mockup'],
   'Mídia Paga': ['anuncio','anuncios','google ads','meta ads','facebook ads','trafego','remarketing','lead ads','patrocinado'],
   'Produto':    ['lancamento','release','novidade','funcionalidade','feature','changelog','atualizacao do produto'],
@@ -7616,18 +7616,23 @@ function interpretarDemandaFalada(bruto, ctx) {
     /^(?:uma?\s+)?nova\s+(?:demanda|tarefa|card)\s*(?:de|para|pra|sobre|:)?\s*/i,
     /^(?:eu\s+)?(?:preciso|precisamos|quero|queria|gostaria|vamos precisar|temos que|tem que|preciso que)\s+(?:de\s+|que\s+)?(?:pedir\s+|solicitar\s+|fazer\s+)?(?:uma?\s+|uns?\s+|umas?\s+)?/i,
     /^(?:pedir|solicitar|fazer)\s+(?:uma?\s+|uns?\s+|umas?\s+)?/i,
+    /^(?:demanda|tarefa|card)\s*(?:de|para|pra|sobre|:)?\s*/i,
   ];
   for (let i = 0; i < 3; i++) fillers.forEach(rx => { t = t.replace(rx, ''); });
   // pedaços soltos que são só o nome de uma área ("..., design, ...")
   const nomesArea = [].concat.apply([], QR_AREAS.map(a => QR_AREA_NOME[a]));
+  t = t.replace(/^(?:social|soja|design|conte[uú]do|revops|produto|eventos?|m[ií]dia paga|tr[aá]fego pago)\s+sobre\s+(?:o\s+|a\s+|os\s+|as\s+)?/i, '');
   t = t.split(',').filter(seg => nomesArea.indexOf(qrSemAcento(seg).toLowerCase().trim()) < 0).join(',');
   const quebra = t.search(/[.!?](\s|$)|\n/);
   if (quebra > 8) t = t.slice(0, quebra);
-  const conj = qrSemAcento(t).toLowerCase().search(/\s(?:e tambem|alem disso|porque|pois|e depois)\s/);
-  if (conj > 8) t = t.slice(0, conj);
+  /* O titulo e so o assunto: corta onde a frase comeca a explicar ou a pedir outra coisa. */
+  const conj = qrSemAcento(t).toLowerCase().search(/\s(?:e tambem|alem disso|porque|pois|e depois|e eu|e ele|e ela|sera|vai ser|vai ter|que sera|que vai|para que|sendo que|onde|quero que|preciso|precisamos)\s/);
+  if (conj > 12) t = t.slice(0, conj);
+  const virgula = t.indexOf(',');
+  if (virgula >= 25) t = t.slice(0, virgula);
   t = t.replace(/^[\s,;:\-]+|[\s,;:\-]+$/g, '');
   for (let i = 0; i < 3; i++) t = t.replace(/\s+(?:e|para|pra|de|do|da|que|com|a|o|no|na|em|ate)$/i, '').replace(/[\s,;:\-]+$/g, '');
-  if (t.length > 80) { t = t.slice(0, 80).replace(/\s+\S*$/, '') + '…'; }
+  if (t.length > 60) { t = t.slice(0, 60).replace(/\s+\S*$/, '') + '…'; }
   if (t) t = t.charAt(0).toUpperCase() + t.slice(1);
 
   return {
@@ -7672,12 +7677,14 @@ function CriacaoRapidaModal() {
     rec.lang = 'pt-BR'; rec.continuous = true; rec.interimResults = true;
     baseRef.current = texto.trim() ? texto.trim() + ' ' : '';
     rec.onresult = (e) => {
-      let fin = '', parcial = '';
+      /* Cada frase falada chega como um trecho separado, sem espaco entre eles:
+         sem juntar com espaco, saia "demandapara", "vercom", "comercialquais". */
+      const trechos = [];
       for (let i = 0; i < e.results.length; i++) {
-        const tr = e.results[i][0].transcript;
-        if (e.results[i].isFinal) fin += tr; else parcial += tr;
+        const tr = e.results[i][0].transcript.trim();
+        if (tr) trechos.push(tr);
       }
-      setTexto(baseRef.current + (fin + parcial).trim());
+      setTexto((baseRef.current + trechos.join(' ')).trim());
     };
     rec.onerror = (e) => {
       setOuvindo(false); recRef.current = null;
