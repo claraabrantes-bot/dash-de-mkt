@@ -1003,11 +1003,11 @@ function Provider({ children }) {
     const db = dbRef.current; if (!db) return;
     const ref = id ? db.collection('pacotes').doc(id) : db.collection('pacotes').doc();
     ref.set({ ...dados, criadoPor:(user&&user.name)||'', criadoEm:new Date().toISOString() }, { merge:true })
-      .catch(e => setDbErro('Não foi possível salvar o pacote: '+e.message));
+      .catch(e => setDbErro('Não foi possível salvar o modelo: '+e.message));
   }, [user]);
   const removePacote = useCallback((id) => {
     const db = dbRef.current; if (!db) return;
-    db.collection('pacotes').doc(id).delete().catch(e=>setDbErro('Não foi possível remover o pacote: '+e.message));
+    db.collection('pacotes').doc(id).delete().catch(e=>setDbErro('Não foi possível remover o modelo: '+e.message));
   }, []);
 
   const seed = useCallback(() => {
@@ -1404,7 +1404,7 @@ function NavItem({ label, Icon, iconColor, count, active, onClick, indent }) {
   return (
     <button onClick={onClick}
       style={{width:'100%',display:'flex',alignItems:'center',justifyContent:'space-between',gap:8,
-        padding: indent ? '7px 12px 7px 14px' : '10px 12px',
+        padding: indent ? '6px 12px 6px 14px' : '8px 12px',
         borderRadius:10,border:'none',marginLeft:indent?18:0,width:indent?'calc(100% - 18px)':'100%',
         borderLeft: indent ? 'none' : '3px solid '+(active?NB.azul:'transparent'),
         background:active?(indent?NB.col:'#EAF3FD'):'transparent',transition:'background 0.12s'}}
@@ -1568,7 +1568,7 @@ function InicioView() {
     { t: 'Central de Informações', d: 'Peças, campanhas ativas e mensagens prontas.', cor: NB.petroleo, ir: () => setView('central') },
     { t: 'Ver como colaborador', d: 'A Central de Conteúdo, do jeito que o resto do Nibo vê.', cor: NB.pink, ir: () => setPreferirCentral(true) },
     { t: 'Minhas subtarefas', d: 'Tudo que está marcado pra você, em qualquer demanda.', cor: NB.roxo, ir: () => setView('minhasSubtarefas') },
-    { t: 'Criar falando', d: 'Fale ou escreva a demanda e a plataforma monta pra você.', cor: '#059669', ir: () => setQuickOpen(true) },
+    { t: 'Criar demanda por voz', d: 'Fale ou escreva a demanda e a plataforma monta pra você.', cor: '#059669', ir: () => setQuickOpen(true) },
   ];
   if (user.isApprover) atalhos.splice(3, 0, { t: 'Painel de aprovações', d: 'O que espera a sua decisão, em um quadro só.', cor: '#E0A100', ir: () => setView('aprovacoes') });
 
@@ -1630,13 +1630,13 @@ function Sidebar() {
   const [mostrarTodasAreas, setMostrarTodasAreas] = useState(!meuSetorFixo);
   const [previewOpen, setPreviewOpen] = useState(false);
 
-  const secLbl = { fontSize:10.5, fontWeight:600, letterSpacing:'0.1em', color:NB.mut2, textTransform:'uppercase', padding:'0 12px', marginBottom:8 };
+  const secLbl = { fontSize:10.5, fontWeight:600, letterSpacing:'0.1em', color:NB.mut2, textTransform:'uppercase', padding:'0 12px', marginBottom:4 };
 
   return (
     <aside style={{width:272,flexShrink:0,height:'100vh',background:'#fff',borderRight:'1px solid '+NB.bd,display:'flex',flexDirection:'column'}}>
 
       {/* Marca, símbolo Nibo em destaque, versão navy sobre fundo branco */}
-      <div style={{padding:'28px 24px 22px',borderBottom:'1px solid '+NB.bdSoft}}>
+      <div style={{padding:'20px 22px 15px',borderBottom:'1px solid '+NB.bdSoft}}>
         <div style={{display:'flex',alignItems:'center',gap:12}}>
           <div style={{flex:1,minWidth:0}}>
             <img src={NIBO_LOGO_AZUL} alt="Nibo" style={{display:'block',width:128,height:'auto'}}/>
@@ -1646,26 +1646,22 @@ function Sidebar() {
         </div>
       </div>
 
-      <div style={{padding:'18px 20px 16px',borderBottom:'1px solid '+NB.bdSoft}}>
+      <div style={{padding:'13px 18px 12px',borderBottom:'1px solid '+NB.bdSoft}}>
         <button onClick={()=>{setPresetNovo(null); setNewOpen(true);}}
-          style={{width:'100%',display:'flex',alignItems:'center',justifyContent:'center',gap:9,padding:'13px 16px',background:NB.azul,border:'none',borderRadius:11,color:'#fff',fontSize:14,fontWeight:600,boxShadow:'0 3px 12px rgba(0,132,255,0.28)',marginBottom:14}}
+          style={{width:'100%',display:'flex',alignItems:'center',justifyContent:'center',gap:9,padding:'11px 16px',background:NB.azul,border:'none',borderRadius:11,color:'#fff',fontSize:14,fontWeight:600,boxShadow:'0 3px 12px rgba(0,132,255,0.28)',marginBottom:14}}
           onMouseEnter={e=>{e.currentTarget.style.background='#0082E8';}}
           onMouseLeave={e=>{e.currentTarget.style.background=NB.azul;}}>
           <IPlus s={16}/> Nova demanda
         </button>
         <button onClick={()=>setQuickOpen(true)}
-          title="Fale ou escreva a demanda e a plataforma monta para você"
-          style={{width:'100%',display:'flex',alignItems:'center',justifyContent:'center',gap:8,padding:'10px 14px',margin:'8px 0',background:'#fff',border:'1.5px solid '+NB.azul,borderRadius:10,color:NB.azul,fontSize:12.5,fontWeight:600}}
+          title="Fale ou escreva a demanda do jeito que vier e a plataforma monta para você"
+          style={{width:'100%',display:'flex',alignItems:'center',justifyContent:'center',gap:8,padding:'8px 14px',margin:'7px 0 0',background:'#fff',border:'1.5px solid '+NB.azul,borderRadius:10,color:NB.azul,fontSize:12.5,fontWeight:600}}
           onMouseEnter={e=>{e.currentTarget.style.background='#EAF3FD';}}
           onMouseLeave={e=>{e.currentTarget.style.background='#fff';}}>
-          <IMic s={14}/> Criar falando
-        </button>
-        <button onClick={()=>setPacoteOpen(true)}
-          style={{width:'100%',display:'flex',alignItems:'center',justifyContent:'center',gap:8,padding:'10px 14px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:10,color:NB.mut,fontSize:12.5,fontWeight:500,marginBottom:14}}>
-          <ILayers s={13}/> Criar pacote de tarefas
+          <IMic s={14}/> Criar demanda por voz
         </button>
         {(efetivo && efetivo.isApprover) && (
-        <div style={{display:'flex',gap:9}}>
+        <div style={{display:'flex',gap:9,marginTop:10}}>
             <button onClick={()=>{ setAlertasTab('ativas'); setView('alertas'); }}
               style={{flex:1,textAlign:'left',background:view==='alertas'&&alertasTab==='ativas'?NB.azulClaro+'33':NB.col,border:view==='alertas'&&alertasTab==='ativas'?'1.5px solid '+NB.azul:'1.5px solid transparent',borderRadius:10,padding:'9px 11px',cursor:'pointer'}}>
               <div style={{fontSize:17,fontWeight:700,color:NB.txt,lineHeight:1.1}}>{escopoStats.length}</div>
@@ -1686,13 +1682,13 @@ function Sidebar() {
         )}
       </div>
 
-      <div style={{flex:1,overflowY:'auto',padding:'18px 12px'}} className="nb-scrollnone">
-        <div style={{marginBottom:16}}>
+      <div style={{flex:1,overflowY:'auto',padding:'12px 12px 8px'}} className="nb-scrollnone">
+        <div style={{marginBottom:8}}>
           <NavItem label="Início" Icon={IHome} iconColor={NB.mut} active={view==='inicio'} onClick={()=>setView('inicio')}/>
         </div>
 
         <div style={secLbl}>Pipelines</div>
-        <div style={{display:'flex',flexDirection:'column',gap:2,marginBottom:20}}>
+        <div style={{display:'flex',flexDirection:'column',gap:1,marginBottom:12}}>
           {meuSetorFixo ? (
             area==='Todas' && view==='kanban' ? (
               <button onClick={()=>{setArea(meuSetorFixo); setView('kanban'); setMostrarTodasAreas(false);}}
@@ -1719,7 +1715,7 @@ function Sidebar() {
         </div>
 
         <div style={secLbl}>Você</div>
-        <div style={{marginBottom:20}}>
+        <div style={{marginBottom:12}}>
           <NavItem label="Minhas subtarefas" Icon={ICheck} iconColor={NB.mut}
             count={minhasSubPendentes||undefined} active={view==='minhasSubtarefas'} onClick={()=>setView('minhasSubtarefas')}/>
           {!(efetivo && efetivo.isApprover) && (
@@ -1730,7 +1726,7 @@ function Sidebar() {
         </div>
 
         <div style={secLbl}>Central</div>
-        <div style={{marginBottom:20}}>
+        <div style={{marginBottom:12}}>
           <NavItem label="Central de Informações" Icon={IGlobe} iconColor={NB.mut}
             active={view==='central'} onClick={()=>setView('central')}/>
           <NavItem label="Campanhas" Icon={ITarget} iconColor={NB.mut}
@@ -1740,9 +1736,9 @@ function Sidebar() {
         {/* Embaixadores tem peso de área própria, não é um item solto
             dentro da Central — por isso ganha seção e destaque. */}
         <div style={secLbl}>Embaixadores</div>
-        <div style={{marginBottom:20}}>
+        <div style={{marginBottom:12}}>
           <button onClick={()=>setView('portalEmbaixador')}
-            style={{width:'100%',textAlign:'left',padding:'12px 13px',borderRadius:12,cursor:'pointer',
+            style={{width:'100%',textAlign:'left',padding:'9px 12px',borderRadius:12,cursor:'pointer',
               background: view==='portalEmbaixador' ? 'linear-gradient(120deg,#FFF0F7 0%,#FDE8F3 100%)' : '#fff',
               border:'1.5px solid '+(view==='portalEmbaixador' ? NB.pink : NB.bd),
               display:'flex',alignItems:'center',gap:11,transition:'all 0.14s'}}>
@@ -1762,9 +1758,9 @@ function Sidebar() {
         {/* Gestão fica logo abaixo de Embaixadores: são as duas frentes
             que a Mariana acompanha, e as duas ganham destaque. */}
         <div style={secLbl}>Gestão</div>
-        <div style={{marginBottom:20}}>
+        <div style={{marginBottom:12}}>
           <button onClick={()=>setView('aprovacoes')}
-            style={{width:'100%',textAlign:'left',padding:'12px 13px',borderRadius:12,cursor:'pointer',marginBottom:8,
+            style={{width:'100%',textAlign:'left',padding:'9px 12px',borderRadius:12,cursor:'pointer',marginBottom:4,
               background: view==='aprovacoes' ? 'linear-gradient(120deg,#FFF9EC 0%,#FEF3D8 100%)' : '#fff',
               border:'1.5px solid '+(view==='aprovacoes' ? '#E0A100' : NB.bd),
               display:'flex',alignItems:'center',gap:11,transition:'all 0.14s'}}>
@@ -5575,7 +5571,7 @@ const PERSONAS = [
 /* Título usa {tema} como marcador — vira texto puro pra poder salvar no Firestore. */
 const PACOTES_TAREFAS_PADRAO = {
   webinar: {
-    nome: 'Pacote Webinar',
+    nome: 'Modelo Webinar',
     descricao: 'Cria uma tarefa principal com o checklist de subtarefas do webinar, cada uma libera pra próxima pessoa só depois de aprovada.',
     campoData: 'Data do webinar',
     tituloPrincipal: 'Organizar Webinar: {tema}',
@@ -6403,6 +6399,7 @@ function CardModal() {
   }, [openId]);
 
   const [editandoItem, setEditandoItem] = useState(null);
+  const [trocandoResp, setTrocandoResp] = useState(null);
   const [prazoLocal, setPrazoLocal] = useState(selDemand ? (selDemand.deadline||'') : '');
 
   if (!selDemand) return null;
@@ -6451,29 +6448,53 @@ function CardModal() {
   /* Checklist simples e independente — qualquer tarefa pode ter, sem
      precisar vir de um pacote pronto. Cada item tem um responsável e
      aparece pra ele em "Minhas subtarefas", em qualquer demanda. */
+  /* Toda alteracao parte da lista MAIS RECENTE do banco, nao da copia da tela.
+     Assim duas edicoes seguidas (ex: dois prazos) nao se atropelam. */
+  const checklistAtual = () => {
+    const f = (window.__nbDem || []).find(x => x.id === d.id);
+    return (f && f.checklist) || d.checklist || [];
+  };
   const adicionarItemChecklist = () => {
     if (!novoItem.titulo.trim() || !novoItem.responsavel) return;
     const item = { id:'chk'+Date.now()+Math.random().toString(36).slice(2,6), titulo:novoItem.titulo.trim(), responsavel:novoItem.responsavel, feita:false };
     if (novoItem.prazo) item.prazo = novoItem.prazo;
-    updateDemand(d.id, { checklist:[...(d.checklist||[]), item] });
+    updateDemand(d.id, { checklist:[...checklistAtual(), item] });
     setNovoItem({ titulo:'', responsavel:'', prazo:'' }); setAddingItem(false);
   };
   const toggleItemChecklist = itemId => {
-    const novos = (d.checklist||[]).map(it => it.id===itemId ? {...it, feita:!it.feita} : it);
+    const novos = checklistAtual().map(it => it.id===itemId ? {...it, feita:!it.feita} : it);
     updateDemand(d.id, { checklist: novos });
   };
   const removerItemChecklist = itemId => {
-    updateDemand(d.id, { checklist: (d.checklist||[]).filter(it=>it.id!==itemId) });
+    updateDemand(d.id, { checklist: checklistAtual().filter(it=>it.id!==itemId) });
   };
   const editarItemChecklist = (itemId, novoTitulo) => {
     if (!novoTitulo.trim()) return;
-    const novos = (d.checklist||[]).map(it => it.id===itemId ? {...it, titulo:novoTitulo.trim()} : it);
+    const novos = checklistAtual().map(it => it.id===itemId ? {...it, titulo:novoTitulo.trim()} : it);
     updateDemand(d.id, { checklist: novos });
   };
-
   const atualizarPrazoItem = (itemId, prazo) => {
-    const novos = (d.checklist||[]).map(it => it.id===itemId ? {...it, prazo} : it);
+    const novos = checklistAtual().map(it => it.id===itemId ? {...it, prazo} : it);
     updateDemand(d.id, { checklist: novos });
+  };
+  const trocarResponsavelItem = (itemId, iniciais) => {
+    const novos = checklistAtual().map(it => it.id===itemId ? {...it, responsavel:iniciais} : it);
+    updateDemand(d.id, { checklist: novos });
+  };
+  /* Abre o calendario no botao do prazo. Alguns navegadores nao abrem o
+     calendario ao clicar num campo de data escondido, entao chamamos direto;
+     se nem isso existir, pede a data digitada (dd/mm/aaaa). */
+  const abrirCalendarioItem = itemId => {
+    const el = document.getElementById('prazo-item-' + itemId);
+    try { if (el && el.showPicker) { el.showPicker(); return; } } catch (e) {}
+    const txt = window.prompt('Prazo da subtarefa (dd/mm/aaaa). Deixe em branco para limpar.');
+    if (txt === null) return;
+    if (!txt.trim()) { atualizarPrazoItem(itemId, null); return; }
+    const m = txt.trim().match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})$/);
+    if (!m) return;
+    const ano = m[3].length === 2 ? '20' + m[3] : m[3];
+    const iso = ano + '-' + m[2].padStart(2,'0') + '-' + m[1].padStart(2,'0');
+    if (isDataValida(iso)) atualizarPrazoItem(itemId, iso);
   };
 
   const toggle = init => {
@@ -6644,33 +6665,63 @@ function CardModal() {
                         onKeyDown={e=>{ if(e.key==='Enter'){ editarItemChecklist(it.id, editandoItem.titulo); setEditandoItem(null); } if(e.key==='Escape') setEditandoItem(null); }}
                         style={{flex:1,fontSize:13,border:'none',borderBottom:'1.5px solid '+NB.azul,background:'transparent',outline:'none',padding:'0 2px',color:NB.txt}}/>
                     ) : (
-                      <span onDoubleClick={()=>!it.feita && setEditandoItem({id:it.id,titulo:it.titulo})}
-                        title={it.feita?'':'Duplo clique para editar'}
+                      <span onClick={()=>!it.feita && setEditandoItem({id:it.id,titulo:it.titulo})}
+                        title={it.feita?'':'Clique para editar'}
                         style={{fontSize:13,flex:1,color:it.feita?'#0F6E56':NB.txt,textDecoration:it.feita?'line-through':'none',cursor:it.feita?'default':'text'}}>
                         {it.titulo}
                       </span>
                     )}
-                    {resp && <span title={resp.name} style={{fontSize:11,fontWeight:600,color: it.feita?'#0F6E56':NB.azul,flexShrink:0}}>{resp.initials}</span>}
+                    <span style={{position:'relative',display:'inline-flex',flexShrink:0}}>
+                      <button type="button" onClick={()=>setTrocandoResp(trocandoResp===it.id ? null : it.id)}
+                        title={resp ? 'Responsável: '+resp.name+'. Clique para trocar' : 'Escolher o responsável'}
+                        style={{fontSize:11,fontWeight:600,padding:'2px 7px',borderRadius:5,cursor:'pointer',background:'transparent',
+                                border:resp?'1px solid transparent':'1px dashed '+NB.bd, color:it.feita?'#0F6E56':(resp?NB.azul:NB.mut2)}}
+                        onMouseEnter={e=>{e.currentTarget.style.background='#EAF3FD';}}
+                        onMouseLeave={e=>{e.currentTarget.style.background='transparent';}}>
+                        {resp ? resp.initials : '+ pessoa'}
+                      </button>
+                      {trocandoResp===it.id && (
+                        <React.Fragment>
+                          <div onClick={()=>setTrocandoResp(null)} style={{position:'fixed',inset:0,zIndex:70}}/>
+                          <div style={{position:'absolute',right:0,top:'calc(100% + 6px)',zIndex:71,minWidth:200,background:'#fff',border:'1px solid '+NB.bd,borderRadius:11,boxShadow:'0 14px 36px rgba(4,18,48,0.18)',padding:6}}>
+                            {ACTIVE_TEAM.map(m=>(
+                              <button key={m.id} type="button" onClick={()=>{ trocarResponsavelItem(it.id, m.initials); setTrocandoResp(null); }}
+                                style={{width:'100%',display:'flex',alignItems:'center',gap:9,padding:'7px 9px',borderRadius:8,border:'none',textAlign:'left',
+                                        background:it.responsavel===m.initials?'#EAF3FD':'transparent',fontSize:12.5,fontWeight:500,color:NB.txt}}
+                                onMouseEnter={e=>{ if(it.responsavel!==m.initials) e.currentTarget.style.background=NB.col; }}
+                                onMouseLeave={e=>{ if(it.responsavel!==m.initials) e.currentTarget.style.background='transparent'; }}>
+                                <Avatar member={m} size={22} ring={false} style={{boxShadow:'0 0 0 1.5px '+m.color,border:'none'}}/>
+                                <span style={{flex:1}}>{m.name}</span>
+                                {it.responsavel===m.initials && <span style={{color:NB.azul,display:'flex'}}><ICheck s={12}/></span>}
+                              </button>
+                            ))}
+                          </div>
+                        </React.Fragment>
+                      )}
+                    </span>
                     {(() => {
                       /* Prazo próprio da subtarefa — útil quando as etapas têm
                          datas diferentes do prazo final da demanda. */
                       const s = it.feita ? null : getSla(it.prazo);
                       return (
-                        <label title={it.prazo ? 'Prazo desta subtarefa' : 'Definir prazo desta subtarefa'}
-                          style={{display:'flex',alignItems:'center',gap:4,flexShrink:0,cursor:'pointer',position:'relative'}}>
-                          <input type="date" value={it.prazo||''}
-                            onChange={e=>{ if(!e.target.value || isDataValida(e.target.value)) atualizarPrazoItem(it.id, e.target.value||null); }}
-                            style={{position:'absolute',inset:0,opacity:0,cursor:'pointer',width:'100%'}}/>
-                          {it.prazo ? (
-                            <span style={{fontSize:10.5,fontWeight:600,padding:'2px 7px',borderRadius:5,whiteSpace:'nowrap',
-                              background: it.feita ? '#E1F5EE' : s && s.type==='danger' ? '#FEECEC' : s && s.type==='warn' ? '#FFF6DE' : NB.col,
-                              color: it.feita ? '#0F6E56' : s && s.type==='danger' ? '#B4232A' : s && s.type==='warn' ? '#8A6206' : NB.mut}}>
-                              {fmtDate(it.prazo)}
-                            </span>
-                          ) : (
-                            <span style={{fontSize:10.5,color:NB.mut2,padding:'2px 6px',borderRadius:5,border:'1px dashed '+NB.bd,whiteSpace:'nowrap'}}>+ prazo</span>
-                          )}
-                        </label>
+                        <span style={{position:'relative',display:'inline-flex',flexShrink:0}}>
+                          <button type="button" onClick={()=>abrirCalendarioItem(it.id)}
+                            title={it.prazo ? 'Prazo desta subtarefa. Clique para mudar' : 'Definir o prazo desta subtarefa'}
+                            style={{background:'none',border:'none',padding:0,display:'flex',cursor:'pointer'}}>
+                            {it.prazo ? (
+                              <span style={{fontSize:10.5,fontWeight:600,padding:'2px 7px',borderRadius:5,whiteSpace:'nowrap',
+                                background: it.feita ? '#E1F5EE' : s && s.type==='danger' ? '#FEECEC' : s && s.type==='warn' ? '#FFF6DE' : NB.col,
+                                color: it.feita ? '#0F6E56' : s && s.type==='danger' ? '#B4232A' : s && s.type==='warn' ? '#8A6206' : NB.mut}}>
+                                {fmtDate(it.prazo)}
+                              </span>
+                            ) : (
+                              <span style={{fontSize:10.5,color:NB.mut2,padding:'2px 6px',borderRadius:5,border:'1px dashed '+NB.bd,whiteSpace:'nowrap'}}>+ prazo</span>
+                            )}
+                          </button>
+                          <input id={'prazo-item-'+it.id} type="date" value={it.prazo||''} tabIndex={-1} aria-label="Prazo da subtarefa"
+                            onChange={e=>{ const v=e.target.value; if(!v || isDataValida(v)) atualizarPrazoItem(it.id, v||null); }}
+                            style={{position:'absolute',right:0,top:'100%',width:1,height:1,opacity:0,pointerEvents:'none',border:0,padding:0}}/>
+                        </span>
                       );
                     })()}
                     <button onClick={()=>removerItemChecklist(it.id)} title="Remover" style={{color:NB.mut2,background:'none',border:'none',display:'flex',flexShrink:0}}><IX s={12}/></button>
@@ -6917,7 +6968,7 @@ function CardModal() {
             )}
             {d.recorrente && (
               <button onClick={()=>{ dispararManual(d); setModal(null); }}
-                title="Gera uma nova instância agora com o checklist do pacote"
+                title="Gera uma nova instância agora com o checklist do modelo"
                 style={{display:'flex',alignItems:'center',gap:7,padding:'10px 16px',background:'#EAF3FD',border:'1.5px solid '+NB.azul,borderRadius:9,fontSize:13,fontWeight:500,color:NB.azul}}
                 onMouseEnter={e=>{e.currentTarget.style.background='#D6EAFB';}}
                 onMouseLeave={e=>{e.currentTarget.style.background='#EAF3FD';}}>
@@ -7171,7 +7222,7 @@ function PacoteModal() {
     addDemand({
       title: resolverTitulo(pacote.tituloPrincipal, tema.trim()),
       area: pacote.area, priority: pacote.priority, deadline: dataBase,
-      description: (pacote.descricao||'') + (pacote.descricao ? '\n\n' : '') + 'Criada a partir do pacote "'+pacote.nome+'".',
+      description: (pacote.descricao||'') + (pacote.descricao ? '\n\n' : '') + 'Criada a partir do modelo "'+pacote.nome+'".',
       requester: user.name, assignees: responsavel ? [responsavel] : (pacote.responsavelPrincipal ? [pacote.responsavelPrincipal] : []),
       subtarefas,
     });
@@ -7187,8 +7238,9 @@ function PacoteModal() {
     <Modal onClose={()=>setPacoteOpen(false)} width={560}>
       <div style={{padding:'24px 28px 18px',borderBottom:'1px solid '+NB.bdSoft,display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:14}}>
         <div>
-          <h2 style={{fontSize:20,fontWeight:600,color:NB.txt,marginBottom:5,letterSpacing:'-0.01em'}}>Criar pacote de tarefas</h2>
-          <p style={{fontSize:13.5,color:NB.mut}}>Um clique cria todas as tarefas padrão desse fluxo de uma vez.</p>
+          <AbasCriarDemanda atual="modelo"/>
+          <h2 style={{fontSize:20,fontWeight:600,color:NB.txt,marginBottom:5,letterSpacing:'-0.01em'}}>Modelo de demanda</h2>
+          <p style={{fontSize:13.5,color:NB.mut}}>Escolha um modelo e um clique cria a demanda com todas as tarefas padrão dela.</p>
         </div>
         <button onClick={()=>setPacoteOpen(false)} style={{padding:8,background:'#fff',border:'1px solid '+NB.bd,borderRadius:9,color:NB.mut,display:'flex',flexShrink:0}}><IX/></button>
       </div>
@@ -7196,10 +7248,10 @@ function PacoteModal() {
       <div style={{padding:'22px 28px',display:'flex',flexDirection:'column',gap:18}}>
         <div>
           <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:7}}>
-            <div style={{...lbl,marginBottom:0}}>Pacote</div>
+            <div style={{...lbl,marginBottom:0}}>Modelo</div>
             <div style={{display:'flex',gap:12}}>
               <button onClick={()=>setEditando(pacoteId)} style={{fontSize:12,color:NB.azul,background:'none',border:'none',fontWeight:500}}>Editar este</button>
-              <button onClick={()=>setEditando('novo')} style={{fontSize:12,color:NB.azul,background:'none',border:'none',fontWeight:500}}>+ Novo pacote</button>
+              <button onClick={()=>setEditando('novo')} style={{fontSize:12,color:NB.azul,background:'none',border:'none',fontWeight:500}}>+ Novo modelo</button>
             </div>
           </div>
           <select value={pacoteId} onChange={e=>setPacoteId(e.target.value)} style={inp}>
@@ -7244,7 +7296,7 @@ function PacoteModal() {
                 <span style={{color:NB.mut2,flexShrink:0,fontSize:11}}>{s.responsavel}</span>
               </div>
             ))}
-            {(pacote.subtarefas||[]).length===0 && <p style={{fontSize:12.5,color:NB.mut2}}>Esse pacote ainda não tem subtarefas, clica em "Editar este" pra adicionar.</p>}
+            {(pacote.subtarefas||[]).length===0 && <p style={{fontSize:12.5,color:NB.mut2}}>Esse modelo ainda não tem subtarefas, clica em "Editar este" pra adicionar.</p>}
           </div>
         </div>
 
@@ -7317,7 +7369,7 @@ function PacoteEditModal({ id, pacote, onClose, onSaved }) {
   const removeSubtarefa = i => setForm(f=>({...f, subtarefas: f.subtarefas.filter((_,ix)=>ix!==i)}));
 
   const salvar = () => {
-    if (!form.nome.trim()) return setErr('Dê um nome pro pacote.');
+    if (!form.nome.trim()) return setErr('Dê um nome pro modelo.');
     if (!form.tituloPrincipal.trim()) return setErr('Dê um título pra tarefa principal.');
     if (!form.responsavelPrincipal) return setErr('Escolha quem fica responsável pela tarefa principal.');
     if (form.subtarefas.length===0) return setErr('Adicione pelo menos uma subtarefa.');
@@ -7341,13 +7393,13 @@ function PacoteEditModal({ id, pacote, onClose, onSaved }) {
   return (
     <Modal onClose={onClose} width={620}>
       <div style={{padding:'22px 24px 16px',borderBottom:'1px solid '+NB.bdSoft}}>
-        <h2 style={{fontSize:18,fontWeight:600,color:NB.txt}}>{editando?'Editar pacote':'Novo pacote'}</h2>
-        {ehEmbutido && <p style={{fontSize:12,color:NB.mut,marginTop:4}}>Esse é um pacote padrão do sistema, salvar aqui cria a sua própria versão editável dele.</p>}
+        <h2 style={{fontSize:18,fontWeight:600,color:NB.txt}}>{editando?'Editar modelo':'Novo modelo'}</h2>
+        {ehEmbutido && <p style={{fontSize:12,color:NB.mut,marginTop:4}}>Esse é um modelo padrão do sistema, salvar aqui cria a sua própria versão editável dele.</p>}
       </div>
       <div style={{padding:'20px 24px',display:'flex',flexDirection:'column',gap:14,maxHeight:'62vh',overflowY:'auto'}}>
         <div>
-          <div style={{...lbl,marginBottom:6}}>Nome do pacote</div>
-          <input value={form.nome} onChange={e=>set('nome',e.target.value)} placeholder="ex: Pacote Cadastro de Embaixador" style={{...inp,padding:'9px 12px',fontSize:13.5}}/>
+          <div style={{...lbl,marginBottom:6}}>Nome do modelo</div>
+          <input value={form.nome} onChange={e=>set('nome',e.target.value)} placeholder="ex: Modelo de Webinar" style={{...inp,padding:'9px 12px',fontSize:13.5}}/>
         </div>
         <div>
           <div style={{...lbl,marginBottom:6}}>Descrição</div>
@@ -7424,7 +7476,7 @@ function PacoteEditModal({ id, pacote, onClose, onSaved }) {
               <button onClick={()=>setConfirmarExcluir(false)} style={{padding:'9px 14px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:8,fontSize:12.5,color:NB.mut}}>Cancelar</button>
             </div>
           ) : (
-            <button onClick={()=>setConfirmarExcluir(true)} style={{fontSize:12.5,color:'#B4232A',background:'none',border:'none',fontWeight:500}}>Excluir pacote</button>
+            <button onClick={()=>setConfirmarExcluir(true)} style={{fontSize:12.5,color:'#B4232A',background:'none',border:'none',fontWeight:500}}>Excluir modelo</button>
           )
         ) : <span/>}
         <div style={{display:'flex',gap:10}}>
@@ -7678,7 +7730,7 @@ function CriacaoRapidaModal() {
     <Modal onClose={fechar} width={660}>
       <div style={{ padding: '24px 28px 14px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 14 }}>
         <div>
-          <h2 style={{ fontSize: 20, fontWeight: 600, color: NB.txt, marginBottom: 5, letterSpacing: '-0.01em' }}>Criar falando</h2>
+          <h2 style={{ fontSize: 20, fontWeight: 600, color: NB.txt, marginBottom: 5, letterSpacing: '-0.01em' }}>Criar demanda por voz ou texto</h2>
           <p style={{ fontSize: 13.5, color: NB.mut, lineHeight: 1.55 }}>
             Fale ou escreva do jeito que vier. A plataforma monta a demanda e você só confere antes de criar.
           </p>
@@ -7797,6 +7849,31 @@ function CriacaoRapidaModal() {
 }
 
 
+/* As duas formas de criar ficam no mesmo lugar: demanda avulsa ou a partir de
+   um modelo de demanda (as tarefas padrao de um fluxo, criadas de uma vez). */
+function AbasCriarDemanda({ atual }) {
+  const { setNewOpen, setPacoteOpen, setPresetNovo } = useApp();
+  const abas = [{ id: 'avulsa', t: 'Demanda avulsa' }, { id: 'modelo', t: 'Modelo de demanda' }];
+  const ir = id => {
+    if (id === atual) return;
+    setPresetNovo(null);
+    if (id === 'modelo') { setNewOpen(false); setPacoteOpen(true); }
+    else { setPacoteOpen(false); setNewOpen(true); }
+  };
+  return (
+    <div style={{ display: 'inline-flex', gap: 3, padding: 3, background: NB.col, border: '1px solid ' + NB.bd, borderRadius: 11, marginBottom: 14 }}>
+      {abas.map(a => (
+        <button key={a.id} onClick={() => ir(a.id)}
+          style={{ padding: '6px 14px', borderRadius: 8, border: 'none', fontSize: 12.5, fontWeight: 600,
+                   background: atual === a.id ? '#fff' : 'transparent', color: atual === a.id ? NB.azul : NB.mut,
+                   boxShadow: atual === a.id ? '0 1px 4px rgba(7,30,69,0.12)' : 'none' }}>
+          {a.t}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function NewModal() {
   const { newOpen, setNewOpen, addDemand, uploadFile, user, area, pipes, presetNovo, setPresetNovo, MAX_FILE } = useApp();
   const initArea = presetNovo ? presetNovo.area : (area!=='Todas' ? area : 'Social');
@@ -7859,6 +7936,7 @@ function NewModal() {
     <Modal onClose={()=>setNewOpen(false)} width={580}>
       <div style={{padding:'24px 28px 18px',borderBottom:'1px solid '+NB.bdSoft,display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:14}}>
         <div>
+          <AbasCriarDemanda atual="avulsa"/>
           <h2 style={{fontSize:20,fontWeight:600,color:NB.txt,marginBottom:5,letterSpacing:'-0.01em'}}>Nova demanda</h2>
           <p style={{fontSize:13.5,color:NB.mut}}>
             {etapaPreset ? <React.Fragment>Vai entrar direto em <b style={{color:NB.txt}}>{etapaPreset.name}</b>, dentro de {form.area}.</React.Fragment>
@@ -7931,7 +8009,7 @@ function NewModal() {
 
               {/* Checklist template */}
               <div style={{marginTop:14}}>
-                <div style={{fontSize:12,fontWeight:600,color:NB.txt,marginBottom:6}}>Checklist do pacote <span style={{fontWeight:400,color:NB.mut2}}>(opcional)</span></div>
+                <div style={{fontSize:12,fontWeight:600,color:NB.txt,marginBottom:6}}>Checklist do modelo <span style={{fontWeight:400,color:NB.mut2}}>(opcional)</span></div>
                 <p style={{fontSize:11,color:NB.mut2,marginBottom:8}}>Cada vez que esse ciclo disparar, a nova demanda já vem com essas subtarefas prontas.</p>
                 {templateChecklist.length>0 && (
                   <div style={{display:'flex',flexDirection:'column',gap:5,marginBottom:7}}>
