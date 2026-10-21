@@ -60,6 +60,12 @@ select { appearance: none; -webkit-appearance: none; }
 button { cursor: pointer; }
 @keyframes nb-pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
 @keyframes nb-spin { to { transform: rotate(360deg) } }
+@keyframes nb-card-in { from { opacity: 0; transform: translateY(10px) scale(0.985); } to { opacity: 1; transform: none; } }
+@keyframes nb-col-in  { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+@keyframes nb-pop     { 0% { transform: scale(1); } 40% { transform: scale(1.22); } 100% { transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-delay: 0ms !important; transition-duration: 0.01ms !important; }
+}
 </style>
 </head>
 <body>
@@ -2010,6 +2016,7 @@ function CardAvatar({ initials, offset }) {
 function DemandCard({ demand, colunaOrdenada }) {
   const { setModal, dragging, setDragging, attach, comments, pipes, user, previewMember, moveStage, setNotifyPending, addComment, reordenarCards } = useApp();
   const _stDem = (pipes[demand.area]||[]).find(s=>s.id===demand.stageId);
+  const _posCard = Math.max(0, (colunaOrdenada||[]).findIndex(c=>c.id===demand.id));
   const sla = getSla(demand.deadline, _stDem && _stDem.isDone);
   const ps  = PRI_STL[demand.priority] || PRI_STL.Baixa;
   const isDragging = dragging && dragging.id === demand.id;
@@ -2077,6 +2084,7 @@ function DemandCard({ demand, colunaOrdenada }) {
       }}
       onClick={()=>setModal(demand.id)}
       style={{background:'#fff',borderRadius:11,border:'1px solid '+NB.bd,borderLeft:'4px solid '+ps.bdr,padding:'14px 15px 13px 12px',cursor:isDragging?'grabbing':'grab',transition:'box-shadow 0.14s, border-color 0.14s, transform 0.14s, opacity 0.14s',marginBottom:10,opacity:isDragging?0.4:1,
+        animation:'nb-card-in 0.3s cubic-bezier(0.2,0.7,0.3,1) backwards', animationDelay:(Math.min(_posCard,8)*35)+'ms',
         boxShadow: overPos==='antes' ? 'inset 0 3px 0 0 '+NB.azul : overPos==='depois' ? 'inset 0 -3px 0 0 '+NB.azul : 'none'}}
       onMouseEnter={e=>{ if(!dragging){ e.currentTarget.style.boxShadow='0 4px 16px rgba(11,42,92,0.09)'; e.currentTarget.style.borderColor='#CFDCF0'; e.currentTarget.style.transform='translateY(-1px)'; } }}
       onMouseLeave={e=>{e.currentTarget.style.boxShadow='none'; e.currentTarget.style.borderColor=NB.bd; e.currentTarget.style.transform='none';}}>
@@ -2196,7 +2204,8 @@ function stageVisuals(stages) {
 }
 
 function StageColumn({ stage, cards, compact, areaName, visual }) {
-  const { dragging, setDragging, moveStage, moveArea, setNotifyPending, setArea, setNewOpen, setPresetNovo, reordenarCards } = useApp();
+  const { dragging, setDragging, moveStage, moveArea, setNotifyPending, setArea, setNewOpen, setPresetNovo, reordenarCards, pipes } = useApp();
+  const _posCol = Math.max(0, ((pipes||{})[areaName]||[]).findIndex(s=>s.id===stage.id));
   const [over, setOver] = useState(false);
   const [verTodasConcluidas, setVerTodasConcluidas] = useState(false);
   const v = visual || STAGE_CYCLE[0];
@@ -2245,7 +2254,9 @@ function StageColumn({ stage, cards, compact, areaName, visual }) {
       onDragOver={e=>{ if(canDrop){ e.preventDefault(); e.dataTransfer.dropEffect='move'; setOver(true); } }}
       onDragLeave={()=>setOver(false)}
       onDrop={handleDrop}
-      style={{background:over&&canDrop?(otherArea?accent+'12':'#E4F0FD'):v.bg,borderRadius:12,border:border,padding:compact?'0 0 10px':'0 0 12px',display:'flex',flexDirection:'column',minWidth:0,minHeight:140,transition:'background 0.12s, border-color 0.12s',overflow:'hidden'}}>
+      style={{background:over&&canDrop?(otherArea?accent+'12':'#E4F0FD'):v.bg,borderRadius:12,border:border,padding:compact?'0 0 10px':'0 0 12px',display:'flex',flexDirection:'column',minWidth:0,minHeight:140,transition:'background 0.16s, border-color 0.16s, box-shadow 0.16s',overflow:'hidden',
+        boxShadow: over&&canDrop ? 'inset 0 0 0 2px '+(otherArea?accent:NB.azul)+'33' : 'none',
+        animation:'nb-col-in 0.38s cubic-bezier(0.2,0.7,0.3,1) backwards', animationDelay:(_posCol*70)+'ms'}}>
       <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8,padding:compact?'10px 12px':'11px 14px',borderBottom:'1px solid '+v.bd,background:v.head}}>
         <div style={{display:'flex',alignItems:'center',gap:9,minWidth:0}}>
           <div style={{width:26,height:26,borderRadius:8,background:'#fff',color:v.ic,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
@@ -2254,7 +2265,7 @@ function StageColumn({ stage, cards, compact, areaName, visual }) {
           <span style={{fontSize:13.5,fontWeight:600,color:over&&canDrop?accent:NB.txt,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{stage.name}</span>
         </div>
         <div style={{display:'flex',alignItems:'center',gap:6,flexShrink:0}}>
-          <span style={{fontSize:11.5,color:NB.mut,fontWeight:600,background:'#fff',border:'1px solid '+v.bd,borderRadius:20,padding:'1px 8px'}}>{cards.length}</span>
+          <span key={cards.length} style={{fontSize:11.5,color:NB.mut,fontWeight:600,background:'#fff',border:'1px solid '+v.bd,borderRadius:20,padding:'1px 8px',display:'inline-block',animation:'nb-pop 0.34s ease-out'}}>{cards.length}</span>
           <button onClick={()=>{ setArea(areaName); setPresetNovo({area:areaName, stageId:stage.id}); setNewOpen(true); }}
             title={'Adicionar demanda em '+stage.name}
             style={{width:22,height:22,display:'flex',alignItems:'center',justifyContent:'center',background:'#fff',border:'1px solid '+v.bd,borderRadius:7,color:v.ic,cursor:'pointer',padding:0,flexShrink:0,transition:'background 0.12s'}}
