@@ -4707,75 +4707,239 @@ function AreaBlock({ areaName, cards }) {
 }
 
 /* =========== LIST VIEW =========== */
-function ListRow({ demand }) {
-  const { setModal, pipes } = useApp();
-  const _stLR = (pipes[demand.area]||[]).find(s=>s.id===demand.stageId);
-  const stage = Object.values(pipes).flat().find(s=>s.id===demand.stageId);
-  const sla = getSla(demand.deadline, _stLR && _stLR.isDone);
-  const ps  = PRI_STL[demand.priority] || PRI_STL.Baixa;
-  const cell = { padding:'13px 14px', fontSize:13.5, color:NB.txt, verticalAlign:'middle' };
+const LIST_GROUP_OPTS = [
+  { v:'pipe',  l:'Pipeline' },
+  { v:'phase', l:'Etapa' },
+  { v:'resp',  l:'Responsável' },
+  { v:'due',   l:'Prazo' },
+  { v:'none',  l:'Sem grupos' },
+];
+const LIST_SORT_OPTS = [
+  { v:'due',  l:'Prazo' },
+  { v:'pri',  l:'Prioridade' },
+  { v:'name', l:'Nome' },
+];
+const LIST_PHASES = ['Solicitado','Em andamento','Aprovação','Concluído'];
+const LIST_PRI_ORDER = { Urgente:0, Alta:1, Média:2, Baixa:3 };
+const LIST_COLS = 'minmax(0,1fr) 150px 110px 110px 110px';
+
+function demandStage(d, pipes) { return (pipes[d.area]||[]).find(s=>s.id===d.stageId); }
+function demandDone(d, pipes) { const st = demandStage(d, pipes); return !!(st && st.isDone); }
+function demandPhase(d, pipes) {
+  const stages = pipes[d.area]||[];
+  const st = stages.find(s=>s.id===d.stageId);
+  if (!st) return 'Em andamento';
+  if (st.isDone) return 'Concluído';
+  if (st.isApproval) return 'Aprovação';
+  if (stages[0] && stages[0].id===st.id) return 'Solicitado';
+  return 'Em andamento';
+}
+function demandDueBucket(d, pipes) {
+  if (demandDone(d, pipes)) return 'Concluídas';
+  if (!d.deadline) return 'Sem prazo';
+  const diff = Math.ceil((new Date(d.deadline)-new Date())/86400000);
+  if (diff < 0) return 'Atrasadas';
+  if (diff === 0) return 'Hoje';
+  if (diff <= 7) return 'Próximos 7 dias';
+  return 'Depois';
+}
+function buildListGroups(list, groupMode, pipes) {
+  const groups = [];
+  const map = {};
+  const put = (key, meta) => { if (!map[key]) { map[key] = { key, meta:meta||{}, items:[] }; groups.push(map[key]); } return map[key]; };
+
+  if (groupMode === 'none') {
+    put('Todas as demandas', {});
+    list.forEach(d => map['Todas as demandas'].items.push(d));
+  } else if (groupMode === 'pipe') {
+    list.forEach(d => put(d.area, { pipe:d.area }).items.push(d));
+  } else if (groupMode === 'phase') {
+    LIST_PHASES.forEach(p => put(p, { doneGroup:p==='Concluído' }));
+    list.forEach(d => put(demandPhase(d, pipes)).items.push(d));
+  } else if (groupMode === 'resp') {
+    ACTIVE_TEAM.forEach(m => put(m.name, {}));
+    list.forEach(d => {
+      const first = (d.assignees||[])[0];
+      const m = first && TEAM.find(x=>x.initials===first);
+      put(m ? m.name : 'Sem responsável').items.push(d);
+    });
+  } else if (groupMode === 'due') {
+    ['Atrasadas','Hoje','Próximos 7 dias','Depois','Sem prazo','Concluídas'].forEach(k => put(k, { doneGroup:k==='Concluídas' }));
+    list.forEach(d => put(demandDueBucket(d, pipes)).items.push(d));
+  }
+  return groups.filter(g => g.items.length);
+}
+function sortListItems(items, sortKey, dir) {
+  const arr = [...items];
+  arr.sort((a,b) => {
+    let r = 0;
+    if (sortKey==='name') { r = a.title.localeCompare(b.title,'pt-BR'); return dir===1?r:-r; }
+    if (sortKey==='pri') {
+      const pa = LIST_PRI_ORDER[a.priority]??9, pb = LIST_PRI_ORDER[b.priority]??9;
+      r = pa - pb;
+    } else {
+      if (!a.deadline && b.deadline) r = 1;
+      else if (a.deadline && !b.deadline) r = -1;
+      else { const da=a.deadline||'', db=b.deadline||''; r = da<db?-1:da>db?1:0; }
+    }
+    if (r===0) r = a.title.localeCompare(b.title,'pt-BR');
+    return dir===1 ? r : -r;
+  });
+  return arr;
+}
+
+function ListChevron({ open }) {
   return (
-    <tr onClick={()=>setModal(demand.id)} style={{cursor:'pointer',borderTop:'1px solid '+NB.bdSoft}}
+    <span style={{display:'inline-flex',flexShrink:0,transition:'transform 0.15s',transform:open?'rotate(0deg)':'rotate(-90deg)',color:NB.mut2}}>
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+    </span>
+  );
+}
+
+function ListRow({ demand, pipes }) {
+  const { setModal } = useApp();
+  const stage = demandStage(demand, pipes);
+  const done = demandDone(demand, pipes);
+  const sla = done ? null : getSla(demand.deadline, false);
+  const ps = PRI_STL[demand.priority] || PRI_STL.Baixa;
+  const cell = { padding:'12px 14px', fontSize:13.5, color:NB.txt, verticalAlign:'middle', minWidth:0 };
+  return (
+    <div onClick={()=>setModal(demand.id)}
+      style={{display:'grid',gridTemplateColumns:LIST_COLS,alignItems:'center',cursor:'pointer',borderTop:'1px solid '+NB.bdSoft}}
       onMouseEnter={e=>{e.currentTarget.style.background=NB.col;}} onMouseLeave={e=>{e.currentTarget.style.background='transparent';}}>
-      <td style={{...cell,fontWeight:500,maxWidth:340}}>{demand.title}</td>
-      <td style={cell}>
-        <span style={{display:'inline-flex',alignItems:'center',gap:7,color:AREA_CLR[demand.area],fontWeight:500,fontSize:13}}>
-          {demand.area}
-        </span>
-      </td>
-      <td style={{...cell,color:NB.mut}}>{stage?stage.name:'—'}</td>
-      <td style={cell}>
-        <span style={{fontSize:11.5,fontWeight:500,padding:'3px 9px',borderRadius:6,background:ps.bg,color:ps.txt}}>{demand.priority}</span>
-      </td>
-      <td style={{...cell,color:NB.mut}}>{demand.requester}</td>
-      <td style={cell}>
-        {sla && (sla.type==='ok'
-          ? <span style={{color:NB.mut,fontSize:13}}>{fmtDate(demand.deadline)}</span>
-          : <span style={{fontSize:12,fontWeight:500,padding:'3px 9px',borderRadius:6,background:sla.type==='danger'?'#FEECEC':'#FFF6DE',color:sla.type==='danger'?'#B4232A':'#8A6206'}}>{sla.label}</span>)}
-      </td>
-      <td style={{...cell,textAlign:'right'}}>
+      <div style={{...cell,fontWeight:500,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{demand.title}</div>
+      <div style={{...cell,color:NB.mut,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{stage?stage.name:'—'}</div>
+      <div style={cell}>
         <div style={{display:'inline-flex'}}>
-          {demand.assignees.slice(0,3).map((init,i)=><CardAvatar key={init+i} initials={init} offset={i}/>)}
+          {(demand.assignees||[]).slice(0,3).map((init,i)=><CardAvatar key={init+i} initials={init} offset={i}/>)}
         </div>
-      </td>
-    </tr>
+      </div>
+      <div style={cell}>
+        {done
+          ? <span style={{fontSize:12,color:NB.mut2}}>Concluída</span>
+          : sla
+            ? (sla.type==='ok'
+                ? <span style={{color:NB.mut,fontSize:13}}>{fmtDate(demand.deadline)}</span>
+                : <span style={{fontSize:11.5,fontWeight:500,padding:'3px 9px',borderRadius:6,background:sla.type==='danger'?'#FEECEC':'#FFF6DE',color:sla.type==='danger'?'#B4232A':'#8A6206'}}>{sla.label}</span>)
+            : <span style={{fontSize:13,color:NB.mut2}}>—</span>}
+      </div>
+      <div style={cell}>
+        <span style={{fontSize:11.5,fontWeight:500,padding:'3px 9px',borderRadius:6,background:ps.bg,color:ps.txt}}>{demand.priority}</span>
+      </div>
+    </div>
   );
 }
 
 function ListView() {
-  const { filtered } = useApp();
-  const [sortDir, setSortDir] = useState(null); // null | 'asc' | 'desc'
+  const { filtered, pipes } = useApp();
+  const [group, setGroup] = useState('pipe');
+  const [sortKey, setSortKey] = useState('due');
+  const [dir, setDir] = useState(1);
+  const [doneMode, setDoneMode] = useState('fold'); // fold | show | hide
+  const [collapsed, setCollapsed] = useState({});
+  const [doneOpen, setDoneOpen] = useState({});
 
-  const toggleSort = () => setSortDir(d => d === 'asc' ? 'desc' : d === 'desc' ? null : 'asc');
+  const toggleSort = key => { if (key===sortKey) setDir(d=>d===1?-1:1); else { setSortKey(key); setDir(1); } };
 
-  const rows = sortDir
-    ? [...filtered].sort((a, b) => {
-        const da = a.deadline || '9999';
-        const db = b.deadline || '9999';
-        return sortDir === 'asc' ? da.localeCompare(db) : db.localeCompare(da);
-      })
-    : filtered;
+  const groups = buildListGroups(filtered, group, pipes);
 
-  const th = { padding:'12px 14px', fontSize:11, fontWeight:500, color:NB.mut2, textTransform:'uppercase', letterSpacing:'0.09em', textAlign:'left', whiteSpace:'nowrap' };
-  const sortIcon = sortDir === 'asc' ? ' ↑' : sortDir === 'desc' ? ' ↓' : ' ↕';
+  const selStyle = { background:'#fff', border:'1px solid '+NB.bd, borderRadius:8, padding:'7px 10px', fontSize:13, color:NB.txt, outline:'none' };
+  const labStyle = { fontSize:12.5, color:NB.mut, fontWeight:500 };
+  const th = { padding:'10px 14px', fontSize:11, fontWeight:500, color:NB.mut2, textTransform:'uppercase', letterSpacing:'0.09em', textAlign:'left', whiteSpace:'nowrap' };
+  const sortBtn = (key, label) => {
+    const on = sortKey===key, arrow = on ? (dir===1?'↑':'↓') : '↕';
+    return (
+      <button onClick={()=>toggleSort(key)}
+        style={{display:'inline-flex',alignItems:'center',gap:4,background:'none',border:'none',padding:0,fontSize:11,fontWeight:500,color:on?NB.azul:NB.mut2,textTransform:'uppercase',letterSpacing:'0.09em',cursor:'pointer'}}>
+        {label}<span style={{fontSize:10}}>{arrow}</span>
+      </button>
+    );
+  };
 
   return (
-    <div style={{background:'#fff',borderRadius:16,border:'1px solid '+NB.bd,overflow:'hidden',boxShadow:'0 1px 3px rgba(11,42,92,0.04)'}}>
-      <table style={{width:'100%',borderCollapse:'collapse'}}>
-        <thead><tr style={{background:NB.col}}>
-          <th style={th}>Demanda</th><th style={th}>Área</th><th style={th}>Etapa</th>
-          <th style={th}>Prioridade</th><th style={th}>Solicitante</th>
-          <th style={{...th,cursor:'pointer',userSelect:'none',color:sortDir?NB.azul:NB.mut2,borderBottom:sortDir?'2px solid '+NB.azul:'none'}}
-              onClick={toggleSort}>
-            Prazo{sortIcon}
-          </th>
-          <th style={{...th,textAlign:'right'}}>Pessoas envolvidas</th>
-        </tr></thead>
-        <tbody>{rows.map(d=><ListRow key={d.id} demand={d}/>)}</tbody>
-      </table>
-      {rows.length===0 && (
-        <div style={{padding:'56px 20px',textAlign:'center',color:NB.mut2,fontSize:14}}>Nenhuma demanda encontrada.</div>
+    <div>
+      <div style={{display:'flex',alignItems:'center',gap:18,flexWrap:'wrap',marginBottom:16}}>
+        <div style={{display:'flex',alignItems:'center',gap:8}}>
+          <span style={labStyle}>Agrupar por</span>
+          <select value={group} onChange={e=>setGroup(e.target.value)} style={selStyle}>
+            {LIST_GROUP_OPTS.map(o=><option key={o.v} value={o.v}>{o.l}</option>)}
+          </select>
+        </div>
+        <div style={{display:'flex',alignItems:'center',gap:8}}>
+          <span style={labStyle}>Ordenar</span>
+          <select value={sortKey} onChange={e=>setSortKey(e.target.value)} style={selStyle}>
+            {LIST_SORT_OPTS.map(o=><option key={o.v} value={o.v}>{o.l}</option>)}
+          </select>
+        </div>
+        <div style={{display:'flex',alignItems:'center',gap:8}}>
+          <span style={labStyle}>Concluídas</span>
+          <select value={doneMode} onChange={e=>setDoneMode(e.target.value)} style={selStyle}>
+            <option value="fold">Recolhidas</option>
+            <option value="show">Visíveis</option>
+            <option value="hide">Ocultas</option>
+          </select>
+        </div>
+      </div>
+
+      {groups.length===0 && (
+        <div style={{padding:'56px 20px',textAlign:'center',color:NB.mut2,fontSize:14,background:'#fff',borderRadius:16,border:'1px solid '+NB.bd}}>
+          Nenhuma demanda encontrada.
+        </div>
       )}
+
+      <div style={{display:'flex',flexDirection:'column',gap:14}}>
+        {groups.map(g => {
+          const isDoneGroup = !!g.meta.doneGroup;
+          if (isDoneGroup && doneMode==='hide') return null;
+          const closed = !!collapsed[g.key];
+          const openItems = isDoneGroup ? [] : sortListItems(g.items.filter(d=>!demandDone(d, pipes)), sortKey, dir);
+          const doneItemsAll = isDoneGroup ? sortListItems(g.items, 'due', -1) : sortListItems(g.items.filter(d=>demandDone(d, pipes)), 'due', -1);
+          const doneItems = doneMode==='hide' ? [] : doneItemsAll;
+          const total = openItems.length + (isDoneGroup ? doneItems.length : doneItems.length);
+          if (total===0) return null;
+          const doneSecOpen = doneOpen[g.key] ?? (doneMode==='show');
+
+          return (
+            <div key={g.key} style={{background:'#fff',borderRadius:16,border:'1px solid '+NB.bd,overflow:'hidden',boxShadow:'0 1px 3px rgba(11,42,92,0.04)'}}>
+              <button onClick={()=>setCollapsed(c=>({...c,[g.key]:!c[g.key]}))}
+                style={{display:'flex',alignItems:'center',gap:9,width:'100%',padding:'13px 16px',background:NB.col,border:'none',borderBottom:closed?'none':'1px solid '+NB.bdSoft,cursor:'pointer',textAlign:'left'}}>
+                <ListChevron open={!closed}/>
+                {g.meta.pipe && <span style={{width:9,height:9,borderRadius:'50%',background:AREA_CLR[g.meta.pipe],flexShrink:0}}/>}
+                <span style={{fontSize:14,fontWeight:600,color:NB.txt}}>{g.key}</span>
+                <span style={{fontSize:12.5,color:NB.mut2,background:'#fff',border:'1px solid '+NB.bd,borderRadius:20,padding:'1px 9px'}}>{total}</span>
+              </button>
+
+              {!closed && (
+                <div>
+                  <div style={{display:'grid',gridTemplateColumns:LIST_COLS,background:'#fff'}}>
+                    <div style={th}>{sortBtn('name','Demanda')}</div>
+                    <div style={th}>Etapa</div>
+                    <div style={th}>Pessoas</div>
+                    <div style={th}>{sortBtn('due','Prazo')}</div>
+                    <div style={th}>{sortBtn('pri','Prioridade')}</div>
+                  </div>
+                  {isDoneGroup
+                    ? doneItems.map(d=><ListRow key={d.id} demand={d} pipes={pipes}/>)
+                    : (
+                      <React.Fragment>
+                        {openItems.map(d=><ListRow key={d.id} demand={d} pipes={pipes}/>)}
+                        {doneItems.length>0 && (
+                          <React.Fragment>
+                            <button onClick={()=>setDoneOpen(o=>({...o,[g.key]: !(o[g.key] ?? (doneMode==='show'))}))}
+                              style={{display:'flex',alignItems:'center',gap:8,width:'100%',padding:'9px 16px 9px 20px',background:NB.col,border:'none',borderTop:'1px solid '+NB.bdSoft,cursor:'pointer',fontSize:12.5,fontWeight:500,color:NB.mut,textAlign:'left'}}>
+                              <ListChevron open={doneSecOpen}/> Concluídas ({doneItems.length})
+                            </button>
+                            {doneSecOpen && doneItems.map(d=><ListRow key={d.id} demand={d} pipes={pipes}/>)}
+                          </React.Fragment>
+                        )}
+                      </React.Fragment>
+                    )}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
