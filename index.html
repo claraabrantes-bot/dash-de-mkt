@@ -7849,6 +7849,79 @@ function reuniaoLimparLegenda(txt) {
 }
 function reuniaoMais7() { const d = new Date(); d.setDate(d.getDate()+7); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 
+function ReuniaoRespChip({ ini, on, onClick }) {
+  const mb = useMember(ini);
+  if (!mb) return null;
+  return (
+    <button type="button" onClick={onClick} title={mb.name}
+      style={{display:'inline-flex',alignItems:'center',gap:6,padding:'3px 10px 3px 3px',borderRadius:20,border:'1px solid '+(on?NB.azul:NB.bd),background:on?'#EAF3FD':'#fff',fontSize:12,fontWeight:500,color:on?NB.azul:NB.mut,opacity:on?1:0.75}}>
+      <Avatar member={mb} size={22} ring={false}/>{mb.name.split(' ')[0]}
+    </button>
+  );
+}
+
+function ReuniaoSugCard({ s, clr, mudar, alternarResp }) {
+  const [verTodos, setVerTodos] = useState(false);
+  const pri = PRI_STL[s.priority] || PRI_STL.Média;
+  const pill = { appearance:'none', WebkitAppearance:'none', border:'1px solid '+NB.bd, borderRadius:20, padding:'4px 12px', fontSize:12, fontWeight:500, outline:'none', cursor:'pointer', background:'#fff', color:NB.txt };
+  const prazoTxt = (() => {
+    if (!s.deadline) return null;
+    const [y,m,d] = s.deadline.split('-').map(Number);
+    return d+' de '+MESES_CURTOS[m-1]+(y!==new Date().getFullYear()?' '+y:'');
+  })();
+  const pessoas = verTodos ? ACTIVE_TEAM.map(m=>m.initials) : Array.from(new Set([...s.assignees]));
+  return (
+    <div style={{display:'flex',gap:12,border:'1px solid '+(s.on?'#D6E4F5':NB.bd),borderLeft:'4px solid '+(s.on?clr:NB.bd),background:s.on?'#fff':NB.col,borderRadius:12,padding:'13px 15px',opacity:s.on?1:0.55,boxShadow:s.on?'0 1px 3px rgba(11,42,92,0.05)':'none',transition:'opacity .15s'}}>
+      <input type="checkbox" checked={s.on} onChange={e=>mudar(s.id,'on',e.target.checked)} style={{width:17,height:17,marginTop:4,accentColor:NB.azul,flexShrink:0}}/>
+      <div style={{flex:1,minWidth:0,display:'flex',flexDirection:'column',gap:10}}>
+        <input value={s.title} onChange={e=>mudar(s.id,'title',e.target.value)}
+          style={{width:'100%',border:'1px solid transparent',borderRadius:8,padding:'3px 6px',margin:'-3px -6px',fontSize:15,fontWeight:600,color:NB.txt,outline:'none',background:'transparent'}}
+          onFocus={e=>{e.target.style.borderColor=NB.azul; e.target.style.background='#fff';}} onBlur={e=>{e.target.style.borderColor='transparent'; e.target.style.background='transparent';}}/>
+
+        <div style={{display:'flex',alignItems:'center',gap:7,flexWrap:'wrap'}}>
+          <select value={s.area} onChange={e=>mudar(s.id,'area',e.target.value)} title="Setor"
+            style={{...pill,color:clr,borderColor:clr+'55',background:clr+'12',fontWeight:600}}>
+            {QR_AREAS.map(a=><option key={a} value={a}>{a}</option>)}
+          </select>
+          <select value={s.priority} onChange={e=>mudar(s.id,'priority',e.target.value)} title="Prioridade"
+            style={{...pill,background:pri.bg,color:pri.txt,borderColor:pri.bdr}}>
+            {PRIORITIES.map(p=><option key={p} value={p}>{p}</option>)}
+          </select>
+          <label title="Precisa para quando" style={{...pill,display:'inline-flex',alignItems:'center',gap:6,position:'relative',color:s.deadline?NB.txt:'#8A6206',background:s.deadline?'#fff':'#FFF6DE',borderColor:s.deadline?NB.bd:'#F2DDA4'}}>
+            <ICalendar s={13}/>{prazoTxt || 'Sem prazo (fica +7 dias)'}
+            <input type="date" value={s.deadline} onChange={e=>mudar(s.id,'deadline',e.target.value)}
+              style={{position:'absolute',inset:0,opacity:0,cursor:'pointer',width:'100%'}}/>
+          </label>
+          <input value={s.tipo} onChange={e=>mudar(s.id,'tipo',e.target.value)} placeholder="Tipo de material"
+            style={{...pill,cursor:'text',width:150,color:NB.mut}}/>
+        </div>
+
+        <div>
+          <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:6}}>
+            <span style={{fontSize:11,fontWeight:600,color:NB.mut2,textTransform:'uppercase',letterSpacing:'0.07em'}}>Responsável</span>
+            {s.motivo && <span style={{fontSize:11.5,color:NB.mut}}>· {s.motivo}</span>}
+          </div>
+          <div style={{display:'flex',flexWrap:'wrap',gap:6,alignItems:'center'}}>
+            {pessoas.map(ini=><ReuniaoRespChip key={ini} ini={ini} on={s.assignees.includes(ini)} onClick={()=>alternarResp(s,ini)}/>)}
+            <button type="button" onClick={()=>setVerTodos(v=>!v)}
+              style={{background:'none',border:'1px dashed '+NB.bd,borderRadius:20,padding:'4px 11px',fontSize:12,color:NB.mut,fontWeight:500}}>
+              {verTodos ? 'Fechar' : (s.assignees.length ? '+ Trocar ou adicionar' : '+ Escolher responsável')}
+            </button>
+          </div>
+        </div>
+
+        <textarea value={s.contexto} onChange={e=>mudar(s.id,'contexto',e.target.value)} rows={2} placeholder="Contexto e objetivo"
+          style={{width:'100%',boxSizing:'border-box',border:'1px solid '+NB.bdSoft,borderRadius:9,padding:'8px 10px',fontSize:12.5,lineHeight:1.5,color:'#3D4B63',background:'#FAFBFD',outline:'none',resize:'vertical'}}/>
+        {s.trecho && (
+          <div style={{fontSize:12,color:NB.mut,fontStyle:'italic',background:'#F7F9FD',borderRadius:8,padding:'7px 10px',borderLeft:'3px solid '+clr+'66'}}>
+            Da reunião: “{s.trecho}”
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function ReuniaoModal() {
   const { reuniaoOpen, setReuniaoOpen, addDemand, user } = useApp();
   const [texto, setTexto] = useState('');
@@ -7883,21 +7956,24 @@ function ReuniaoModal() {
       const hoje = new Date(); const hojeStr = hoje.getFullYear()+'-'+String(hoje.getMonth()+1).padStart(2,'0')+'-'+String(hoje.getDate()).padStart(2,'0');
       const r = await fetch('/api/sugerir-tarefas', {
         method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ idToken, transcricao: texto, hoje: hojeStr, time: ACTIVE_TEAM.map(m=>({initials:m.initials,name:m.name,area:m.area})) }),
+        body: JSON.stringify({ idToken, transcricao: texto, hoje: hojeStr, time: ACTIVE_TEAM.map(m=>({initials:m.initials,name:m.name,area:m.area,extras:m.areasExtra||[],aprovador:!!m.isApprover})) }),
       });
       const j = await r.json().catch(()=>({}));
       if (!r.ok) throw new Error(j.error || ('Erro '+r.status));
       const iniciais = TEAM.map(m=>m.initials);
       const lista = (j.tarefas||[]).filter(t=>t && t.titulo).map((t,i)=>{
         const area = QR_AREAS.includes(t.area) ? t.area : 'Social';
-        const resp = (t.responsaveis||[]).map(x=>String(x).toUpperCase()).filter(x=>iniciais.includes(x));
+        let resp = Array.from(new Set((t.responsaveis||[]).map(x=>String(x).toUpperCase()).filter(x=>iniciais.includes(x))));
+        let motivo = t.motivoResponsavel || '';
+        if (!resp.length) { resp = padraoDaArea(area).slice(0,2); motivo = resp.length ? 'Cuida de '+area : ''; }
+        if (!resp.length && user && user.initials) { resp = [user.initials]; motivo = 'Você criou a demanda'; }
         return {
           id:'s'+i, on:true,
           title:String(t.titulo).slice(0,120), area,
           priority: PRIORITIES.includes(t.prioridade) ? t.prioridade : 'Média',
           deadline: /^\d{4}-\d{2}-\d{2}$/.test(t.prazo||'') ? t.prazo : '',
           assignees: resp,
-          tipo: t.tipo || '', contexto: t.contexto || '', trecho: t.trecho || '',
+          tipo: t.tipo || '', contexto: t.contexto || '', trecho: t.trecho || '', motivo,
         };
       });
       if (!lista.length) { setErro('A IA não encontrou tarefas nessa transcrição. Confira se colou a reunião inteira.'); setEtapa('colar'); return; }
@@ -7971,44 +8047,36 @@ function ReuniaoModal() {
         )}
 
         {etapa==='revisar' && (
-          <div style={{display:'flex',flexDirection:'column',gap:10}}>
-            {sugs.map(s => (
-              <div key={s.id} style={{border:'1.5px solid '+(s.on?'#CFE3F7':NB.bd),background:s.on?'#fff':NB.col,borderRadius:12,padding:'12px 14px',opacity:s.on?1:0.6}}>
-                <div style={{display:'flex',alignItems:'flex-start',gap:10}}>
-                  <input type="checkbox" checked={s.on} onChange={e=>mudar(s.id,'on',e.target.checked)} style={{width:17,height:17,marginTop:9,accentColor:NB.azul,flexShrink:0}}/>
-                  <div style={{flex:1,minWidth:0,display:'flex',flexDirection:'column',gap:9}}>
-                    <input value={s.title} onChange={e=>mudar(s.id,'title',e.target.value)} style={{...inpR,fontSize:14,fontWeight:600}}/>
-                    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8}}>
-                      <div>
-                        <span style={lblR}>Área</span>
-                        <select value={s.area} onChange={e=>mudar(s.id,'area',e.target.value)} style={inpR}>{QR_AREAS.map(a=><option key={a}>{a}</option>)}</select>
-                      </div>
-                      <div>
-                        <span style={lblR}>Prioridade</span>
-                        <select value={s.priority} onChange={e=>mudar(s.id,'priority',e.target.value)} style={inpR}>{PRIORITIES.map(p=><option key={p}>{p}</option>)}</select>
-                      </div>
-                      <div>
-                        <span style={lblR}>Precisa para quando</span>
-                        <input type="date" value={s.deadline} onChange={e=>mudar(s.id,'deadline',e.target.value)} style={inpR}/>
-                        {!s.deadline && <div style={{fontSize:10.5,color:'#8A6206',marginTop:3}}>Sem prazo na reunião: fica +7 dias</div>}
-                      </div>
-                    </div>
-                    <div>
-                      <span style={lblR}>Responsáveis {s.assignees.length===0 && <span style={{fontWeight:400,color:'#8A6206'}}>(vazio: vai pro time da área)</span>}</span>
-                      <div style={{display:'flex',flexWrap:'wrap',gap:5}}>
-                        {ACTIVE_TEAM.map(m=>{
-                          const on = s.assignees.includes(m.initials);
-                          return <button key={m.id} type="button" onClick={()=>alternarResp(s,m.initials)}
-                            style={{padding:'3px 10px',borderRadius:20,border:'1px solid '+(on?NB.azul:NB.bd),background:on?'#EAF3FD':'#fff',fontSize:11.5,fontWeight:500,color:on?NB.azul:NB.mut}}>{m.name.split(' ')[0]}</button>;
-                        })}
-                      </div>
-                    </div>
-                    {s.contexto && <div style={{fontSize:12.5,color:NB.mut,lineHeight:1.5}}>{s.contexto}</div>}
-                    {s.trecho && <div style={{fontSize:12,color:NB.mut2,fontStyle:'italic',borderLeft:'2px solid '+NB.bd,paddingLeft:9}}>“{s.trecho}”</div>}
+          <div style={{display:'flex',flexDirection:'column',gap:18}}>
+            <div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap',background:'#F4F8FE',border:'1px solid #DCE8F7',borderRadius:11,padding:'10px 13px'}}>
+              <span style={{fontSize:13,fontWeight:600,color:NB.txt}}>{sugs.length} {sugs.length===1?'tarefa sugerida':'tarefas sugeridas'}</span>
+              <span style={{color:NB.mut2}}>·</span>
+              {QR_AREAS.filter(a=>sugs.some(x=>x.area===a)).map(a=>(
+                <span key={a} style={{display:'inline-flex',alignItems:'center',gap:6,fontSize:12,fontWeight:500,color:AREA_CLR[a]||NB.azul,background:'#fff',border:'1px solid '+NB.bd,borderRadius:20,padding:'2px 10px'}}>
+                  <span style={{width:7,height:7,borderRadius:'50%',background:AREA_CLR[a]||NB.azul}}/>{a} {sugs.filter(x=>x.area===a).length}
+                </span>
+              ))}
+              <button onClick={()=>{ const todas = sugs.every(x=>x.on); setSugs(ss=>ss.map(x=>({...x,on:!todas}))); }}
+                style={{marginLeft:'auto',background:'none',border:'none',fontSize:12,fontWeight:500,color:NB.azul}}>{sugs.every(x=>x.on)?'Desmarcar todas':'Marcar todas'}</button>
+            </div>
+
+            {QR_AREAS.filter(a=>sugs.some(x=>x.area===a)).map(a=>{
+              const Ic = AREA_ICON[a] || ILayers;
+              const clr = AREA_CLR[a] || NB.azul;
+              return (
+                <div key={a}>
+                  <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:8,color:clr}}>
+                    <Ic s={16}/><span style={{fontSize:13.5,fontWeight:600}}>{a}</span>
+                    <span style={{fontSize:12,color:NB.mut2,fontWeight:500}}>{sugs.filter(x=>x.area===a).length}</span>
+                  </div>
+                  <div style={{display:'flex',flexDirection:'column',gap:9}}>
+                    {sugs.filter(x=>x.area===a).map(s=>(
+                      <ReuniaoSugCard key={s.id} s={s} clr={clr} mudar={mudar} alternarResp={alternarResp}/>
+                    ))}
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
