@@ -8038,7 +8038,7 @@ function ReuniaoModal() {
       });
       const j = await r.json().catch(()=>({}));
       if (!r.ok) {
-        if (j.code === 'sem_chave' || j.code === 'chave_invalida') { setPrecisaChave(true); setErro(j.error); setEtapa('colar'); return; }
+        if (j.code === 'sem_chave' || j.code === 'chave_invalida' || j.code === 'sem_credito') { setPrecisaChave(true); setErro(j.error); setEtapa('colar'); return; }
         throw new Error(j.error || ('Erro '+r.status));
       }
       setPrecisaChave(false);
@@ -8203,7 +8203,7 @@ function ReuniaoModal() {
           <div style={{marginTop:10,background:'#FFF8E6',border:'1px solid #F2DDA4',borderRadius:11,padding:'12px 14px'}}>
             <div style={{fontSize:13,fontWeight:600,color:'#7A5C00',marginBottom:4}}>Ativar a IA do dash</div>
             <p style={{fontSize:12.5,color:'#7A5C00',lineHeight:1.5,marginBottom:9}}>
-              Gere uma chave em aistudio.google.com/apikey, clique em "Copiar chave" e cole aqui. Ela fica guardada no banco do dash (só contas @nibo.com.br acessam) e vale pra todo o time.
+              Gere uma chave em aistudio.google.com/apikey num projeto sem faturamento (é gratuito, ex.: dash-marketing), clique em "Copiar chave" e cole aqui. Ela fica guardada no banco do dash (só contas @nibo.com.br acessam) e vale pra todo o time.
             </p>
             <div style={{display:'flex',gap:8}}>
               <input type="password" value={chave} onChange={e=>setChave(e.target.value)} placeholder="Cole a chave do Gemini" autoComplete="off"

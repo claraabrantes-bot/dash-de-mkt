@@ -152,6 +152,8 @@ app.post('/api/sugerir-tarefas', express.json({ limit: '2mb' }), async (req, res
       const msg = (j.error && j.error.message) || String(r.status);
       const invalida = r.status === 400 && /api key|API_KEY_INVALID/i.test(msg + JSON.stringify(j)) || r.status === 403 && /api key|permission/i.test(msg);
       if (invalida) { chaveCache = { valor: null, em: 0 }; return res.status(502).json({ code: 'chave_invalida', error: 'O Google recusou a chave do Gemini. Confira se copiou a chave inteira ou cole uma nova abaixo.' }); }
+      if (/prepayment credits|billing|credits are depleted/i.test(msg)) { chaveCache = { valor: null, em: 0 }; return res.status(402).json({ code: 'sem_credito', error: 'Os créditos do projeto dessa chave acabaram. Cole abaixo uma chave gratuita (criada num projeto sem faturamento, como o dash-marketing).' }); }
+      if (r.status === 429) return res.status(429).json({ code: 'limite', error: 'Chegamos no limite gratuito do Gemini por agora. Tente de novo em alguns minutos (ou amanhã, se for o limite do dia).' });
       return res.status(502).json({ error: 'A IA não respondeu: ' + msg });
     }
     const txt = (((j.candidates || [])[0] || {}).content || {}).parts?.map(p => p.text || '').join('') || '{}';
