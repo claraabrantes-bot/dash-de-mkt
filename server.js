@@ -149,8 +149,17 @@ app.post('/api/sugerir-tarefas', express.json({ limit: '2mb' }), async (req, res
         generationConfig: { temperature: 0.3, responseMimeType: 'application/json', responseSchema: SCHEMA_TAREFAS },
       }),
     });
+    /* Modelo sobrecarregado (503 / "high demand") costuma passar em segundos:
+       tenta de novo até 3 vezes, esperando 2s, 5s e 9s. */
+    const ocupado = (rr, jj) => rr.status === 503 || /high demand|overloaded|UNAVAILABLE|try again later/i.test(((jj.error && jj.error.message) || '') + ' ' + ((jj.error && jj.error.status) || ''));
+    const esperar = ms => new Promise(ok => setTimeout(ok, ms));
     let r = await chamar(modeloAtual);
     let j = await r.json().catch(() => ({}));
+    for (const ms of [2000, 5000, 9000]) {
+      if (r.ok || !ocupado(r, j)) break;
+      await esperar(ms);
+      r = await chamar(modeloAtual); j = await r.json().catch(() => ({}));
+    }
     /* "This model ... is no longer available ... use models/xxx" → tenta o sugerido */
     if (!r.ok) {
       const m0 = (j.error && j.error.message) || '';
@@ -167,6 +176,7 @@ app.post('/api/sugerir-tarefas', express.json({ limit: '2mb' }), async (req, res
       const invalida = r.status === 400 && /api key|API_KEY_INVALID/i.test(msg + JSON.stringify(j)) || r.status === 403 && /api key|permission/i.test(msg);
       if (invalida) { chaveCache = { valor: null, em: 0 }; return res.status(502).json({ code: 'chave_invalida', error: 'O Google recusou a chave do Gemini. Confira se copiou a chave inteira ou cole uma nova abaixo.' }); }
       if (/prepayment credits|billing|credits are depleted/i.test(msg)) { chaveCache = { valor: null, em: 0 }; return res.status(402).json({ code: 'sem_credito', error: 'Os créditos do projeto dessa chave acabaram. Cole abaixo uma chave gratuita (criada num projeto sem faturamento, como o dash-marketing).' }); }
+      if (ocupado(r, j)) return res.status(503).json({ code: 'ocupado', error: 'O Gemini está sobrecarregado agora (é do lado do Google). Já tentei de novo algumas vezes. Espere um ou dois minutos e clique em Sugerir tarefas outra vez.' });
       if (r.status === 429) return res.status(429).json({ code: 'limite', error: 'Chegamos no limite gratuito do Gemini por agora. Tente de novo em alguns minutos (ou amanhã, se for o limite do dia).' });
       return res.status(502).json({ error: 'A IA não respondeu: ' + msg });
     }
