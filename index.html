@@ -1991,9 +1991,9 @@ function ContentHeader() {
 
           <div style={{display:'flex',background:'#fff',border:'1px solid '+NB.bd,borderRadius:9,padding:2,gap:2}}>
             <button onClick={()=>setLayout('list')} title="Ver em lista"
-              style={{padding:'7px 10px',background:layout==='list'?NB.bdSoft:'transparent',border:'none',borderRadius:7,color:layout==='list'?NB.txt:NB.mut2,display:'flex'}}><IList s={15}/></button>
+              style={{padding:'7px 12px',background:layout==='list'?NB.bdSoft:'transparent',border:'none',borderRadius:7,color:layout==='list'?NB.txt:NB.mut,display:'flex',alignItems:'center',gap:7,fontSize:13,fontWeight:500}}><IList s={15}/> Lista</button>
             <button onClick={()=>setLayout('board')} title="Ver em quadro"
-              style={{padding:'7px 10px',background:layout==='board'?NB.bdSoft:'transparent',border:'none',borderRadius:7,color:layout==='board'?NB.txt:NB.mut2,display:'flex'}}><IBoard s={15}/></button>
+              style={{padding:'7px 12px',background:layout==='board'?NB.bdSoft:'transparent',border:'none',borderRadius:7,color:layout==='board'?NB.txt:NB.mut,display:'flex',alignItems:'center',gap:7,fontSize:13,fontWeight:500}}><IBoard s={15}/> Quadro</button>
           </div>
 
           {demands.length===0 && (
@@ -4788,50 +4788,114 @@ function sortListItems(items, sortKey, dir) {
   return arr;
 }
 
-function ListChevron({ open }) {
+function ListChevron({ open, s=14 }) {
   return (
-    <span style={{display:'inline-flex',flexShrink:0,transition:'transform 0.15s',transform:open?'rotate(0deg)':'rotate(-90deg)',color:NB.mut2}}>
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+    <span style={{display:'inline-flex',flexShrink:0,transition:'transform 0.15s',transform:open?'rotate(0deg)':'rotate(-90deg)'}}>
+      <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
     </span>
   );
 }
 
+const LST = { fg:'#002D72', body:'#22406F', mut:'#5B7098', mut2:'#8D9DBA', line:'#DEE6F2', line2:'#EDF2F9', s2:'#F7F9FD', danger:'#B4232A', dangerSoft:'#FDECEC', warn:'#8A6206', warnSoft:'#FFF6DE', doneFg:'#9AA9C4' };
+const MESES_CURTOS = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+
+function listDueInfo(d, done) {
+  if (!d.deadline) return { txt:'', clr:LST.mut };
+  const [y,m,dd] = String(d.deadline).slice(0,10).split('-').map(Number);
+  if (!y || !m || !dd) return { txt:'', clr:LST.mut };
+  const alvo = new Date(y, m-1, dd, 12); const hoje = new Date(); hoje.setHours(12,0,0,0);
+  const diff = Math.round((alvo-hoje)/86400000);
+  const fmt = dd+' de '+MESES_CURTOS[m-1];
+  if (done) return { txt:fmt, clr:LST.doneFg };
+  if (diff < 0)  return { txt: diff===-1 ? 'Ontem' : fmt, clr:LST.danger, w:500, title:'Atrasada há '+(-diff)+' dia'+(diff===-1?'':'s') };
+  if (diff === 0) return { txt:'Hoje', clr:LST.warn, w:500 };
+  if (diff === 1) return { txt:'Amanhã', clr:LST.warn, w:500 };
+  return { txt:fmt, clr:LST.mut, title:'Em '+diff+' dias' };
+}
+
+const LIST_PRI_PILL = {
+  Urgente:{ bg:'#FFF3C4', txt:'#7A5C00' },
+  Alta:   { bg:LST.dangerSoft, txt:LST.danger },
+  Baixa:  { bg:LST.s2, txt:LST.mut2 },
+};
+
+function ListCheck({ done, onClick }) {
+  const [hov, setHov] = useState(false);
+  const on = done || hov;
+  return (
+    <button onClick={onClick} title={done?'Reabrir':'Concluir'} aria-label={done?'Reabrir demanda':'Marcar como concluída'}
+      onMouseEnter={()=>setHov(true)} onMouseLeave={()=>setHov(false)}
+      style={{width:21,height:21,borderRadius:'50%',border:'1.6px solid '+(done?NB.azul:(hov?NB.azul:LST.mut2)),background:done?NB.azul:'transparent',display:'grid',placeItems:'center',padding:0,color:done?'#fff':(on?NB.azul:'transparent'),flexShrink:0,transition:'all .12s'}}>
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="5 12.5 10 17.5 19 7"/></svg>
+    </button>
+  );
+}
+
+const LIST_GRID = '46px minmax(240px,1fr) 170px 110px 110px 120px';
+
 function ListRow({ demand, pipes }) {
-  const { setModal } = useApp();
-  const stage = demandStage(demand, pipes);
-  const done = demandDone(demand, pipes);
-  const sla = done ? null : getSla(demand.deadline, false);
-  const ps = PRI_STL[demand.priority] || PRI_STL.Baixa;
-  const cell = { padding:'12px 14px', fontSize:13.5, color:NB.txt, verticalAlign:'middle', minWidth:0 };
+  const { setModal, moveStage, updateDemand, setNotifyPending } = useApp();
+  const stages = pipes[demand.area] || [];
+  const stage = stages.find(s=>s.id===demand.stageId);
+  const done = !!(stage && stage.isDone);
+  const di = listDueInfo(demand, done);
+  const pp = LIST_PRI_PILL[demand.priority];
+  const itens = demand.checklist || [];
+  const feitas = itens.filter(it=>it.feita).length;
+
+  const toggleDone = e => {
+    e.stopPropagation();
+    if (!done) {
+      const fim = stages.find(s=>s.isDone);
+      if (!fim) return;
+      if (demand.stageId) updateDemand(demand.id, { prevStageId: demand.stageId });
+      if (demand.area === 'Design') setNotifyPending({ demandId:demand.id, stageId:fim.id, demandTitle:demand.title });
+      else moveStage(demand.id, fim.id);
+    } else {
+      const volta = stages.find(s=>s.id===demand.prevStageId && !s.isDone)
+        || [...stages].reverse().find(s=>!s.isDone);
+      if (volta) moveStage(demand.id, volta.id);
+    }
+  };
+
+  const cell = { padding:'8px', minWidth:0 };
   return (
     <div onClick={()=>setModal(demand.id)}
-      style={{display:'grid',gridTemplateColumns:LIST_COLS,alignItems:'center',cursor:'pointer',borderTop:'1px solid '+NB.bdSoft}}
-      onMouseEnter={e=>{e.currentTarget.style.background=NB.col;}} onMouseLeave={e=>{e.currentTarget.style.background='transparent';}}>
-      <div style={{...cell,fontWeight:500,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}} title={demand.title||''}>{demand.title||'(sem título)'}</div>
-      <div style={{...cell,color:NB.mut,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{stage?stage.name:'—'}</div>
+      style={{display:'grid',gridTemplateColumns:LIST_GRID,alignItems:'center',minHeight:50,cursor:'pointer',borderTop:'1px solid '+LST.line2}}
+      onMouseEnter={e=>{e.currentTarget.style.background=LST.s2;}} onMouseLeave={e=>{e.currentTarget.style.background='transparent';}}>
+      <div style={{...cell,paddingLeft:14}}><ListCheck done={done} onClick={toggleDone}/></div>
+      <div style={{...cell,display:'flex',alignItems:'center',gap:10,flexWrap:'wrap'}}>
+        <span style={{fontSize:14,fontWeight:500,color:done?LST.doneFg:LST.fg,textDecoration:done?'line-through':'none',overflowWrap:'anywhere'}}>{demand.title||'(sem título)'}</span>
+        {itens.length>0 && (
+          <span title="Subtarefas" style={{display:'inline-flex',alignItems:'center',gap:4,color:LST.mut2,fontSize:12,whiteSpace:'nowrap'}}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 4v9a3 3 0 0 0 3 3h9"/><polyline points="14 12 18 16 14 20"/></svg>
+            {feitas}/{itens.length}
+          </span>
+        )}
+      </div>
+      <div style={cell}>
+        {stage && (
+          <span style={{fontSize:12,padding:'3px 11px',borderRadius:20,whiteSpace:'nowrap',display:'inline-block',maxWidth:'100%',overflow:'hidden',textOverflow:'ellipsis',
+            background:stage.isApproval&&!done?LST.warnSoft:LST.s2,border:'1px solid '+(stage.isApproval&&!done?'transparent':LST.line2),color:stage.isApproval&&!done?LST.warn:LST.mut}}>{stage.name}</span>
+        )}
+      </div>
       <div style={cell}>
         <div style={{display:'inline-flex'}}>
           {(demand.assignees||[]).slice(0,3).map((init,i)=><CardAvatar key={init+i} initials={init} offset={i}/>)}
         </div>
       </div>
       <div style={cell}>
-        {done
-          ? <span style={{fontSize:12,color:NB.mut2}}>Concluída</span>
-          : sla
-            ? (sla.type==='ok'
-                ? <span style={{color:NB.mut,fontSize:13}}>{fmtDate(demand.deadline)}</span>
-                : <span style={{fontSize:11.5,fontWeight:500,padding:'3px 9px',borderRadius:6,whiteSpace:'nowrap',background:sla.type==='danger'?'#FEECEC':'#FFF6DE',color:sla.type==='danger'?'#B4232A':'#8A6206'}}>{sla.label}</span>)
-            : <span style={{fontSize:13,color:NB.mut2}}>—</span>}
+        <span title={di.title||''} style={{fontSize:13,color:di.clr,fontWeight:di.w||400,whiteSpace:'nowrap'}}>{di.txt}</span>
       </div>
       <div style={cell}>
-        {demand.priority && <span style={{fontSize:11.5,fontWeight:500,padding:'3px 9px',borderRadius:6,whiteSpace:'nowrap',background:ps.bg,color:ps.txt}}>{demand.priority}</span>}
+        {pp && !done && <span style={{fontSize:11.5,fontWeight:600,padding:'2px 9px',borderRadius:20,whiteSpace:'nowrap',background:pp.bg,color:pp.txt}}>{demand.priority}</span>}
       </div>
     </div>
   );
 }
 
 function ListView() {
-  const { filtered, pipes } = useApp();
+  const { filtered, pipes, area, setArea, setNewOpen, setPresetNovo } = useApp();
   const [group, setGroup] = useState('pipe');
   const [sortKey, setSortKey] = useState('due');
   const [dir, setDir] = useState(1);
@@ -4840,106 +4904,121 @@ function ListView() {
   const [doneOpen, setDoneOpen] = useState({});
 
   const toggleSort = key => { if (key===sortKey) setDir(d=>d===1?-1:1); else { setSortKey(key); setDir(1); } };
-
   const groups = buildListGroups(filtered, group, pipes);
 
-  const selStyle = { background:"#fff url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%237B879B' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E\") no-repeat right 10px center", border:'1px solid '+NB.bd, borderRadius:8, padding:'7px 30px 7px 11px', fontSize:13, color:NB.txt, outline:'none', cursor:'pointer' };
-  const labStyle = { fontSize:12.5, color:NB.mut, fontWeight:500 };
-  const th = { padding:'10px 14px', fontSize:11, fontWeight:500, color:NB.mut2, textTransform:'uppercase', letterSpacing:'0.09em', textAlign:'left', whiteSpace:'nowrap' };
+  const selStyle = { background:"#fff url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%235B7098' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E\") no-repeat right 11px center", border:'1px solid '+LST.line, borderRadius:9, padding:'8px 32px 8px 12px', fontSize:13, fontWeight:500, color:LST.body, outline:'none', cursor:'pointer' };
+  const labStyle = { fontSize:12, color:LST.mut };
   const sortBtn = (key, label) => {
     const on = sortKey===key, arrow = on ? (dir===1?'↑':'↓') : '↕';
     return (
-      <button onClick={()=>toggleSort(key)}
-        style={{display:'inline-flex',alignItems:'center',gap:4,background:'none',border:'none',padding:0,fontSize:11,fontWeight:500,color:on?NB.azul:NB.mut2,textTransform:'uppercase',letterSpacing:'0.09em',cursor:'pointer'}}>
-        {label}<span style={{fontSize:10}}>{arrow}</span>
+      <button onClick={()=>toggleSort(key)} title={on?(dir===1?'Ordem crescente. Clique para inverter.':'Ordem decrescente. Clique para inverter.'):'Ordenar por '+label.toLowerCase()}
+        style={{display:'inline-flex',alignItems:'center',gap:5,background:'none',border:'none',padding:0,font:'inherit',letterSpacing:'inherit',textTransform:'inherit',color:on?NB.azul:'inherit',cursor:'pointer'}}>
+        {label}<span style={{fontSize:13,opacity:on?1:0.45}}>{arrow}</span>
       </button>
     );
+  };
+  const novaNoPipeline = (pipe) => {
+    const st = (pipes[pipe]||[])[0];
+    setPresetNovo({ area:pipe, stageId: st ? st.id : undefined });
+    setNewOpen(true);
   };
 
   return (
     <div>
-      <div style={{display:'flex',alignItems:'center',gap:18,flexWrap:'wrap',marginBottom:16}}>
-        <div style={{display:'flex',alignItems:'center',gap:8}}>
-          <span style={labStyle}>Agrupar por</span>
-          <select value={group} onChange={e=>setGroup(e.target.value)} style={selStyle}>
-            {LIST_GROUP_OPTS.map(o=><option key={o.v} value={o.v}>{o.l}</option>)}
-          </select>
-        </div>
-        <div style={{display:'flex',alignItems:'center',gap:8}}>
-          <span style={labStyle}>Ordenar</span>
-          <select value={sortKey} onChange={e=>setSortKey(e.target.value)} style={selStyle}>
-            {LIST_SORT_OPTS.map(o=><option key={o.v} value={o.v}>{o.l}</option>)}
-          </select>
-        </div>
-        <div style={{display:'flex',alignItems:'center',gap:8}}>
-          <span style={labStyle}>Concluídas</span>
-          <select value={doneMode} onChange={e=>setDoneMode(e.target.value)} style={selStyle}>
-            <option value="fold">Recolhidas</option>
-            <option value="show">Visíveis</option>
-            <option value="hide">Ocultas</option>
-          </select>
-        </div>
+      <div style={{display:'flex',alignItems:'center',gap:10,flexWrap:'wrap',marginBottom:14}}>
+        <span style={labStyle}>Agrupar por</span>
+        <select value={group} onChange={e=>setGroup(e.target.value)} style={selStyle}>
+          {LIST_GROUP_OPTS.map(o=><option key={o.v} value={o.v}>{o.l}</option>)}
+        </select>
+        <span style={{...labStyle,marginLeft:6}}>Ordenar</span>
+        <select value={sortKey} onChange={e=>{setSortKey(e.target.value); setDir(1);}} style={selStyle}>
+          {LIST_SORT_OPTS.map(o=><option key={o.v} value={o.v}>{o.l}</option>)}
+        </select>
+        <span style={{...labStyle,marginLeft:6}}>Concluídas</span>
+        <select value={doneMode} onChange={e=>{setDoneMode(e.target.value); setDoneOpen({}); setCollapsed({});}} style={selStyle}>
+          <option value="fold">Recolhidas</option>
+          <option value="show">Visíveis</option>
+          <option value="hide">Ocultas</option>
+        </select>
       </div>
 
-      {groups.length===0 && (
-        <div style={{padding:'56px 20px',textAlign:'center',color:NB.mut2,fontSize:14,background:'#fff',borderRadius:16,border:'1px solid '+NB.bd}}>
+      {groups.length===0 ? (
+        <div style={{padding:'56px 20px',textAlign:'center',color:LST.mut2,fontSize:14,background:'#fff',borderRadius:14,border:'1px solid '+LST.line}}>
           Nenhuma demanda encontrada.
         </div>
-      )}
+      ) : (
+        <div style={{background:'#fff',border:'1px solid '+LST.line,borderRadius:14,overflowX:'auto'}}>
+          <div style={{minWidth:820}}>
+            <div style={{display:'grid',gridTemplateColumns:LIST_GRID,alignItems:'center',position:'sticky',top:0,zIndex:5,background:LST.s2,borderBottom:'1px solid '+LST.line,fontSize:11,letterSpacing:'0.08em',color:LST.mut2,textTransform:'uppercase',fontWeight:600}}>
+              <div style={{padding:'10px 8px'}}/>
+              <div style={{padding:'10px 8px'}}>{sortBtn('name','Demanda')}</div>
+              <div style={{padding:'10px 8px'}}>Etapa</div>
+              <div style={{padding:'10px 8px'}}>Pessoas</div>
+              <div style={{padding:'10px 8px'}}>{sortBtn('due','Prazo')}</div>
+              <div style={{padding:'10px 8px'}}>{sortBtn('pri','Prioridade')}</div>
+            </div>
 
-      <div style={{display:'flex',flexDirection:'column',gap:14}}>
-        {groups.map(g => {
-          const isDoneGroup = !!g.meta.doneGroup;
-          if (isDoneGroup && doneMode==='hide') return null;
-          const closed = collapsed[g.key] ?? (isDoneGroup && doneMode!=='show');
-          const openItems = isDoneGroup ? [] : sortListItems(g.items.filter(d=>!demandDone(d, pipes)), sortKey, dir);
-          const doneItemsAll = isDoneGroup ? sortListItems(g.items, 'due', -1) : sortListItems(g.items.filter(d=>demandDone(d, pipes)), 'due', -1);
-          const doneItems = doneMode==='hide' ? [] : doneItemsAll;
-          const total = openItems.length + (isDoneGroup ? doneItems.length : doneItems.length);
-          if (total===0) return null;
-          const doneSecOpen = doneOpen[g.key] ?? (doneMode==='show');
+            {groups.map((g, gi) => {
+              const isDoneGroup = !!g.meta.doneGroup;
+              if (isDoneGroup && doneMode==='hide') return null;
+              const openItems = isDoneGroup ? [] : sortListItems(g.items.filter(d=>!demandDone(d, pipes)), sortKey, dir);
+              const doneAll = sortListItems(isDoneGroup ? g.items : g.items.filter(d=>demandDone(d, pipes)), 'due', -1)
+                .sort((a,b)=>(b.completedAt||'')<(a.completedAt||'')?-1:(b.completedAt||'')>(a.completedAt||'')?1:0);
+              const doneItems = doneMode==='hide' ? [] : doneAll;
+              const total = openItems.length + doneItems.length;
+              if (total===0) return null;
+              const defOpen = isDoneGroup ? doneMode==='show' : true;
+              const open = collapsed[g.key] ?? defOpen;
+              const doneSecOpen = doneOpen[g.key] ?? (doneMode==='show');
+              const pipeForAdd = g.meta.pipe || (area!=='Todas' ? area : null);
 
-          return (
-            <div key={g.key} style={{background:'#fff',borderRadius:16,border:'1px solid '+NB.bd,overflow:'hidden',boxShadow:'0 1px 3px rgba(11,42,92,0.04)'}}>
-              <button onClick={()=>setCollapsed(c=>({...c,[g.key]: !(c[g.key] ?? (isDoneGroup && doneMode!=='show'))}))}
-                style={{display:'flex',alignItems:'center',gap:9,width:'100%',padding:'13px 16px',background:NB.col,border:'none',borderBottom:closed?'none':'1px solid '+NB.bdSoft,cursor:'pointer',textAlign:'left'}}>
-                <ListChevron open={!closed}/>
-                {g.meta.pipe && <span style={{width:9,height:9,borderRadius:'50%',background:AREA_CLR[g.meta.pipe],flexShrink:0}}/>}
-                <span style={{fontSize:14,fontWeight:600,color:NB.txt}}>{g.key}</span>
-                <span style={{fontSize:12.5,color:NB.mut2,background:'#fff',border:'1px solid '+NB.bd,borderRadius:20,padding:'1px 9px'}}>{total}</span>
-              </button>
-
-              {!closed && (
-                <div>
-                  <div style={{display:'grid',gridTemplateColumns:LIST_COLS,background:'#fff'}}>
-                    <div style={th}>{sortBtn('name','Demanda')}</div>
-                    <div style={th}>Etapa</div>
-                    <div style={th}>Pessoas</div>
-                    <div style={th}>{sortBtn('due','Prazo')}</div>
-                    <div style={th}>{sortBtn('pri','Prioridade')}</div>
+              return (
+                <div key={g.key} style={{borderTop:gi>0?'1px solid '+LST.line:'none'}}>
+                  <div onClick={()=>setCollapsed(c=>({...c,[g.key]: !(c[g.key] ?? defOpen)}))}
+                    style={{display:'flex',alignItems:'center',gap:10,padding:'12px 14px 8px',cursor:'pointer'}}>
+                    <span style={{width:22,height:22,display:'grid',placeItems:'center',borderRadius:6,color:LST.mut}}><ListChevron open={open}/></span>
+                    <span style={{display:'flex',alignItems:'center',gap:9,fontWeight:600,color:LST.fg,fontSize:14.5}}>
+                      {g.meta.pipe && <span style={{width:9,height:9,borderRadius:'50%',background:AREA_CLR[g.meta.pipe]||NB.azul}}/>}
+                      {g.key}
+                    </span>
+                    <span style={{color:LST.mut2,fontSize:12.5}}>{total}</span>
+                    {g.meta.pipe && area==='Todas' && (
+                      <button onClick={e=>{e.stopPropagation(); setArea(g.meta.pipe);}}
+                        style={{marginLeft:'auto',background:'none',border:'none',fontSize:12.5,color:NB.azul,fontWeight:500,padding:'2px 4px'}}>Abrir pipeline</button>
+                    )}
                   </div>
-                  {isDoneGroup
+
+                  {open && (isDoneGroup
                     ? doneItems.map(d=><ListRow key={d.id} demand={d} pipes={pipes}/>)
                     : (
                       <React.Fragment>
                         {openItems.map(d=><ListRow key={d.id} demand={d} pipes={pipes}/>)}
+                        {pipeForAdd && (
+                          <button onClick={()=>novaNoPipeline(pipeForAdd)}
+                            style={{display:'flex',alignItems:'center',gap:10,width:'100%',padding:'10px 14px 10px 62px',background:'none',border:'none',borderTop:'1px solid '+LST.line2,color:LST.mut2,fontSize:13,textAlign:'left'}}
+                            onMouseEnter={e=>{e.currentTarget.style.color=NB.azul; e.currentTarget.style.background=LST.s2;}}
+                            onMouseLeave={e=>{e.currentTarget.style.color=LST.mut2; e.currentTarget.style.background='none';}}>
+                            <IPlus s={14}/> Adicionar demanda
+                          </button>
+                        )}
                         {doneItems.length>0 && (
                           <React.Fragment>
                             <button onClick={()=>setDoneOpen(o=>({...o,[g.key]: !(o[g.key] ?? (doneMode==='show'))}))}
-                              style={{display:'flex',alignItems:'center',gap:8,width:'100%',padding:'9px 16px 9px 20px',background:NB.col,border:'none',borderTop:'1px solid '+NB.bdSoft,cursor:'pointer',fontSize:12.5,fontWeight:500,color:NB.mut,textAlign:'left'}}>
-                              <ListChevron open={doneSecOpen}/> Concluídas ({doneItems.length})
+                              style={{display:'flex',alignItems:'center',gap:8,width:'100%',padding:'10px 14px 10px 24px',background:LST.s2,border:'none',borderTop:'1px solid '+LST.line2,cursor:'pointer',fontSize:12.5,fontWeight:500,color:LST.mut,textAlign:'left'}}>
+                              <ListChevron open={doneSecOpen} s={13}/> Concluídas ({doneItems.length})
                             </button>
                             {doneSecOpen && doneItems.map(d=><ListRow key={d.id} demand={d} pipes={pipes}/>)}
                           </React.Fragment>
                         )}
                       </React.Fragment>
-                    )}
+                    )
+                  )}
                 </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
