@@ -58,6 +58,7 @@ const FB_API_KEY = 'AIzaSyDE6wv0kFOOJGWDjOX-mQ2s1kO0ktFdybs';
 /* Modelo atual; se o Google aposentar e sugerir outro no erro, o servidor
    passa a usar o sugerido sozinho (até reiniciar). */
 let modeloAtual = process.env.GEMINI_MODEL || 'gemini-3.8-flash';
+let semThinking = false;   // vira true se o modelo não aceitar thinkingConfig
 
 async function emailDoToken(idToken) {
   if (!idToken) return null;
@@ -140,33 +141,58 @@ app.post('/api/sugerir-tarefas', express.json({ limit: '2mb' }), async (req, res
       'Time: ' + time.map(m => m.initials + ' = ' + m.name + ' (área ' + m.area + (m.extras && m.extras.length ? '; também ' + m.extras.join(', ') : '') + (m.aprovador ? '; gestora/aprovadora' : '') + ')').join('; '),
     ].join('\n');
 
-    const chamar = modelo => fetch('https://generativelanguage.googleapis.com/v1beta/models/' + modelo + ':generateContent', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
-      body: JSON.stringify({
+    /* Limite total de 85s por pedido: o dash nunca fica "lendo" pra sempre.
+       Cada chamada respeita o tempo que sobra; o modelo pensa pouco (mais rápido)
+       e, se não aceitar essa opção, segue sem ela. */
+    const inicio = Date.now(), LIMITE = 85000;
+    const restante = () => LIMITE - (Date.now() - inicio);
+    const chamar = async modelo => {
+      const gen = { temperature: 0.3, responseMimeType: 'application/json', responseSchema: SCHEMA_TAREFAS };
+      if (!semThinking) gen.thinkingConfig = { thinkingLevel: 'low' };
+      const corpo = {
         systemInstruction: { parts: [{ text: instrucoes }] },
         contents: [{ role: 'user', parts: [{ text: 'Transcrição da reunião:\n\n' + transcricao }] }],
-        generationConfig: { temperature: 0.3, responseMimeType: 'application/json', responseSchema: SCHEMA_TAREFAS },
-      }),
-    });
-    /* Modelo sobrecarregado (503 / "high demand") costuma passar em segundos:
-       tenta de novo até 3 vezes, esperando 2s, 5s e 9s. */
+        generationConfig: gen,
+      };
+      const ms = Math.max(5000, restante());
+      try {
+        let rr = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + modelo + ':generateContent', {
+          method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
+          body: JSON.stringify(corpo), signal: AbortSignal.timeout(ms),
+        });
+        let jj = await rr.json().catch(() => ({}));
+        if (!rr.ok && rr.status === 400 && /thinking/i.test(JSON.stringify(jj)) && !semThinking) {
+          semThinking = true; delete gen.thinkingConfig;
+          rr = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + modelo + ':generateContent', {
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
+            body: JSON.stringify(corpo), signal: AbortSignal.timeout(Math.max(5000, restante())),
+          });
+          jj = await rr.json().catch(() => ({}));
+        }
+        return { r: rr, j: jj };
+      } catch (e) {
+        if (e && (e.name === 'TimeoutError' || e.name === 'AbortError')) return { r: { ok: false, status: 504 }, j: { error: { message: 'timeout' } }, demorou: true };
+        throw e;
+      }
+    };
+    /* Modelo sobrecarregado (503 / "high demand"): tenta de novo esperando 2s, 5s e 9s,
+       só se ainda sobrar tempo dentro do limite. */
     const ocupado = (rr, jj) => rr.status === 503 || /high demand|overloaded|UNAVAILABLE|try again later/i.test(((jj.error && jj.error.message) || '') + ' ' + ((jj.error && jj.error.status) || ''));
     const esperar = ms => new Promise(ok => setTimeout(ok, ms));
-    let r = await chamar(modeloAtual);
-    let j = await r.json().catch(() => ({}));
+    let { r, j, demorou } = await chamar(modeloAtual);
     for (const ms of [2000, 5000, 9000]) {
-      if (r.ok || !ocupado(r, j)) break;
+      if (r.ok || demorou || !ocupado(r, j) || restante() < ms + 20000) break;
       await esperar(ms);
-      r = await chamar(modeloAtual); j = await r.json().catch(() => ({}));
+      ({ r, j, demorou } = await chamar(modeloAtual));
     }
+    if (demorou) return res.status(504).json({ code: 'demorou', error: 'A IA demorou demais pra responder. Tente de novo em instantes. Se a reunião for muito longa, cole só a parte com os combinados e próximos passos.' });
     /* "This model ... is no longer available ... use models/xxx" → tenta o sugerido */
     if (!r.ok) {
       const m0 = (j.error && j.error.message) || '';
       const sug = /no longer available|not found|deprecated|is not supported/i.test(m0) && m0.match(/models\/(gemini-[a-z0-9.\-]+)/gi);
       const novo = sug && sug.map(x => x.replace(/^models\//i, '')).find(x => x !== modeloAtual);
       if (novo) {
-        const r2 = await chamar(novo); const j2 = await r2.json().catch(() => ({}));
+        const { r: r2, j: j2 } = await chamar(novo);
         if (r2.ok) { console.log('Gemini: trocando modelo ' + modeloAtual + ' -> ' + novo); modeloAtual = novo; }
         r = r2; j = j2;
       }
@@ -180,7 +206,7 @@ app.post('/api/sugerir-tarefas', express.json({ limit: '2mb' }), async (req, res
       if (r.status === 429) return res.status(429).json({ code: 'limite', error: 'Chegamos no limite gratuito do Gemini por agora. Tente de novo em alguns minutos (ou amanhã, se for o limite do dia).' });
       return res.status(502).json({ error: 'A IA não respondeu: ' + msg });
     }
-    const txt = (((j.candidates || [])[0] || {}).content || {}).parts?.map(p => p.text || '').join('') || '{}';
+    const txt = (((j.candidates || [])[0] || {}).content || {}).parts?.filter(p => !p.thought).map(p => p.text || '').join('') || '{}';
     let out; try { out = JSON.parse(txt); } catch (e) { out = { tarefas: [] }; }
     res.json({ tarefas: Array.isArray(out.tarefas) ? out.tarefas.slice(0, 40) : [] });
   } catch (e) {

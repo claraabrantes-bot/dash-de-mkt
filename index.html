@@ -7993,7 +7993,14 @@ function ReuniaoModal() {
   const [precisaChave, setPrecisaChave] = useState(false);
   const [chave, setChave] = useState('');
   const [salvandoChave, setSalvandoChave] = useState(false);
+  const [segundos, setSegundos] = useState(0);
   const fileRef = useRef(null);
+  useEffect(() => {
+    if (etapa !== 'pensando') { setSegundos(0); return; }
+    const t0 = Date.now();
+    const id = setInterval(() => setSegundos(Math.round((Date.now()-t0)/1000)), 1000);
+    return () => clearInterval(id);
+  }, [etapa]);
 
   if (!reuniaoOpen) return null;
   const fechar = () => setReuniaoOpen(false);
@@ -8032,10 +8039,13 @@ function ReuniaoModal() {
       const cu = firebase.auth().currentUser;
       const idToken = cu ? await cu.getIdToken() : null;
       const hoje = new Date(); const hojeStr = hoje.getFullYear()+'-'+String(hoje.getMonth()+1).padStart(2,'0')+'-'+String(hoje.getDate()).padStart(2,'0');
+      const ctl = new AbortController();
+      const limite = setTimeout(() => ctl.abort(), 100000);
       const r = await fetch('/api/sugerir-tarefas', {
-        method:'POST', headers:{'Content-Type':'application/json'},
+        method:'POST', headers:{'Content-Type':'application/json'}, signal: ctl.signal,
         body: JSON.stringify({ idToken, transcricao: base, hoje: hojeStr, time: ACTIVE_TEAM.map(m=>({initials:m.initials,name:m.name,area:m.area,extras:m.areasExtra||[],aprovador:!!m.isApprover})) }),
       });
+      clearTimeout(limite);
       const j = await r.json().catch(()=>({}));
       if (!r.ok) {
         if (j.code === 'sem_chave' || j.code === 'chave_invalida' || j.code === 'sem_credito') { setPrecisaChave(true); setErro(j.error); setEtapa('colar'); return; }
@@ -8061,7 +8071,9 @@ function ReuniaoModal() {
       if (!lista.length) { setErro('A IA não encontrou tarefas nessa transcrição. Confira se colou a reunião inteira.'); setEtapa('colar'); return; }
       setSugs(lista); setEtapa('revisar');
     } catch (e) {
-      setErro(String(e.message||e).includes('Failed to fetch') ? 'Não consegui falar com o servidor. Tente de novo em instantes.' : e.message);
+      setErro(e && e.name === 'AbortError'
+        ? 'A IA demorou demais pra responder. Tente de novo em instantes. Se a reunião for muito longa, cole só a parte com os combinados e próximos passos.'
+        : String(e.message||e).includes('Failed to fetch') ? 'Não consegui falar com o servidor. Tente de novo em instantes.' : e.message);
       setEtapa('colar');
     }
   };
@@ -8230,7 +8242,7 @@ function ReuniaoModal() {
           : <button onClick={sugerir} disabled={etapa==='pensando'}
               style={{display:'flex',alignItems:'center',gap:9,padding:'10px 20px',background:NB.azul,border:'none',borderRadius:9,fontSize:13.5,fontWeight:600,color:'#fff',opacity:etapa==='pensando'?0.8:1}}>
               {etapa==='pensando' && <span style={{width:14,height:14,border:'2px solid rgba(255,255,255,0.4)',borderTopColor:'#fff',borderRadius:'50%',animation:'nb-spin 0.8s linear infinite'}}/>}
-              {etapa==='pensando' ? 'Lendo a reunião…' : 'Sugerir tarefas'}
+              {etapa==='pensando' ? (segundos < 15 ? 'Lendo a reunião…' : segundos < 40 ? 'Lendo a reunião… '+segundos+'s' : 'A IA está demorando… '+segundos+'s') : 'Sugerir tarefas'}
             </button>}
       </div>
     </Modal>
