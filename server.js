@@ -68,6 +68,24 @@ async function emailDoToken(idToken) {
   return u && u.email ? String(u.email).toLowerCase() : null;
 }
 
+/* Chave do Gemini: primeiro a variável do servidor; se não tiver, a que o
+   time salvou pelo dash em config/ia (lida com o login da própria pessoa,
+   então as regras do Firestore continuam valendo). */
+let chaveCache = { valor: null, em: 0 };
+async function chaveGemini(idToken) {
+  const env = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || process.env.API_KEY;
+  if (env) return env;
+  if (chaveCache.valor && Date.now() - chaveCache.em < 5 * 60 * 1000) return chaveCache.valor;
+  const r = await fetch('https://firestore.googleapis.com/v1/projects/dash-marketing-9302b/databases/(default)/documents/config/ia', {
+    headers: { Authorization: 'Bearer ' + idToken },
+  }).catch(() => null);
+  if (!r || !r.ok) return null;
+  const j = await r.json().catch(() => ({}));
+  const v = j.fields && j.fields.geminiKey && j.fields.geminiKey.stringValue;
+  if (v) chaveCache = { valor: v.trim(), em: Date.now() };
+  return v ? v.trim() : null;
+}
+
 const SCHEMA_TAREFAS = {
   type: 'OBJECT',
   properties: {
@@ -98,8 +116,8 @@ app.post('/api/sugerir-tarefas', express.json({ limit: '2mb' }), async (req, res
     const email = await emailDoToken(req.body && req.body.idToken).catch(() => null);
     if (!email || !email.endsWith('@nibo.com.br')) return res.status(401).json({ error: 'Entre com sua conta @nibo.com.br para usar.' });
 
-    const key = process.env.GEMINI_API_KEY || process.env.API_KEY;
-    if (!key) return res.status(503).json({ error: 'A IA não está configurada neste servidor (falta GEMINI_API_KEY).' });
+    const key = await chaveGemini(req.body.idToken);
+    if (!key) return res.status(503).json({ code: 'sem_chave', error: 'Falta a chave do Gemini. Cole a chave abaixo pra ativar a IA.' });
 
     const transcricao = String((req.body && req.body.transcricao) || '').slice(0, 200000).trim();
     if (transcricao.length < 30) return res.status(400).json({ error: 'A transcrição está muito curta.' });
@@ -130,7 +148,12 @@ app.post('/api/sugerir-tarefas', express.json({ limit: '2mb' }), async (req, res
       }),
     });
     const j = await r.json().catch(() => ({}));
-    if (!r.ok) return res.status(502).json({ error: 'A IA não respondeu: ' + ((j.error && j.error.message) || r.status) });
+    if (!r.ok) {
+      const msg = (j.error && j.error.message) || String(r.status);
+      const invalida = r.status === 400 && /api key|API_KEY_INVALID/i.test(msg + JSON.stringify(j)) || r.status === 403 && /api key|permission/i.test(msg);
+      if (invalida) { chaveCache = { valor: null, em: 0 }; return res.status(502).json({ code: 'chave_invalida', error: 'O Google recusou a chave do Gemini. Confira se copiou a chave inteira ou cole uma nova abaixo.' }); }
+      return res.status(502).json({ error: 'A IA não respondeu: ' + msg });
+    }
     const txt = (((j.candidates || [])[0] || {}).content || {}).parts?.map(p => p.text || '').join('') || '{}';
     let out; try { out = JSON.parse(txt); } catch (e) { out = { tarefas: [] }; }
     res.json({ tarefas: Array.isArray(out.tarefas) ? out.tarefas.slice(0, 40) : [] });

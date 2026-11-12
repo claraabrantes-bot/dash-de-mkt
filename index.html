@@ -7990,6 +7990,9 @@ function ReuniaoModal() {
   const [link, setLink] = useState('');
   const [puxando, setPuxando] = useState(false);
   const [origem, setOrigem] = useState('');
+  const [precisaChave, setPrecisaChave] = useState(false);
+  const [chave, setChave] = useState('');
+  const [salvandoChave, setSalvandoChave] = useState(false);
   const fileRef = useRef(null);
 
   if (!reuniaoOpen) return null;
@@ -8034,7 +8037,11 @@ function ReuniaoModal() {
         body: JSON.stringify({ idToken, transcricao: base, hoje: hojeStr, time: ACTIVE_TEAM.map(m=>({initials:m.initials,name:m.name,area:m.area,extras:m.areasExtra||[],aprovador:!!m.isApprover})) }),
       });
       const j = await r.json().catch(()=>({}));
-      if (!r.ok) throw new Error(j.error || ('Erro '+r.status));
+      if (!r.ok) {
+        if (j.code === 'sem_chave' || j.code === 'chave_invalida') { setPrecisaChave(true); setErro(j.error); setEtapa('colar'); return; }
+        throw new Error(j.error || ('Erro '+r.status));
+      }
+      setPrecisaChave(false);
       const iniciais = TEAM.map(m=>m.initials);
       const lista = (j.tarefas||[]).filter(t=>t && t.titulo).map((t,i)=>{
         const area = QR_AREAS.includes(t.area) ? t.area : 'Social';
@@ -8056,6 +8063,22 @@ function ReuniaoModal() {
     } catch (e) {
       setErro(String(e.message||e).includes('Failed to fetch') ? 'Não consegui falar com o servidor. Tente de novo em instantes.' : e.message);
       setEtapa('colar');
+    }
+  };
+
+  const salvarChave = async () => {
+    const v = chave.trim();
+    if (v.length < 20) { setErro('Essa chave parece incompleta. Use o botão "Copiar chave" do Google.'); return; }
+    setSalvandoChave(true); setErro('');
+    try {
+      await firebase.firestore().collection('config').doc('ia').set({ geminiKey: v, salvaPor: (user && user.email) || '', salvaEm: new Date().toISOString() }, { merge:true });
+      setChave(''); setPrecisaChave(false);
+      nbToast('Chave salva. Gerando as sugestões…');
+      setSalvandoChave(false);
+      sugerir();
+    } catch (e) {
+      setSalvandoChave(false);
+      setErro('Não consegui salvar a chave: ' + (e.code === 'permission-denied' ? 'sua conta não tem permissão pra mudar as configurações.' : e.message));
     }
   };
 
@@ -8176,6 +8199,23 @@ function ReuniaoModal() {
         )}
 
         {erro && <p style={{fontSize:12.5,color:'#B4232A',marginTop:10}}>{erro}</p>}
+        {precisaChave && etapa==='colar' && (
+          <div style={{marginTop:10,background:'#FFF8E6',border:'1px solid #F2DDA4',borderRadius:11,padding:'12px 14px'}}>
+            <div style={{fontSize:13,fontWeight:600,color:'#7A5C00',marginBottom:4}}>Ativar a IA do dash</div>
+            <p style={{fontSize:12.5,color:'#7A5C00',lineHeight:1.5,marginBottom:9}}>
+              Gere uma chave em aistudio.google.com/apikey, clique em "Copiar chave" e cole aqui. Ela fica guardada no banco do dash (só contas @nibo.com.br acessam) e vale pra todo o time.
+            </p>
+            <div style={{display:'flex',gap:8}}>
+              <input type="password" value={chave} onChange={e=>setChave(e.target.value)} placeholder="Cole a chave do Gemini" autoComplete="off"
+                onKeyDown={e=>{ if (e.key==='Enter') salvarChave(); }}
+                style={{...inpR,flex:1,fontSize:13,fontFamily:'monospace'}}/>
+              <button onClick={salvarChave} disabled={salvandoChave||!chave.trim()}
+                style={{padding:'0 16px',background:chave.trim()?NB.azul:NB.gelo,border:'none',borderRadius:9,fontSize:13,fontWeight:600,color:'#fff',whiteSpace:'nowrap'}}>
+                {salvandoChave ? 'Salvando…' : 'Salvar e sugerir'}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       <div style={{padding:'14px 28px 20px',borderTop:'1px solid '+NB.bdSoft,display:'flex',justifyContent:'space-between',alignItems:'center',gap:10,marginTop:8}}>
