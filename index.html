@@ -256,7 +256,7 @@ function Provider({ children }) {
 
   /* ---------- interface ---------- */
   const [view, setView]     = useState('kanban');
-  const [layout, setLayout] = useState('board');
+  const [layout, setLayout] = useState('list');
   const [area, setArea]     = useState('Todas');
   const abriuRef = useRef(false);
   const [query, setQuery]   = useState('');
@@ -4721,7 +4721,7 @@ const LIST_SORT_OPTS = [
 ];
 const LIST_PHASES = ['Solicitado','Em andamento','Aprovação','Concluído'];
 const LIST_PRI_ORDER = { Urgente:0, Alta:1, Média:2, Baixa:3 };
-const LIST_COLS = 'minmax(0,1fr) 150px 110px 110px 110px';
+const LIST_COLS = 'minmax(0,1fr) 160px 110px 140px 110px';
 
 function demandStage(d, pipes) { return (pipes[d.area]||[]).find(s=>s.id===d.stageId); }
 function demandDone(d, pipes) { const st = demandStage(d, pipes); return !!(st && st.isDone); }
@@ -4773,7 +4773,7 @@ function sortListItems(items, sortKey, dir) {
   const arr = [...items];
   arr.sort((a,b) => {
     let r = 0;
-    if (sortKey==='name') { r = a.title.localeCompare(b.title,'pt-BR'); return dir===1?r:-r; }
+    if (sortKey==='name') { r = (a.title||'').localeCompare(b.title||'','pt-BR'); return dir===1?r:-r; }
     if (sortKey==='pri') {
       const pa = LIST_PRI_ORDER[a.priority]??9, pb = LIST_PRI_ORDER[b.priority]??9;
       r = pa - pb;
@@ -4782,7 +4782,7 @@ function sortListItems(items, sortKey, dir) {
       else if (a.deadline && !b.deadline) r = -1;
       else { const da=a.deadline||'', db=b.deadline||''; r = da<db?-1:da>db?1:0; }
     }
-    if (r===0) r = a.title.localeCompare(b.title,'pt-BR');
+    if (r===0) r = (a.title||'').localeCompare(b.title||'','pt-BR');
     return dir===1 ? r : -r;
   });
   return arr;
@@ -4807,7 +4807,7 @@ function ListRow({ demand, pipes }) {
     <div onClick={()=>setModal(demand.id)}
       style={{display:'grid',gridTemplateColumns:LIST_COLS,alignItems:'center',cursor:'pointer',borderTop:'1px solid '+NB.bdSoft}}
       onMouseEnter={e=>{e.currentTarget.style.background=NB.col;}} onMouseLeave={e=>{e.currentTarget.style.background='transparent';}}>
-      <div style={{...cell,fontWeight:500,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{demand.title}</div>
+      <div style={{...cell,fontWeight:500,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}} title={demand.title||''}>{demand.title||'(sem título)'}</div>
       <div style={{...cell,color:NB.mut,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{stage?stage.name:'—'}</div>
       <div style={cell}>
         <div style={{display:'inline-flex'}}>
@@ -4820,11 +4820,11 @@ function ListRow({ demand, pipes }) {
           : sla
             ? (sla.type==='ok'
                 ? <span style={{color:NB.mut,fontSize:13}}>{fmtDate(demand.deadline)}</span>
-                : <span style={{fontSize:11.5,fontWeight:500,padding:'3px 9px',borderRadius:6,background:sla.type==='danger'?'#FEECEC':'#FFF6DE',color:sla.type==='danger'?'#B4232A':'#8A6206'}}>{sla.label}</span>)
+                : <span style={{fontSize:11.5,fontWeight:500,padding:'3px 9px',borderRadius:6,whiteSpace:'nowrap',background:sla.type==='danger'?'#FEECEC':'#FFF6DE',color:sla.type==='danger'?'#B4232A':'#8A6206'}}>{sla.label}</span>)
             : <span style={{fontSize:13,color:NB.mut2}}>—</span>}
       </div>
       <div style={cell}>
-        <span style={{fontSize:11.5,fontWeight:500,padding:'3px 9px',borderRadius:6,background:ps.bg,color:ps.txt}}>{demand.priority}</span>
+        {demand.priority && <span style={{fontSize:11.5,fontWeight:500,padding:'3px 9px',borderRadius:6,whiteSpace:'nowrap',background:ps.bg,color:ps.txt}}>{demand.priority}</span>}
       </div>
     </div>
   );
@@ -4843,7 +4843,7 @@ function ListView() {
 
   const groups = buildListGroups(filtered, group, pipes);
 
-  const selStyle = { background:'#fff', border:'1px solid '+NB.bd, borderRadius:8, padding:'7px 10px', fontSize:13, color:NB.txt, outline:'none' };
+  const selStyle = { background:"#fff url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%237B879B' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E\") no-repeat right 10px center", border:'1px solid '+NB.bd, borderRadius:8, padding:'7px 30px 7px 11px', fontSize:13, color:NB.txt, outline:'none', cursor:'pointer' };
   const labStyle = { fontSize:12.5, color:NB.mut, fontWeight:500 };
   const th = { padding:'10px 14px', fontSize:11, fontWeight:500, color:NB.mut2, textTransform:'uppercase', letterSpacing:'0.09em', textAlign:'left', whiteSpace:'nowrap' };
   const sortBtn = (key, label) => {
@@ -4891,7 +4891,7 @@ function ListView() {
         {groups.map(g => {
           const isDoneGroup = !!g.meta.doneGroup;
           if (isDoneGroup && doneMode==='hide') return null;
-          const closed = !!collapsed[g.key];
+          const closed = collapsed[g.key] ?? (isDoneGroup && doneMode!=='show');
           const openItems = isDoneGroup ? [] : sortListItems(g.items.filter(d=>!demandDone(d, pipes)), sortKey, dir);
           const doneItemsAll = isDoneGroup ? sortListItems(g.items, 'due', -1) : sortListItems(g.items.filter(d=>demandDone(d, pipes)), 'due', -1);
           const doneItems = doneMode==='hide' ? [] : doneItemsAll;
@@ -4901,7 +4901,7 @@ function ListView() {
 
           return (
             <div key={g.key} style={{background:'#fff',borderRadius:16,border:'1px solid '+NB.bd,overflow:'hidden',boxShadow:'0 1px 3px rgba(11,42,92,0.04)'}}>
-              <button onClick={()=>setCollapsed(c=>({...c,[g.key]:!c[g.key]}))}
+              <button onClick={()=>setCollapsed(c=>({...c,[g.key]: !(c[g.key] ?? (isDoneGroup && doneMode!=='show'))}))}
                 style={{display:'flex',alignItems:'center',gap:9,width:'100%',padding:'13px 16px',background:NB.col,border:'none',borderBottom:closed?'none':'1px solid '+NB.bdSoft,cursor:'pointer',textAlign:'left'}}>
                 <ListChevron open={!closed}/>
                 {g.meta.pipe && <span style={{width:9,height:9,borderRadius:'50%',background:AREA_CLR[g.meta.pipe],flexShrink:0}}/>}
@@ -4954,7 +4954,7 @@ function KanbanBoard() {
 
   const pad = { padding:'22px 30px 30px', overflowY:'auto', overflowX:'hidden', height:'100%' };
 
-  if (layout==='list') {
+  if (layout==='list' && area==='Todas') {
     return <div ref={scrollRef} style={pad}><ListView/></div>;
   }
 
@@ -5007,11 +5007,13 @@ function KanbanBoard() {
           </button>
         )}
       </div>
-      <div style={{display:'grid',gridTemplateColumns:'repeat(5, minmax(0,1fr))',gap:16,alignItems:'stretch'}}>
-        {stageVisuals(stages).map(({st,v})=>(
-          <StageColumn key={st.id} stage={st} visual={v} cards={filtered.filter(d=>d.stageId===st.id)} areaName={area}/>
-        ))}
-      </div>
+      {layout==='list' ? <ListView/> : (
+        <div style={{display:'grid',gridTemplateColumns:'repeat(5, minmax(0,1fr))',gap:16,alignItems:'stretch'}}>
+          {stageVisuals(stages).map(({st,v})=>(
+            <StageColumn key={st.id} stage={st} visual={v} cards={filtered.filter(d=>d.stageId===st.id)} areaName={area}/>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
