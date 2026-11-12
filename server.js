@@ -55,7 +55,9 @@ app.post('/api/sync-domain', async (req, res) => {
    Só aceita quem está logado no dash com conta @nibo.com.br (o token do
    Firebase é conferido no Google antes de gastar a cota do Gemini). */
 const FB_API_KEY = 'AIzaSyDE6wv0kFOOJGWDjOX-mQ2s1kO0ktFdybs';
-const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+/* Modelo atual; se o Google aposentar e sugerir outro no erro, o servidor
+   passa a usar o sugerido sozinho (até reiniciar). */
+let modeloAtual = process.env.GEMINI_MODEL || 'gemini-3.8-flash';
 
 async function emailDoToken(idToken) {
   if (!idToken) return null;
@@ -138,7 +140,7 @@ app.post('/api/sugerir-tarefas', express.json({ limit: '2mb' }), async (req, res
       'Time: ' + time.map(m => m.initials + ' = ' + m.name + ' (área ' + m.area + (m.extras && m.extras.length ? '; também ' + m.extras.join(', ') : '') + (m.aprovador ? '; gestora/aprovadora' : '') + ')').join('; '),
     ].join('\n');
 
-    const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + GEMINI_MODEL + ':generateContent', {
+    const chamar = modelo => fetch('https://generativelanguage.googleapis.com/v1beta/models/' + modelo + ':generateContent', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
       body: JSON.stringify({
@@ -147,7 +149,19 @@ app.post('/api/sugerir-tarefas', express.json({ limit: '2mb' }), async (req, res
         generationConfig: { temperature: 0.3, responseMimeType: 'application/json', responseSchema: SCHEMA_TAREFAS },
       }),
     });
-    const j = await r.json().catch(() => ({}));
+    let r = await chamar(modeloAtual);
+    let j = await r.json().catch(() => ({}));
+    /* "This model ... is no longer available ... use models/xxx" → tenta o sugerido */
+    if (!r.ok) {
+      const m0 = (j.error && j.error.message) || '';
+      const sug = /no longer available|not found|deprecated|is not supported/i.test(m0) && m0.match(/models\/(gemini-[a-z0-9.\-]+)/gi);
+      const novo = sug && sug.map(x => x.replace(/^models\//i, '')).find(x => x !== modeloAtual);
+      if (novo) {
+        const r2 = await chamar(novo); const j2 = await r2.json().catch(() => ({}));
+        if (r2.ok) { console.log('Gemini: trocando modelo ' + modeloAtual + ' -> ' + novo); modeloAtual = novo; }
+        r = r2; j = j2;
+      }
+    }
     if (!r.ok) {
       const msg = (j.error && j.error.message) || String(r.status);
       const invalida = r.status === 400 && /api key|API_KEY_INVALID/i.test(msg + JSON.stringify(j)) || r.status === 403 && /api key|permission/i.test(msg);
