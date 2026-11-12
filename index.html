@@ -2097,10 +2097,16 @@ function DemandCard({ demand, colunaOrdenada }) {
         </div>
       )}
 
-      <p style={{fontSize:14,fontWeight:500,color:demand.aguardandoAprovacao?NB.mut:NB.txt,lineHeight:1.45,display:'-webkit-box',WebkitLineClamp:2,WebkitBoxOrient:'vertical',overflow:'hidden',marginBottom:13}}>
+      <p style={{fontSize:14,fontWeight:500,color:demand.aguardandoAprovacao?NB.mut:NB.txt,lineHeight:1.45,display:'-webkit-box',WebkitLineClamp:2,WebkitBoxOrient:'vertical',overflow:'hidden',marginBottom:demand.tipo?5:13}}>
         {demand.recorrente && <span title="Atividade recorrente" style={{color:NB.azul,display:'inline-flex',verticalAlign:'-2px',marginRight:5}}><IRefresh s={13}/></span>}
         {demand.title}
       </p>
+
+      {demand.tipo && (
+        <div style={{marginBottom:13}}>
+          <span style={{fontSize:11,fontWeight:500,color:NB.mut,background:NB.col,border:'1px solid '+NB.bdSoft,borderRadius:6,padding:'2px 8px'}}>{demand.tipo}</span>
+        </div>
+      )}
 
       {/* Progresso do checklist: mostra em que pé está sem precisar abrir o card */}
       {(() => {
@@ -6785,6 +6791,31 @@ function CardModal() {
               <IPlus s={12}/> Adicionar subtarefa
             </button>
           )}
+        </div>
+
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:13,marginBottom:22}}>
+          <div>
+            <div style={lbl}>Tipo de material</div>
+            <input defaultValue={d.tipo||''} placeholder="Ex: post, landing page, relatório..." style={inp}
+              onBlur={e=>{ if(e.target.value.trim()!==(d.tipo||'')) updateDemand(d.id,{tipo:e.target.value.trim()}); }}
+              onFocus={e=>{e.target.style.borderColor=NB.azul;}} onMouseLeave={e=>{e.target.style.borderColor=NB.bd;}}/>
+          </div>
+          <div>
+            <div style={lbl}>Link de referência</div>
+            {d.link ? (
+              <div style={{display:'flex',alignItems:'center',gap:8}}>
+                <a href={d.link} target="_blank" rel="noopener noreferrer" style={{flex:1,display:'flex',alignItems:'center',gap:6,fontSize:13,color:NB.azul,textDecoration:'none',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+                  <ILink s={13}/> {d.link}
+                </a>
+                <button onClick={()=>updateDemand(d.id,{link:''})} title="Remover link" style={{color:NB.mut2,background:'none',border:'none',display:'flex',flexShrink:0}}><IX s={13}/></button>
+              </div>
+            ) : (
+              <input placeholder="Drive, Figma..." style={inp}
+                onBlur={e=>{ if(e.target.value.trim()) updateDemand(d.id,{link:e.target.value.trim()}); }}
+                onKeyDown={e=>{ if(e.key==='Enter') e.target.blur(); }}
+                onFocus={e=>{e.target.style.borderColor=NB.azul;}}/>
+            )}
+          </div>
         </div>
 
         <div style={{marginBottom:22}}>
