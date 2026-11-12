@@ -7922,6 +7922,64 @@ function ReuniaoSugCard({ s, clr, mudar, alternarResp }) {
   );
 }
 
+/* Ler a transcrição do Meet (Google Doc) direto pelo link, com o login
+   Google da própria pessoa. Pede só leitura de Docs, e só quando usar. */
+let nbDocsToken = null, nbDocsTokenAt = 0;
+async function nbTokenGoogleDocs(forcar) {
+  if (!forcar && nbDocsToken && Date.now() - nbDocsTokenAt < 50*60*1000) return nbDocsToken;
+  const provider = new firebase.auth.GoogleAuthProvider();
+  provider.addScope('https://www.googleapis.com/auth/documents.readonly');
+  const u = firebase.auth().currentUser;
+  provider.setCustomParameters({ hd:'nibo.com.br', login_hint: (u && u.email) || '' });
+  let res;
+  try {
+    res = u ? await u.reauthenticateWithPopup(provider) : await firebase.auth().signInWithPopup(provider);
+  } catch (e) {
+    const c = e && e.code || '';
+    if (c === 'auth/popup-blocked') throw new Error('O navegador bloqueou a janela do Google. Libere pop-ups para este site e tente de novo.');
+    if (c === 'auth/popup-closed-by-user' || c === 'auth/cancelled-popup-request') throw new Error('A janela do Google foi fechada antes de liberar o acesso.');
+    if (c === 'auth/user-mismatch') throw new Error('Escolha a mesma conta Google que você usa no dash.');
+    throw new Error('O Google não liberou o acesso ao documento ('+(c||e.message)+').');
+  }
+  const tok = res && res.credential && res.credential.accessToken;
+  if (!tok) throw new Error('O Google não liberou o acesso ao documento.');
+  nbDocsToken = tok; nbDocsTokenAt = Date.now();
+  return tok;
+}
+function nbDocIdDoLink(link) {
+  const t = String(link || '');
+  const m = t.match(/docs\.google\.com\/document\/(?:u\/\d+\/)?d\/([a-zA-Z0-9_-]{20,})/) || t.match(/drive\.google\.com\/(?:file\/d\/|open\?id=)([a-zA-Z0-9_-]{20,})/);
+  return m ? m[1] : null;
+}
+function nbTextoDoDoc(doc) {
+  const out = [];
+  const andar = conteudo => (conteudo || []).forEach(el => {
+    if (el.paragraph) out.push((el.paragraph.elements || []).map(x => (x.textRun && x.textRun.content) || '').join(''));
+    else if (el.table) (el.table.tableRows || []).forEach(r => (r.tableCells || []).forEach(c => andar(c.content)));
+    else if (el.tableOfContents) andar(el.tableOfContents.content);
+  });
+  andar(doc && doc.body && doc.body.content);
+  return out.join('').replace(/\u000b/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+}
+async function nbLerGoogleDoc(link) {
+  const id = nbDocIdDoLink(link);
+  if (!id) throw new Error('Esse link não é de um Google Doc. Use o link do documento de transcrição que o Meet salva no Drive.');
+  const buscar = tok => fetch('https://docs.googleapis.com/v1/documents/' + id + '?fields=title,body', { headers: { Authorization: 'Bearer ' + tok } });
+  let r = await buscar(await nbTokenGoogleDocs());
+  if (r.status === 401) r = await buscar(await nbTokenGoogleDocs(true));
+  if (!r.ok) {
+    const j = await r.json().catch(() => ({}));
+    const msg = (j.error && j.error.message) || '';
+    if (r.status === 403 && /has not been used|disabled|SERVICE_DISABLED/i.test(msg + JSON.stringify(j))) throw new Error('A leitura de Google Docs ainda não está ativada no projeto do dash. Alguém com acesso ao Google Cloud precisa ativar a "Google Docs API" no projeto dash-marketing.');
+    if (r.status === 403) throw new Error('Você não tem acesso a esse documento. Peça pra quem organizou a reunião compartilhar com você.');
+    if (r.status === 404) throw new Error('Documento não encontrado. Confira se o link está completo.');
+    if (r.status === 400) throw new Error('Esse arquivo não é um Google Doc. Abra a transcrição no Docs e copie o link de lá.');
+    throw new Error('Não consegui abrir o documento (' + r.status + ').');
+  }
+  const doc = await r.json();
+  return { titulo: doc.title || '', texto: nbTextoDoDoc(doc) };
+}
+
 function ReuniaoModal() {
   const { reuniaoOpen, setReuniaoOpen, addDemand, user } = useApp();
   const [texto, setTexto] = useState('');
@@ -7929,11 +7987,25 @@ function ReuniaoModal() {
   const [erro, setErro] = useState('');
   const [sugs, setSugs] = useState([]);
   const [criadas, setCriadas] = useState(0);
+  const [link, setLink] = useState('');
+  const [puxando, setPuxando] = useState(false);
+  const [origem, setOrigem] = useState('');
   const fileRef = useRef(null);
 
   if (!reuniaoOpen) return null;
   const fechar = () => setReuniaoOpen(false);
-  const recomecar = () => { setTexto(''); setSugs([]); setEtapa('colar'); setErro(''); setCriadas(0); };
+  const recomecar = () => { setTexto(''); setSugs([]); setEtapa('colar'); setErro(''); setCriadas(0); setLink(''); setOrigem(''); };
+
+  const puxarDoc = async (url) => {
+    setErro(''); setPuxando(true);
+    try {
+      const d = await nbLerGoogleDoc(url);
+      if (!d.texto || d.texto.length < 30) throw new Error('O documento está vazio. A transcrição do Meet pode levar alguns minutos pra ficar pronta depois da reunião.');
+      setTexto(d.texto); setOrigem(d.titulo || 'Google Doc'); setLink('');
+      return d.texto;
+    } catch (e) { setErro(e.message); return null; }
+    finally { setPuxando(false); }
+  };
 
   const lerArquivo = e => {
     const f = e.target.files && e.target.files[0]; if (!f) return;
@@ -7948,7 +8020,10 @@ function ReuniaoModal() {
   const padraoDaArea = area => TEAM.filter(m => m.email && !m.isApprover && (m.area===area || (m.areasExtra||[]).includes(area))).map(m=>m.initials);
 
   const sugerir = async () => {
-    if (texto.trim().length < 30) { setErro('Cole a transcrição da reunião (pelo menos algumas frases).'); return; }
+    const soLink = /^\s*https?:\/\/\S+\s*$/.test(texto) && nbDocIdDoLink(texto);
+    let base = texto;
+    if (soLink) { const t = await puxarDoc(texto.trim()); if (!t) return; base = t; }
+    if (base.trim().length < 30) { setErro('Cole a transcrição da reunião (pelo menos algumas frases).'); return; }
     setErro(''); setEtapa('pensando');
     try {
       const cu = firebase.auth().currentUser;
@@ -7956,7 +8031,7 @@ function ReuniaoModal() {
       const hoje = new Date(); const hojeStr = hoje.getFullYear()+'-'+String(hoje.getMonth()+1).padStart(2,'0')+'-'+String(hoje.getDate()).padStart(2,'0');
       const r = await fetch('/api/sugerir-tarefas', {
         method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ idToken, transcricao: texto, hoje: hojeStr, time: ACTIVE_TEAM.map(m=>({initials:m.initials,name:m.name,area:m.area,extras:m.areasExtra||[],aprovador:!!m.isApprover})) }),
+        body: JSON.stringify({ idToken, transcricao: base, hoje: hojeStr, time: ACTIVE_TEAM.map(m=>({initials:m.initials,name:m.name,area:m.area,extras:m.areasExtra||[],aprovador:!!m.isApprover})) }),
       });
       const j = await r.json().catch(()=>({}));
       if (!r.ok) throw new Error(j.error || ('Erro '+r.status));
@@ -8030,6 +8105,26 @@ function ReuniaoModal() {
 
         {etapa!=='revisar' && (
           <React.Fragment>
+            <div style={{display:'flex',gap:8,marginBottom:10}}>
+              <div style={{position:'relative',flex:1}}>
+                <span style={{position:'absolute',left:11,top:'50%',transform:'translateY(-50%)',color:NB.mut2,display:'flex'}}><IFile s={14}/></span>
+                <input value={link} onChange={e=>setLink(e.target.value)} disabled={puxando||etapa==='pensando'}
+                  onKeyDown={e=>{ if (e.key==='Enter' && link.trim()) puxarDoc(link.trim()); }}
+                  placeholder="Link da transcrição do Meet (Google Docs)"
+                  style={{...inpR,padding:'9px 12px 9px 33px',fontSize:13}}/>
+              </div>
+              <button onClick={()=>puxarDoc(link.trim())} disabled={!link.trim()||puxando||etapa==='pensando'}
+                style={{display:'flex',alignItems:'center',gap:8,padding:'0 15px',background:link.trim()?NB.azul:NB.gelo,border:'none',borderRadius:9,fontSize:13,fontWeight:600,color:'#fff',whiteSpace:'nowrap'}}>
+                {puxando && <span style={{width:13,height:13,border:'2px solid rgba(255,255,255,0.4)',borderTopColor:'#fff',borderRadius:'50%',animation:'nb-spin 0.8s linear infinite'}}/>}
+                {puxando ? 'Abrindo…' : 'Puxar transcrição'}
+              </button>
+            </div>
+            {origem && texto && (
+              <div style={{display:'flex',alignItems:'center',gap:8,fontSize:12.5,color:'#0F6E56',background:'#E1F5EE',border:'1px solid #BEE5D6',borderRadius:9,padding:'7px 11px',marginBottom:8}}>
+                <ICheck s={13}/><span>Transcrição puxada de <b style={{fontWeight:600}}>{origem}</b>. Confira abaixo e clique em Sugerir tarefas.</span>
+              </div>
+            )}
+            <div style={{fontSize:11.5,color:NB.mut2,margin:'0 0 6px'}}>{origem ? 'Texto da reunião' : 'Ou cole o texto da reunião'}</div>
             <textarea value={texto} onChange={e=>setTexto(e.target.value)} rows={10} autoFocus disabled={etapa==='pensando'}
               placeholder={'Cole aqui a transcrição. Ex:\n\nMariana: pra semana que vem a gente precisa do carrossel do Radar e-CAC…\nClara: eu pego a copy, a Millena faz a arte até sexta…'}
               style={{...inpR,fontSize:13.5,lineHeight:1.6,padding:'13px 14px',resize:'vertical',minHeight:200,background:etapa==='pensando'?NB.col:'#fff'}}/>
