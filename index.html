@@ -8083,7 +8083,8 @@ function ReuniaoModal() {
     if (v.length < 20) { setErro('Essa chave parece incompleta. Use o botão "Copiar chave" do Google.'); return; }
     setSalvandoChave(true); setErro('');
     try {
-      await firebase.firestore().collection('config').doc('ia').set({ geminiKey: v, salvaPor: (user && user.email) || '', salvaEm: new Date().toISOString() }, { merge:true });
+      const campo = /^gsk_/i.test(v) ? 'groqKey' : 'geminiKey';
+      await firebase.firestore().collection('config').doc('ia').set({ [campo]: v, salvaPor: (user && user.email) || '', salvaEm: new Date().toISOString() }, { merge:true });
       setChave(''); setPrecisaChave(false);
       nbToast('Chave salva. Gerando as sugestões…');
       setSalvandoChave(false);
@@ -8172,6 +8173,10 @@ function ReuniaoModal() {
                 </button>
                 <span style={{fontSize:11.5,color:NB.mut2}}>{texto.trim() ? texto.trim().split(/\s+/).length.toLocaleString('pt-BR')+' palavras' : ''}</span>
               </div>
+              <button onClick={()=>{ setPrecisaChave(v=>!v); setErro(''); }} disabled={etapa==='pensando'}
+                style={{background:'none',border:'none',fontSize:12,color:NB.mut,fontWeight:500,textDecoration:'underline',textUnderlineOffset:3}}>
+                {precisaChave ? 'Fechar configuração' : 'Configurar IA'}
+              </button>
             </div>
           </React.Fragment>
         )}
@@ -8215,10 +8220,10 @@ function ReuniaoModal() {
           <div style={{marginTop:10,background:'#FFF8E6',border:'1px solid #F2DDA4',borderRadius:11,padding:'12px 14px'}}>
             <div style={{fontSize:13,fontWeight:600,color:'#7A5C00',marginBottom:4}}>Ativar a IA do dash</div>
             <p style={{fontSize:12.5,color:'#7A5C00',lineHeight:1.5,marginBottom:9}}>
-              Gere uma chave em aistudio.google.com/apikey num projeto sem faturamento (é gratuito, ex.: dash-marketing), clique em "Copiar chave" e cole aqui. Ela fica guardada no banco do dash (só contas @nibo.com.br acessam) e vale pra todo o time.
+              Recomendado: crie uma chave grátis em <b>console.groq.com/keys</b> (entra com a conta Google, não pede cartão) e cole aqui. Também aceita chave do Gemini (aistudio.google.com/apikey). Ela fica guardada no banco do dash (só contas @nibo.com.br acessam) e vale pra todo o time.
             </p>
             <div style={{display:'flex',gap:8}}>
-              <input type="password" value={chave} onChange={e=>setChave(e.target.value)} placeholder="Cole a chave do Gemini" autoComplete="off"
+              <input type="password" value={chave} onChange={e=>setChave(e.target.value)} placeholder="Cole a chave do Groq (gsk_…) ou do Gemini" autoComplete="off"
                 onKeyDown={e=>{ if (e.key==='Enter') salvarChave(); }}
                 style={{...inpR,flex:1,fontSize:13,fontFamily:'monospace'}}/>
               <button onClick={salvarChave} disabled={salvandoChave||!chave.trim()}

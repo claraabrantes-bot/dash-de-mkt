@@ -71,22 +71,88 @@ async function emailDoToken(idToken) {
   return u && u.email ? String(u.email).toLowerCase() : null;
 }
 
-/* Chave do Gemini: primeiro a variável do servidor; se não tiver, a que o
-   time salvou pelo dash em config/ia (lida com o login da própria pessoa,
+/* Chaves de IA: primeiro as variáveis do servidor; se não tiver, as que o
+   time salvou pelo dash em config/ia (lidas com o login da própria pessoa,
    então as regras do Firestore continuam valendo). */
 let chaveCache = { valor: null, em: 0 };
-async function chaveGemini(idToken) {
-  const env = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || process.env.API_KEY;
-  if (env) return env;
-  if (chaveCache.valor && Date.now() - chaveCache.em < 5 * 60 * 1000) return chaveCache.valor;
-  const r = await fetch('https://firestore.googleapis.com/v1/projects/dash-marketing-9302b/databases/(default)/documents/config/ia', {
-    headers: { Authorization: 'Bearer ' + idToken },
-  }).catch(() => null);
-  if (!r || !r.ok) return null;
-  const j = await r.json().catch(() => ({}));
-  const v = j.fields && j.fields.geminiKey && j.fields.geminiKey.stringValue;
-  if (v) chaveCache = { valor: v.trim(), em: Date.now() };
-  return v ? v.trim() : null;
+async function chavesIA(idToken) {
+  const envGemini = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || process.env.API_KEY || null;
+  const envGroq = process.env.GROQ_API_KEY || null;
+  let doc = { gemini: null, groq: null };
+  if (!(envGemini && envGroq)) {
+    if (chaveCache.valor && Date.now() - chaveCache.em < 5 * 60 * 1000) doc = chaveCache.valor;
+    else {
+      const r = await fetch('https://firestore.googleapis.com/v1/projects/dash-marketing-9302b/databases/(default)/documents/config/ia', {
+        headers: { Authorization: 'Bearer ' + idToken },
+      }).catch(() => null);
+      if (r && r.ok) {
+        const j = await r.json().catch(() => ({}));
+        const f = j.fields || {};
+        const lido = k => (f[k] && f[k].stringValue ? f[k].stringValue.trim() : null);
+        doc = { gemini: lido('geminiKey'), groq: lido('groqKey') };
+        chaveCache = { valor: doc, em: Date.now() };
+      }
+    }
+  }
+  return { gemini: envGemini || doc.gemini, groq: envGroq || doc.groq };
+}
+
+/* ---------- Groq (gratuito e rápido; usado primeiro quando tem chave) ----------
+   Pergunta ao Groq quais modelos existem e usa o melhor da lista de
+   preferência, pra não quebrar quando um modelo for aposentado. */
+const GROQ_PREFERIDOS = ['openai/gpt-oss-120b', 'llama-3.3-70b-versatile', 'moonshotai/kimi-k2-instruct', 'meta-llama/llama-4-maverick-17b-128e-instruct', 'meta-llama/llama-4-scout-17b-16e-instruct', 'openai/gpt-oss-20b', 'llama-3.1-8b-instant'];
+let groqModelos = { lista: null, em: 0 };
+async function modelosGroq(key) {
+  if (groqModelos.lista && Date.now() - groqModelos.em < 60 * 60 * 1000) return groqModelos.lista;
+  let ids = [];
+  try {
+    const r = await fetch('https://api.groq.com/openai/v1/models', { headers: { Authorization: 'Bearer ' + key }, signal: AbortSignal.timeout(8000) });
+    if (r.ok) ids = ((await r.json()).data || []).filter(m => m.active !== false).map(m => m.id);
+  } catch (e) {}
+  const texto = ids.filter(id => !/whisper|guard|tts|playai|orpheus|compound|prompt/i.test(id));
+  const lista = ids.length
+    ? GROQ_PREFERIDOS.filter(id => texto.includes(id)).concat(texto.filter(id => !GROQ_PREFERIDOS.includes(id)))
+    : GROQ_PREFERIDOS.slice();
+  groqModelos = { lista, em: Date.now() };
+  return lista;
+}
+const FORMATO_JSON = 'Responda só com JSON neste formato: {"tarefas":[{"titulo":"","area":"Social|Design|Mídia Paga|Produto|RevOps|Eventos","prioridade":"Urgente|Alta|Média|Baixa","prazo":"YYYY-MM-DD ou vazio","responsaveis":["INICIAIS"],"motivoResponsavel":"","tipo":"","contexto":"","trecho":""}]}. Se não houver tarefas, {"tarefas":[]}.';
+async function sugerirComGroq(key, instrucoes, transcricao, msRestantes) {
+  const modelos = (await modelosGroq(key)).slice(0, 4);
+  let ultimo = { status: 0, msg: '' };
+  for (const modelo of modelos) {
+    const ms = msRestantes();
+    if (ms < 6000) return { erro: 'demorou' };
+    let r, j;
+    try {
+      r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + key },
+        body: JSON.stringify({
+          model: modelo, temperature: 0.3, response_format: { type: 'json_object' },
+          messages: [{ role: 'system', content: instrucoes + '\n' + FORMATO_JSON }, { role: 'user', content: 'Transcrição da reunião:\n\n' + transcricao }],
+        }),
+        signal: AbortSignal.timeout(ms),
+      });
+      j = await r.json().catch(() => ({}));
+    } catch (e) {
+      if (e && (e.name === 'TimeoutError' || e.name === 'AbortError')) return { erro: 'demorou' };
+      ultimo = { status: 0, msg: e.message }; continue;
+    }
+    if (r.ok) {
+      const txt = (((j.choices || [])[0] || {}).message || {}).content || '{}';
+      let out; try { out = JSON.parse(txt); } catch (e) { const m = txt.match(/\{[\s\S]*\}/); try { out = m ? JSON.parse(m[0]) : {}; } catch (e2) { out = {}; } }
+      return { tarefas: Array.isArray(out.tarefas) ? out.tarefas : [], modelo };
+    }
+    const msg = (j.error && j.error.message) || String(r.status);
+    ultimo = { status: r.status, msg };
+    if (r.status === 401) return { erro: 'chave_invalida' };
+    // modelo saiu do ar, pedido grande demais pro modelo ou limite daquele modelo: tenta o próximo
+    if (r.status === 404 || r.status === 413 || r.status === 429 || r.status >= 500 || /decommissioned|not found|too large|rate limit|tokens per/i.test(msg)) continue;
+    break;
+  }
+  if (ultimo.status === 413 || /too large|tokens per/i.test(ultimo.msg)) return { erro: 'grande' };
+  if (ultimo.status === 429) return { erro: 'limite' };
+  return { erro: 'outro', msg: ultimo.msg };
 }
 
 const SCHEMA_TAREFAS = {
@@ -119,8 +185,8 @@ app.post('/api/sugerir-tarefas', express.json({ limit: '2mb' }), async (req, res
     const email = await emailDoToken(req.body && req.body.idToken).catch(() => null);
     if (!email || !email.endsWith('@nibo.com.br')) return res.status(401).json({ error: 'Entre com sua conta @nibo.com.br para usar.' });
 
-    const key = await chaveGemini(req.body.idToken);
-    if (!key) return res.status(503).json({ code: 'sem_chave', error: 'Falta a chave do Gemini. Cole a chave abaixo pra ativar a IA.' });
+    const chaves = await chavesIA(req.body.idToken);
+    if (!chaves.gemini && !chaves.groq) return res.status(503).json({ code: 'sem_chave', error: 'Falta a chave da IA. Cole a chave abaixo pra ativar.' });
 
     const transcricao = String((req.body && req.body.transcricao) || '').slice(0, 200000).trim();
     if (transcricao.length < 30) return res.status(400).json({ error: 'A transcrição está muito curta.' });
@@ -146,6 +212,20 @@ app.post('/api/sugerir-tarefas', express.json({ limit: '2mb' }), async (req, res
        e, se não aceitar essa opção, segue sem ela. */
     const inicio = Date.now(), LIMITE = 85000;
     const restante = () => LIMITE - (Date.now() - inicio);
+
+    if (chaves.groq) {
+      const g = await sugerirComGroq(chaves.groq, instrucoes, transcricao, restante);
+      if (g.tarefas) return res.json({ tarefas: g.tarefas.slice(0, 40), ia: 'groq:' + g.modelo });
+      if (!chaves.gemini) {
+        if (g.erro === 'chave_invalida') { chaveCache = { valor: null, em: 0 }; return res.status(502).json({ code: 'chave_invalida', error: 'O Groq recusou a chave. Confira se copiou a chave inteira ou cole uma nova abaixo.' }); }
+        if (g.erro === 'grande') return res.status(413).json({ code: 'grande', error: 'A transcrição é grande demais pro plano gratuito do Groq. Cole só a parte da reunião com os combinados e próximos passos.' });
+        if (g.erro === 'limite') return res.status(429).json({ code: 'limite', error: 'Chegamos no limite gratuito do Groq por agora. Tente de novo em um minuto.' });
+        if (g.erro === 'demorou') return res.status(504).json({ code: 'demorou', error: 'A IA demorou demais pra responder. Tente de novo em instantes.' });
+        return res.status(502).json({ error: 'A IA não respondeu: ' + (g.msg || 'erro desconhecido') });
+      }
+      console.log('Groq falhou (' + g.erro + '), tentando Gemini');
+    }
+    const key = chaves.gemini;
     const chamar = async modelo => {
       const gen = { temperature: 0.3, responseMimeType: 'application/json', responseSchema: SCHEMA_TAREFAS };
       if (!semThinking) gen.thinkingConfig = { thinkingLevel: 'low' };
