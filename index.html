@@ -267,6 +267,7 @@ function Provider({ children }) {
   const [modal, setModal]   = useState(null);
   const [newOpen, setNewOpen] = useState(false);
   const [quickOpen, setQuickOpen] = useState(false);
+  const [reuniaoOpen, setReuniaoOpen] = useState(false);
   const [presetNovo, setPresetNovo] = useState(null); // { area, stageId } | null
   const [pacoteOpen, setPacoteOpen] = useState(false);
   const [notifyPending, setNotifyPending] = useState(null);
@@ -1221,7 +1222,7 @@ function Provider({ children }) {
   window.__nbDem = demands;
   window.__nbPosts = posts;
 
-  return <Ctx.Provider value={{ demands, active, activeOficiais, archived, filtered, aprovarPedidoSlack, recusarPedidoSlack, pedirAprovacaoGestor, decidirPedidoGestor, pararRecorrencia, dispararManual, slack, slackTemplate, salvarSlackTemplate, slackTemplatePrevOpen, setSlackTemplatePrevOpen, showNotifCard, setShowNotifCard, alertasTab, setAlertasTab, user, isTeamMember, authReady, authError, setAuthError, preferirCentral, setPreferirCentral, dbReady, dbErro, seed, pedidos, aceitarPedido, recusarPedido, posts, addPost, updatePost, deletePost, campanhas, updateCampanha, publicarCampanha, despublicarCampanha, deleteCampanha, enviarCampanhaDeDemanda, pecas, addPeca, removePeca, redesSociais, salvarRedesSociais, arquivos, addArquivo, removeArquivo, embaixadores, addEmbaixador, removeEmbaixador, updateEmbaixador, alternarStatusEmbaixador, pacotes, salvarPacote, removePacote, meuPortalEmbaixador, portalCarregado, isEmbaixador, criarPortalEmbaixador, removerPortalEmbaixador, portaisEmbaixador, meusEnviosFotos, todosEnviosFotos, enviarFotoEmbaixador, removerEnvioFoto, salvarFotoPerfilEmbaixador, pularFotoPerfil, view, setView, layout, setLayout, area, setArea, query, setQuery, mesFiltro, setMesFiltro, priFilter, setPriFilter, reqFilter, setReqFilter, respFilter, setRespFilter, selDemand, setModal, newOpen, setNewOpen, quickOpen, setQuickOpen, presetNovo, setPresetNovo, pacoteOpen, setPacoteOpen, notifyPending, setNotifyPending, profileOpen, setProfileOpen, editStages, setEditStages, dragging, setDragging, previewMember, setPreviewMember, photos, googlePhotos, profiles, pipes, salvarPipes, attach, comments, storageWarn, MAX_FILE, addAttachment, uploadFile, migrarLocal, carregarAnexo, removeAttachment, addComment, removeComment, logout, savePhoto, removePhoto, saveProfile, addDemand, moveStage, moveArea, reordenarCards, setAssignees, updateDemand, archiveDemand, restoreDemand, delDemand }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ demands, active, activeOficiais, archived, filtered, aprovarPedidoSlack, recusarPedidoSlack, pedirAprovacaoGestor, decidirPedidoGestor, pararRecorrencia, dispararManual, slack, slackTemplate, salvarSlackTemplate, slackTemplatePrevOpen, setSlackTemplatePrevOpen, showNotifCard, setShowNotifCard, alertasTab, setAlertasTab, user, isTeamMember, authReady, authError, setAuthError, preferirCentral, setPreferirCentral, dbReady, dbErro, seed, pedidos, aceitarPedido, recusarPedido, posts, addPost, updatePost, deletePost, campanhas, updateCampanha, publicarCampanha, despublicarCampanha, deleteCampanha, enviarCampanhaDeDemanda, pecas, addPeca, removePeca, redesSociais, salvarRedesSociais, arquivos, addArquivo, removeArquivo, embaixadores, addEmbaixador, removeEmbaixador, updateEmbaixador, alternarStatusEmbaixador, pacotes, salvarPacote, removePacote, meuPortalEmbaixador, portalCarregado, isEmbaixador, criarPortalEmbaixador, removerPortalEmbaixador, portaisEmbaixador, meusEnviosFotos, todosEnviosFotos, enviarFotoEmbaixador, removerEnvioFoto, salvarFotoPerfilEmbaixador, pularFotoPerfil, view, setView, layout, setLayout, area, setArea, query, setQuery, mesFiltro, setMesFiltro, priFilter, setPriFilter, reqFilter, setReqFilter, respFilter, setRespFilter, selDemand, setModal, newOpen, setNewOpen, quickOpen, setQuickOpen, reuniaoOpen, setReuniaoOpen, presetNovo, setPresetNovo, pacoteOpen, setPacoteOpen, notifyPending, setNotifyPending, profileOpen, setProfileOpen, editStages, setEditStages, dragging, setDragging, previewMember, setPreviewMember, photos, googlePhotos, profiles, pipes, salvarPipes, attach, comments, storageWarn, MAX_FILE, addAttachment, uploadFile, migrarLocal, carregarAnexo, removeAttachment, addComment, removeComment, logout, savePhoto, removePhoto, saveProfile, addDemand, moveStage, moveArea, reordenarCards, setAssignees, updateDemand, archiveDemand, restoreDemand, delDemand }}>{children}</Ctx.Provider>;
 }
 
 const useApp = () => useContext(Ctx);
@@ -1561,7 +1562,7 @@ function NotificacoesSino() {
 
 /* Tela de Início: porta de entrada de quem já está logado, sem precisar sair. */
 function InicioView() {
-  const { user, active, pipes, setView, setArea, setPreferirCentral, setQuickOpen, setAlertasTab } = useApp();
+  const { user, active, pipes, setView, setArea, setPreferirCentral, setQuickOpen, setReuniaoOpen, setAlertasTab } = useApp();
   const primeiro = ((user && user.name) || '').split(' ')[0];
   const minhas = active.filter(d => {
     const st = (pipes[d.area] || []).find(s => s.id === d.stageId);
@@ -1576,6 +1577,7 @@ function InicioView() {
     { t: 'Ver como colaborador', d: 'A Central de Conteúdo, do jeito que o resto do Nibo vê.', cor: NB.pink, ir: () => setPreferirCentral(true) },
     { t: 'Minhas subtarefas', d: 'Tudo que está marcado pra você, em qualquer demanda.', cor: NB.roxo, ir: () => setView('minhasSubtarefas') },
     { t: 'Criar demanda por voz', d: 'Fale ou escreva a demanda e a plataforma monta pra você.', cor: '#059669', ir: () => setQuickOpen(true) },
+    { t: 'Criar a partir de reunião', d: 'Cole a transcrição e a plataforma sugere as tarefas.', cor: '#0E6E8C', ir: () => setReuniaoOpen(true) },
   ];
   if (user.isApprover) atalhos.splice(3, 0, { t: 'Painel de aprovações', d: 'O que espera a sua decisão, em um quadro só.', cor: '#E0A100', ir: () => setView('aprovacoes') });
 
@@ -1611,7 +1613,7 @@ function InicioView() {
 }
 
 function Sidebar() {
-  const { view, setView, area, setArea, user, active, slack, archived, pipes, pedidos, posts, campanhas, embaixadores, portaisEmbaixador, setNewOpen, setQuickOpen, setPresetNovo, setPacoteOpen, setProfileOpen, logout, previewMember, setPreviewMember, setPreferirCentral, setModal, alertasTab, setAlertasTab } = useApp();
+  const { view, setView, area, setArea, user, active, slack, archived, pipes, pedidos, posts, campanhas, embaixadores, portaisEmbaixador, setNewOpen, setQuickOpen, setReuniaoOpen, setPresetNovo, setPacoteOpen, setProfileOpen, logout, previewMember, setPreviewMember, setPreferirCentral, setModal, alertasTab, setAlertasTab } = useApp();
   const areas = ['Social','Design','Mídia Paga','Produto','RevOps','Eventos'];
   const efetivo = previewMember || user;
   /* Quem tem uma área fixa (todo mundo, menos a Mariana, que acompanha
@@ -1666,6 +1668,13 @@ function Sidebar() {
           onMouseEnter={e=>{e.currentTarget.style.background='#EAF3FD';}}
           onMouseLeave={e=>{e.currentTarget.style.background='#fff';}}>
           <IMic s={14}/> Criar demanda por voz
+        </button>
+        <button onClick={()=>setReuniaoOpen(true)}
+          title="Cole a transcrição de uma reunião e a plataforma sugere as tarefas"
+          style={{width:'100%',display:'flex',alignItems:'center',justifyContent:'center',gap:8,padding:'8px 14px',margin:'7px 0 0',background:'#fff',border:'1.5px solid '+NB.azul,borderRadius:10,color:NB.azul,fontSize:12.5,fontWeight:600}}
+          onMouseEnter={e=>{e.currentTarget.style.background='#EAF3FD';}}
+          onMouseLeave={e=>{e.currentTarget.style.background='#fff';}}>
+          <IFile s={14}/> Criar a partir de reunião
         </button>
         {(efetivo && efetivo.isApprover) && (
         <div style={{display:'flex',gap:9,marginTop:10}}>
@@ -7825,6 +7834,206 @@ function PacoteEditModal({ id, pacote, onClose, onSaved }) {
   );
 }
 
+/* =========== DEMANDAS A PARTIR DE REUNIÃO ===========
+   Cola a transcrição (ou sobe o .txt/.vtt), a IA do servidor sugere as
+   tarefas e o time revisa antes de criar. Nada é criado sem confirmar. */
+function reuniaoLimparLegenda(txt) {
+  // .vtt/.srt: tira cabeçalho, números de bloco e marcações de tempo
+  return String(txt || '')
+    .replace(/^WEBVTT.*$/m, '')
+    .replace(/^\d+\s*$/gm, '')
+    .replace(/^\d{1,2}:\d{2}(?::\d{2})?[.,]\d{1,3}\s*-->.*$/gm, '')
+    .replace(/<[^>]+>/g, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+function reuniaoMais7() { const d = new Date(); d.setDate(d.getDate()+7); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+
+function ReuniaoModal() {
+  const { reuniaoOpen, setReuniaoOpen, addDemand, user } = useApp();
+  const [texto, setTexto] = useState('');
+  const [etapa, setEtapa] = useState('colar');      // colar | pensando | revisar
+  const [erro, setErro] = useState('');
+  const [sugs, setSugs] = useState([]);
+  const [criadas, setCriadas] = useState(0);
+  const fileRef = useRef(null);
+
+  if (!reuniaoOpen) return null;
+  const fechar = () => setReuniaoOpen(false);
+  const recomecar = () => { setTexto(''); setSugs([]); setEtapa('colar'); setErro(''); setCriadas(0); };
+
+  const lerArquivo = e => {
+    const f = e.target.files && e.target.files[0]; if (!f) return;
+    if (f.size > 1500000) { setErro('Arquivo grande demais. Cole só o trecho da reunião.'); return; }
+    const r = new FileReader();
+    r.onload = () => { setTexto(reuniaoLimparLegenda(r.result)); setErro(''); };
+    r.onerror = () => setErro('Não consegui ler esse arquivo. Copie e cole o texto aqui.');
+    r.readAsText(f, 'utf-8');
+    e.target.value = '';
+  };
+
+  const padraoDaArea = area => TEAM.filter(m => m.email && !m.isApprover && (m.area===area || (m.areasExtra||[]).includes(area))).map(m=>m.initials);
+
+  const sugerir = async () => {
+    if (texto.trim().length < 30) { setErro('Cole a transcrição da reunião (pelo menos algumas frases).'); return; }
+    setErro(''); setEtapa('pensando');
+    try {
+      const cu = firebase.auth().currentUser;
+      const idToken = cu ? await cu.getIdToken() : null;
+      const hoje = new Date(); const hojeStr = hoje.getFullYear()+'-'+String(hoje.getMonth()+1).padStart(2,'0')+'-'+String(hoje.getDate()).padStart(2,'0');
+      const r = await fetch('/api/sugerir-tarefas', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ idToken, transcricao: texto, hoje: hojeStr, time: ACTIVE_TEAM.map(m=>({initials:m.initials,name:m.name,area:m.area})) }),
+      });
+      const j = await r.json().catch(()=>({}));
+      if (!r.ok) throw new Error(j.error || ('Erro '+r.status));
+      const iniciais = TEAM.map(m=>m.initials);
+      const lista = (j.tarefas||[]).filter(t=>t && t.titulo).map((t,i)=>{
+        const area = QR_AREAS.includes(t.area) ? t.area : 'Social';
+        const resp = (t.responsaveis||[]).map(x=>String(x).toUpperCase()).filter(x=>iniciais.includes(x));
+        return {
+          id:'s'+i, on:true,
+          title:String(t.titulo).slice(0,120), area,
+          priority: PRIORITIES.includes(t.prioridade) ? t.prioridade : 'Média',
+          deadline: /^\d{4}-\d{2}-\d{2}$/.test(t.prazo||'') ? t.prazo : '',
+          assignees: resp,
+          tipo: t.tipo || '', contexto: t.contexto || '', trecho: t.trecho || '',
+        };
+      });
+      if (!lista.length) { setErro('A IA não encontrou tarefas nessa transcrição. Confira se colou a reunião inteira.'); setEtapa('colar'); return; }
+      setSugs(lista); setEtapa('revisar');
+    } catch (e) {
+      setErro(String(e.message||e).includes('Failed to fetch') ? 'Não consegui falar com o servidor. Tente de novo em instantes.' : e.message);
+      setEtapa('colar');
+    }
+  };
+
+  const mudar = (id, k, v) => setSugs(ss => ss.map(s => s.id===id ? {...s, [k]:v} : s));
+  const alternarResp = (s, ini) => mudar(s.id, 'assignees', s.assignees.includes(ini) ? s.assignees.filter(x=>x!==ini) : [...s.assignees, ini]);
+  const marcadas = sugs.filter(s=>s.on && s.title.trim());
+
+  const criarTodas = () => {
+    marcadas.forEach(s => {
+      const resp = s.assignees.length ? s.assignees : (padraoDaArea(s.area).length ? padraoDaArea(s.area) : [user.initials]);
+      const desc = [s.contexto, s.trecho ? 'Da reunião: “'+s.trecho+'”' : ''].filter(Boolean).join('\n\n');
+      addDemand({
+        title: s.title.trim(), area: s.area, priority: s.priority, deadline: s.deadline || reuniaoMais7(),
+        description: desc, requester: user.name, assignees: resp,
+        ...(s.tipo ? { tipo: s.tipo } : {}),
+      });
+    });
+    setCriadas(marcadas.length);
+    nbToast(marcadas.length === 1 ? '1 demanda criada a partir da reunião.' : marcadas.length+' demandas criadas a partir da reunião.');
+    setSugs([]); setTexto(''); setEtapa('colar');
+  };
+
+  const lblR = { fontSize:11.5, fontWeight:600, color:NB.mut, marginBottom:5, display:'block' };
+  const inpR = { width:'100%', boxSizing:'border-box', background:'#fff', border:'1.5px solid '+NB.bd, borderRadius:9, padding:'8px 11px', fontSize:13, color:NB.txt, outline:'none' };
+
+  return (
+    <Modal onClose={etapa==='pensando' ? ()=>{} : fechar} width={760}>
+      <div style={{padding:'24px 28px 12px',display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:14}}>
+        <div>
+          <h2 style={{fontSize:20,fontWeight:600,color:NB.txt,marginBottom:5,letterSpacing:'-0.01em'}}>Criar demandas a partir de reunião</h2>
+          <p style={{fontSize:13.5,color:NB.mut,lineHeight:1.55}}>
+            {etapa==='revisar'
+              ? 'Essas são as tarefas que saíram da reunião. Ajuste o que precisar, desmarque o que não vale e crie.'
+              : 'Cole a transcrição da reunião (Meet, Zoom, Teams, áudio transcrito) e a plataforma sugere as tarefas.'}
+          </p>
+        </div>
+        <button onClick={fechar} disabled={etapa==='pensando'} style={{padding:8,background:'#fff',border:'1px solid '+NB.bd,borderRadius:9,color:NB.mut,display:'flex',flexShrink:0}}><IX/></button>
+      </div>
+
+      <div style={{padding:'4px 28px 8px'}}>
+        {criadas>0 && etapa==='colar' && (
+          <div style={{display:'flex',alignItems:'center',gap:9,background:'#E1F5EE',border:'1px solid #BEE5D6',borderRadius:10,padding:'9px 13px',marginBottom:10}}>
+            <span style={{color:'#0F6E56',display:'flex'}}><ICheck s={14}/></span>
+            <span style={{fontSize:12.5,color:'#0F6E56'}}>{criadas===1?'1 demanda criada.':criadas+' demandas criadas.'} Elas já estão nos pipelines.</span>
+          </div>
+        )}
+
+        {etapa!=='revisar' && (
+          <React.Fragment>
+            <textarea value={texto} onChange={e=>setTexto(e.target.value)} rows={10} autoFocus disabled={etapa==='pensando'}
+              placeholder={'Cole aqui a transcrição. Ex:\n\nMariana: pra semana que vem a gente precisa do carrossel do Radar e-CAC…\nClara: eu pego a copy, a Millena faz a arte até sexta…'}
+              style={{...inpR,fontSize:13.5,lineHeight:1.6,padding:'13px 14px',resize:'vertical',minHeight:200,background:etapa==='pensando'?NB.col:'#fff'}}/>
+            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:10,marginTop:8,flexWrap:'wrap'}}>
+              <div style={{display:'flex',alignItems:'center',gap:10}}>
+                <input ref={fileRef} type="file" accept=".txt,.vtt,.srt,.md,text/plain" onChange={lerArquivo} style={{display:'none'}}/>
+                <button onClick={()=>fileRef.current && fileRef.current.click()} disabled={etapa==='pensando'}
+                  style={{display:'flex',alignItems:'center',gap:7,padding:'7px 12px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:8,fontSize:12.5,fontWeight:500,color:NB.mut}}>
+                  <IFile s={14}/> Subir arquivo (.txt, .vtt)
+                </button>
+                <span style={{fontSize:11.5,color:NB.mut2}}>{texto.trim() ? texto.trim().split(/\s+/).length.toLocaleString('pt-BR')+' palavras' : ''}</span>
+              </div>
+            </div>
+          </React.Fragment>
+        )}
+
+        {etapa==='revisar' && (
+          <div style={{display:'flex',flexDirection:'column',gap:10}}>
+            {sugs.map(s => (
+              <div key={s.id} style={{border:'1.5px solid '+(s.on?'#CFE3F7':NB.bd),background:s.on?'#fff':NB.col,borderRadius:12,padding:'12px 14px',opacity:s.on?1:0.6}}>
+                <div style={{display:'flex',alignItems:'flex-start',gap:10}}>
+                  <input type="checkbox" checked={s.on} onChange={e=>mudar(s.id,'on',e.target.checked)} style={{width:17,height:17,marginTop:9,accentColor:NB.azul,flexShrink:0}}/>
+                  <div style={{flex:1,minWidth:0,display:'flex',flexDirection:'column',gap:9}}>
+                    <input value={s.title} onChange={e=>mudar(s.id,'title',e.target.value)} style={{...inpR,fontSize:14,fontWeight:600}}/>
+                    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8}}>
+                      <div>
+                        <span style={lblR}>Área</span>
+                        <select value={s.area} onChange={e=>mudar(s.id,'area',e.target.value)} style={inpR}>{QR_AREAS.map(a=><option key={a}>{a}</option>)}</select>
+                      </div>
+                      <div>
+                        <span style={lblR}>Prioridade</span>
+                        <select value={s.priority} onChange={e=>mudar(s.id,'priority',e.target.value)} style={inpR}>{PRIORITIES.map(p=><option key={p}>{p}</option>)}</select>
+                      </div>
+                      <div>
+                        <span style={lblR}>Precisa para quando</span>
+                        <input type="date" value={s.deadline} onChange={e=>mudar(s.id,'deadline',e.target.value)} style={inpR}/>
+                        {!s.deadline && <div style={{fontSize:10.5,color:'#8A6206',marginTop:3}}>Sem prazo na reunião: fica +7 dias</div>}
+                      </div>
+                    </div>
+                    <div>
+                      <span style={lblR}>Responsáveis {s.assignees.length===0 && <span style={{fontWeight:400,color:'#8A6206'}}>(vazio: vai pro time da área)</span>}</span>
+                      <div style={{display:'flex',flexWrap:'wrap',gap:5}}>
+                        {ACTIVE_TEAM.map(m=>{
+                          const on = s.assignees.includes(m.initials);
+                          return <button key={m.id} type="button" onClick={()=>alternarResp(s,m.initials)}
+                            style={{padding:'3px 10px',borderRadius:20,border:'1px solid '+(on?NB.azul:NB.bd),background:on?'#EAF3FD':'#fff',fontSize:11.5,fontWeight:500,color:on?NB.azul:NB.mut}}>{m.name.split(' ')[0]}</button>;
+                        })}
+                      </div>
+                    </div>
+                    {s.contexto && <div style={{fontSize:12.5,color:NB.mut,lineHeight:1.5}}>{s.contexto}</div>}
+                    {s.trecho && <div style={{fontSize:12,color:NB.mut2,fontStyle:'italic',borderLeft:'2px solid '+NB.bd,paddingLeft:9}}>“{s.trecho}”</div>}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {erro && <p style={{fontSize:12.5,color:'#B4232A',marginTop:10}}>{erro}</p>}
+      </div>
+
+      <div style={{padding:'14px 28px 20px',borderTop:'1px solid '+NB.bdSoft,display:'flex',justifyContent:'space-between',alignItems:'center',gap:10,marginTop:8}}>
+        {etapa==='revisar'
+          ? <button onClick={()=>{setEtapa('colar'); setSugs([]);}} style={{padding:'10px 14px',background:'#fff',border:'1px solid '+NB.bd,borderRadius:9,fontSize:13,fontWeight:500,color:NB.mut}}>Voltar pra transcrição</button>
+          : <button onClick={recomecar} disabled={etapa==='pensando'||!texto} style={{padding:'10px 14px',background:'none',border:'none',fontSize:13,fontWeight:500,color:NB.mut2}}>Limpar</button>}
+        {etapa==='revisar'
+          ? <button onClick={criarTodas} disabled={!marcadas.length}
+              style={{padding:'10px 20px',background:marcadas.length?NB.azul:NB.gelo,border:'none',borderRadius:9,fontSize:13.5,fontWeight:600,color:'#fff'}}>
+              {marcadas.length===1 ? 'Criar 1 demanda' : 'Criar '+marcadas.length+' demandas'}
+            </button>
+          : <button onClick={sugerir} disabled={etapa==='pensando'}
+              style={{display:'flex',alignItems:'center',gap:9,padding:'10px 20px',background:NB.azul,border:'none',borderRadius:9,fontSize:13.5,fontWeight:600,color:'#fff',opacity:etapa==='pensando'?0.8:1}}>
+              {etapa==='pensando' && <span style={{width:14,height:14,border:'2px solid rgba(255,255,255,0.4)',borderTopColor:'#fff',borderRadius:'50%',animation:'nb-spin 0.8s linear infinite'}}/>}
+              {etapa==='pensando' ? 'Lendo a reunião…' : 'Sugerir tarefas'}
+            </button>}
+      </div>
+    </Modal>
+  );
+}
+
 /* =========== CRIAÇÃO RÁPIDA: interpreta uma frase falada ou digitada ===========
    Sem IA e sem servidor: regras simples em português, que rodam no navegador.
    Entende área, prioridade, prazo, responsáveis e monta um título limpo. */
@@ -10160,6 +10369,7 @@ function AppContent() {
       <CardModal/>
       <NewModal/>
       <CriacaoRapidaModal/>
+      <ReuniaoModal/>
       <PacoteModal/>
       <NotifyModal/>
       <NotifPermCard/>
